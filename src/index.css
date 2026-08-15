@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* ============================================================
+   Waypoint — "Meridian x Aurora" design system
+   Clean light SaaS base, lifted with an aurora violet→cyan
+   gradient and frosted-glass hero surfaces.
+   ============================================================ */
+:root {
+  --wp-bg: #F5F8FE;          /* cool light canvas            */
+  --wp-surface: #FFFFFF;     /* cards / panels               */
+  --wp-ink: #0F172A;         /* primary text (slate-900)     */
+  --wp-ink-2: #334155;       /* strong secondary (slate-700) */
+  --wp-muted: #64748B;       /* muted (slate-500)            */
+  --wp-faint: #94A3B8;       /* faint (slate-400)            */
+  --wp-border: #E6EBF4;      /* hairline border              */
+  --wp-border-strong: #D6DEEC;
+  --wp-violet: #6D5EF7;
+  --wp-cyan: #22C7E0;
+  --wp-grad: linear-gradient(115deg, #7C6BFF 0%, #5D7BF4 48%, #22C7E0 100%);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: var(--wp-bg);
+  color: var(--wp-ink);
+  font-family: var(--font-sans);
+}
+
+.font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
+
+/* Aurora backdrop — pastel gradient blobs for hero sections (light-safe) */
+.aurora-bg { position: relative; isolation: isolate; }
+.aurora-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 40% at 10% 6%, rgba(124, 107, 255, 0.22), transparent 62%),
+    radial-gradient(38% 36% at 92% 10%, rgba(34, 199, 224, 0.18), transparent 62%),
+    radial-gradient(52% 48% at 74% 108%, rgba(214, 110, 255, 0.14), transparent 60%);
+}
+
+/* Fine grid, used subtly behind heroes */
+.wp-grid {
+  background-image:
+    linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(70% 60% at 50% 0%, #000 40%, transparent 100%);
+  mask-image: radial-gradient(70% 60% at 50% 0%, #000 40%, transparent 100%);
+}
+
+/* Aurora gradient helpers */
+.text-gradient {
+  background: var(--wp-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn-aurora {
+  background: var(--wp-grad);
+  color: #fff;
+  box-shadow: 0 10px 24px -10px rgba(93, 91, 244, 0.55);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+.btn-aurora:hover { filter: saturate(1.08) brightness(1.04); box-shadow: 0 14px 30px -10px rgba(93, 91, 244, 0.6); }
+
+/* Frosted glass surface (reads over the aurora backdrop) */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 24px 60px -28px rgba(31, 41, 90, 0.30);
+}
+
+/* Gradient hairline ring for feature cards */
+.ring-grad {
+  position: relative;
+}
+.ring-grad::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(140deg, rgba(124, 107, 255, 0.5), rgba(34, 199, 224, 0.35), transparent 70%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Light scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 6px; border: 2px solid var(--wp-bg); }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
