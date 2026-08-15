@@ -95,6 +95,10 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   // Which controls this role may see. The server enforces the same table; this
   // only stops the console offering buttons that would come back 403.
   const canSeePayments = can(user?.role, 'payments:read');
+  const canSeeRevenue = can(user?.role, 'revenue:read');
+  // Read-only roles (support) must not be offered actions that would 403.
+  const canWriteOrders = can(user?.role, 'orders:write');
+  const canRecordPayment = can(user?.role, 'payments:write');
   const canSetPricing = can(user?.role, 'pricing:write');
   const canManageStaff = can(user?.role, 'staff:manage');
 
@@ -866,9 +870,13 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             <div className="flex py-12 justify-center"><Loader2 className="h-8 w-8 text-violet-600 animate-spin" /></div>
           ) : (
             <>
-              {/* Premium Main Revenue & Volume Metrics Cards */}
+              {/* Revenue cards — omitted entirely for roles without revenue:read.
+                  The server does not send the figures to them, so rendering the
+                  cards would show GHS 0.00, which reads as "you earned nothing"
+                  rather than "this is not yours to see". */}
+              {canSeeRevenue && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                
+
                 {/* Today */}
                 <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-xl relative overflow-hidden transition-all duration-300 hover:border-violet-400 hover:shadow-violet-500/10 hover:-translate-y-0.5">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full pointer-events-none" />
@@ -934,6 +942,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
 
               </div>
+              )}
 
               {/* Dispatch pipeline — one card: distribution bar + clickable status segments */}
               {(() => {
@@ -1152,7 +1161,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                 {order.currency} {(order.priceAmount / 100).toFixed(2)}
                               </td>
                               <td className="px-4 py-3 text-right whitespace-nowrap">
-                                {next ? (
+                                {next && canWriteOrders ? (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); advanceOrderStatus(order); }}
                                     disabled={advancingId === order.id}
@@ -1596,7 +1605,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       </div>
                     </div>
 
-                    {/* CONTROL BOX: Transition workflow status */}
+                    {/* CONTROL BOX: Transition workflow status — write roles only */}
+                    {canWriteOrders && (
                     <div className="space-y-4 border-t border-slate-200 pt-6">
                       <h3 className="text-xs font-bold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
                         <Edit2 className="h-4 w-4 text-violet-600" /> Workflow Transition Pipeline
@@ -1651,9 +1661,10 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         </div>
                       </div>
                     </div>
+                    )}
 
-                    {/* CONTROL BOX: Mark payment as paid manually */}
-                    {selectedOrderDetails.order.paymentStatus !== 'paid' && (
+                    {/* CONTROL BOX: Mark payment as paid manually — finance/owner only */}
+                    {canRecordPayment && selectedOrderDetails.order.paymentStatus !== 'paid' && (
                       <div className="space-y-4 border-t border-slate-200 pt-6">
                         <h3 className="text-xs font-bold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
                           <CreditCard className="h-4 w-4 text-emerald-600" /> Manual Payment reconciliation

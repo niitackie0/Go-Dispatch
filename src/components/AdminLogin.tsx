@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Lock, Mail, Loader2, AlertCircle, ShieldAlert, Truck, ArrowLeft, Layers, CreditCard, TrendingUp } from 'lucide-react';
+import { Lock, Mail, Loader2, AlertCircle, Truck, ArrowLeft, Layers, CreditCard, TrendingUp } from 'lucide-react';
 import { Link } from '../router.js';
 import type { AdminUser } from '../types.js';
 
@@ -193,18 +193,14 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
             </button>
           </form>
 
-          {/* Demo helper */}
-          <div className="mt-8 rounded-xl bg-white p-4 border border-slate-200 shadow-sm text-xs text-slate-600 space-y-2">
-            <div className="flex items-center gap-1.5 font-semibold text-slate-800">
-              <ShieldAlert className="h-4 w-4 text-violet-600" />
-              Developer sandbox access
-            </div>
-            <p className="leading-relaxed">Credentials are pre-filled for direct sandbox testing:</p>
-            <div className="font-mono bg-slate-50 p-2.5 rounded-lg border border-slate-200 space-y-1 text-[11px] text-slate-700">
-              <div><span className="text-slate-400">Email:</span> admin@waypoint.com</div>
-              <div><span className="text-slate-400">Password:</span> password123</div>
-            </div>
-          </div>
+          {/* No credentials are printed here. This page is reachable by anyone
+              who finds the URL, and a login screen that tells you the password
+              is not a login screen. Staff accounts are issued from the console
+              by an owner. */}
+          <p className="mt-8 text-[11px] text-slate-500 leading-relaxed">
+            Access is issued by an account owner. If you have been locked out, ask
+            an owner to issue you a new password from the staff console.
+          </p>
         </div>
       </div>
     </div>

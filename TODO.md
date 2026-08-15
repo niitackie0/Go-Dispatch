@@ -19,6 +19,12 @@ Small jobs, real exposure. None take more than a few minutes.
   **My Account** in the console, and store the new one in a password manager —
   only a hash is kept, so it cannot be recovered.
 
+- [ ] **Delete the three demo role accounts before launch** — **S**
+  `dispatcher@`, `finance@` and `support@waypoint.com` exist so you can see what
+  each role can and cannot reach. Their passwords are written down in this repo's
+  history and are trivially guessable. Remove them from **Staff Accounts** before
+  this is reachable from the internet.
+
 - [ ] **Delete the stale `db.json`** — **S**
   Untracked and unread by anything since the Postgres port. It only exists now
   to confuse whoever next opens the folder.
