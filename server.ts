@@ -23,6 +23,8 @@ import {
   Payer,
   PaymentTiming
 } from './src/types.js';
+import { requireAdmin } from './src/server/auth.js';
+import { authRouter } from './src/server/routes/auth.js';
 
 dotenv.config();
 
@@ -478,55 +480,15 @@ function writeDB(data: DBStructure): void {
   }
 }
 
-// Generate secure simple token (Session store for simplicity)
-const ACTIVE_TOKENS = new Map<string, AdminUser>();
-
 // Initialize database
 readDB();
 
 // API Endpoints
 
 // 1. AUTHENTICATION
-app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;
-  
-  if (email === 'admin@waypoint.com' && password === 'password123') {
-    const token = 'wp_tok_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-    ACTIVE_TOKENS.set(token, SEED_ADMIN);
-    return res.json({ token, user: SEED_ADMIN });
-  }
-  
-  return res.status(401).json({ error: 'Invalid email or password' });
-});
-
-// Middleware to verify Admin auth token
-function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized. Auth token missing' });
-  }
-  const token = authHeader.split(' ')[1];
-  const admin = ACTIVE_TOKENS.get(token);
-  if (!admin) {
-    return res.status(401).json({ error: 'Unauthorized. Invalid or expired token' });
-  }
-  // Attach user to request
-  (req as any).user = admin;
-  next();
-}
-
-app.get('/api/auth/me', requireAdmin, (req, res) => {
-  res.json({ user: (req as any).user });
-});
-
-app.post('/api/auth/logout', (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    ACTIVE_TOKENS.delete(token);
-  }
-  res.json({ success: true });
-});
+// Credentials are verified against admin_users and sessions are persisted in
+// Postgres, so a restart no longer logs everyone out. See src/server/auth.ts.
+app.use('/api/auth', authRouter);
 
 
 // 2. PRICING CONFIG
@@ -784,7 +746,7 @@ app.get('/api/orders/:id', requireAdmin, (req, res) => {
 // 7. ADMIN: UPDATE ORDER STATUS
 app.patch('/api/orders/:id/status', requireAdmin, (req, res) => {
   const { status, note } = req.body;
-  const admin = (req as any).user;
+  const admin = req.admin!;
 
   if (!status) {
     return res.status(400).json({ error: 'New status is required' });
@@ -828,7 +790,7 @@ app.patch('/api/orders/:id/status', requireAdmin, (req, res) => {
 // 8. ADMIN: MANUAL MARK ORDER AS PAID
 app.post('/api/orders/:id/pay', requireAdmin, (req, res) => {
   const { amount, note, providerReference } = req.body;
-  const admin = (req as any).user;
+  const admin = req.admin!;
 
   const db = readDB();
   const orderIndex = db.orders.findIndex(o => o.id === req.params.id);
