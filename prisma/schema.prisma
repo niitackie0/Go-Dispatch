@@ -107,6 +107,12 @@ model Session {
   expiresAt DateTime @db.Timestamptz(3)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 
+  /// Shown in the "where am I signed in" list so a stranger's session is
+  /// recognisable as one. Updated at most every few minutes, not per request.
+  lastSeenAt DateTime @default(now()) @db.Timestamptz(3)
+  userAgent  String?
+  ipAddress  String?
+
   adminUserId String
   adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
 

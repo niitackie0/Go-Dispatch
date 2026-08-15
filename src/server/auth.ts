@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { verify } from '@node-rs/argon2';
+import { hash, verify } from '@node-rs/argon2';
 import type { NextFunction, Request, Response } from 'express';
 import type { AdminRole, AdminUser } from '../types.js';
 import { hashToken, randomToken } from './ids.js';
@@ -14,11 +14,18 @@ declare global {
   namespace Express {
     interface Request {
       admin?: AdminUser;
+      /** Id of the session this request authenticated with. */
+      sessionId?: string;
     }
   }
 }
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/** Writing lastSeenAt on every request would be a write per API call. */
+const LAST_SEEN_THROTTLE_MS = 5 * 60 * 1000;
+
+export const MIN_PASSWORD_LENGTH = 12;
 
 function toAdminUser(row: {
   id: string;
@@ -36,6 +43,18 @@ function toAdminUser(row: {
   };
 }
 
+export interface RequestMeta {
+  userAgent?: string;
+  ipAddress?: string;
+}
+
+export function requestMeta(req: Request): RequestMeta {
+  return {
+    userAgent: req.headers['user-agent']?.slice(0, 400),
+    ipAddress: req.ip,
+  };
+}
+
 /**
  * Verifies credentials and opens a session.
  *
@@ -44,7 +63,8 @@ function toAdminUser(row: {
  */
 export async function login(
   email: unknown,
-  password: unknown
+  password: unknown,
+  meta: RequestMeta = {}
 ): Promise<{ token: string; user: AdminUser } | null> {
   if (typeof email !== 'string' || typeof password !== 'string') return null;
 
@@ -63,6 +83,8 @@ export async function login(
       tokenHash: hashToken(token),
       adminUserId: admin.id,
       expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+      userAgent: meta.userAgent ?? null,
+      ipAddress: meta.ipAddress ?? null,
     },
   });
 
@@ -85,7 +107,9 @@ function bearerToken(req: Request): string | null {
  * Expired rows are deleted on encounter, which keeps the table tidy without a
  * separate cleanup job at this scale.
  */
-async function resolveSession(token: string): Promise<AdminUser | null> {
+async function resolveSession(
+  token: string
+): Promise<{ admin: AdminUser; sessionId: string } | null> {
   const session = await prisma.session.findUnique({
     where: { tokenHash: hashToken(token) },
     include: { adminUser: true },
@@ -97,7 +121,13 @@ async function resolveSession(token: string): Promise<AdminUser | null> {
     return null;
   }
 
-  return toAdminUser(session.adminUser);
+  if (Date.now() - session.lastSeenAt.getTime() > LAST_SEEN_THROTTLE_MS) {
+    await prisma.session
+      .update({ where: { id: session.id }, data: { lastSeenAt: new Date() } })
+      .catch(() => {});
+  }
+
+  return { admin: toAdminUser(session.adminUser), sessionId: session.id };
 }
 
 export async function requireAdmin(
@@ -112,12 +142,13 @@ export async function requireAdmin(
   }
 
   try {
-    const admin = await resolveSession(token);
-    if (!admin) {
+    const resolved = await resolveSession(token);
+    if (!resolved) {
       res.status(401).json({ error: 'Unauthorized. Invalid or expired token' });
       return;
     }
-    req.admin = admin;
+    req.admin = resolved.admin;
+    req.sessionId = resolved.sessionId;
   } catch (err) {
     // Express 4 does not catch rejections from async middleware, so a database
     // blip here would otherwise take the process down.
@@ -128,6 +159,122 @@ export async function requireAdmin(
 
   next();
 }
+
+/* -------------------------------------------------------------------------
+   Account self-service
+   ------------------------------------------------------------------------- */
+
+export type PasswordChangeFailure = 'wrong-password' | 'too-short' | 'same-password';
+
+/**
+ * Deliberately a flat shape rather than a discriminated union: tsconfig has no
+ * `strict`, and without strictNullChecks TypeScript will not narrow one.
+ */
+export interface PasswordChangeResult {
+  ok: boolean;
+  reason?: PasswordChangeFailure;
+  revokedSessions?: number;
+}
+
+/**
+ * Changes the signed-in user's own password.
+ *
+ * Requires the current password even though the caller already holds a valid
+ * session: it is what stops someone who walked up to an unlocked laptop from
+ * silently taking the account over.
+ *
+ * Every other session is revoked on success — if the reason for changing it was
+ * that someone else knows it, leaving their session alive defeats the point.
+ */
+export async function changeOwnPassword(
+  adminId: string,
+  currentSessionId: string,
+  currentPassword: unknown,
+  newPassword: unknown
+): Promise<PasswordChangeResult> {
+  if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
+    return { ok: false, reason: 'too-short' };
+  }
+  if (typeof currentPassword !== 'string') {
+    return { ok: false, reason: 'wrong-password' };
+  }
+  if (currentPassword === newPassword) {
+    return { ok: false, reason: 'same-password' };
+  }
+
+  const admin = await prisma.adminUser.findUnique({ where: { id: adminId } });
+  if (!admin) return { ok: false, reason: 'wrong-password' };
+
+  const ok = await verify(admin.passwordHash, currentPassword).catch(() => false);
+  if (!ok) return { ok: false, reason: 'wrong-password' };
+
+  const passwordHash = await hash(newPassword);
+
+  const [, revoked] = await prisma.$transaction([
+    prisma.adminUser.update({ where: { id: adminId }, data: { passwordHash } }),
+    prisma.session.deleteMany({
+      where: { adminUserId: adminId, id: { not: currentSessionId } },
+    }),
+  ]);
+
+  return { ok: true, revokedSessions: revoked.count };
+}
+
+export interface SessionSummary {
+  id: string;
+  current: boolean;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+}
+
+export async function listSessions(
+  adminId: string,
+  currentSessionId: string
+): Promise<SessionSummary[]> {
+  const sessions = await prisma.session.findMany({
+    where: { adminUserId: adminId, expiresAt: { gt: new Date() } },
+    orderBy: { lastSeenAt: 'desc' },
+  });
+
+  return sessions.map((s) => ({
+    id: s.id,
+    current: s.id === currentSessionId,
+    userAgent: s.userAgent,
+    ipAddress: s.ipAddress,
+    createdAt: s.createdAt.toISOString(),
+    lastSeenAt: s.lastSeenAt.toISOString(),
+    expiresAt: s.expiresAt.toISOString(),
+  }));
+}
+
+/** Signs the account out everywhere except the session making the request. */
+export async function revokeOtherSessions(
+  adminId: string,
+  currentSessionId: string
+): Promise<number> {
+  const result = await prisma.session.deleteMany({
+    where: { adminUserId: adminId, id: { not: currentSessionId } },
+  });
+  return result.count;
+}
+
+/** Revokes one specific session, but only if it belongs to this account. */
+export async function revokeSessionById(
+  adminId: string,
+  sessionId: string
+): Promise<boolean> {
+  const result = await prisma.session.deleteMany({
+    where: { id: sessionId, adminUserId: adminId },
+  });
+  return result.count > 0;
+}
+
+/* -------------------------------------------------------------------------
+   Login rate limiting
+   ------------------------------------------------------------------------- */
 
 /**
  * Fixed-window rate limit on login attempts, keyed by client IP.

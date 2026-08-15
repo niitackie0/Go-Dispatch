@@ -33,7 +33,8 @@ import {
   ExternalLink,
   Copy,
   Check,
-  Users
+  Users,
+  ShieldCheck
 } from 'lucide-react';
 import {
   Order,
@@ -48,6 +49,7 @@ import {
 } from '../types.js';
 import { can } from '../capabilities.js';
 import StaffManagement from './StaffManagement.js';
+import AccountSecurity from './AccountSecurity.js';
 import { 
   BarChart, 
   Bar, 
@@ -88,7 +90,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     .toUpperCase();
 
   // Navigation tabs within dashboard
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'pipeline' | 'payments' | 'pricing' | 'staff'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'pipeline' | 'payments' | 'pricing' | 'staff' | 'account'>('overview');
 
   // Which controls this role may see. The server enforces the same table; this
   // only stops the console offering buttons that would come back 403.
@@ -751,6 +753,21 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </button>
               )}
 
+              {/* Tab 6: My Account — every role has one */}
+              <button
+                onClick={() => setActiveSubTab('account')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeSubTab === 'account'
+                    ? 'bg-slate-100 text-slate-900 shadow-md border border-slate-200'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center space-x-2.5">
+                  <ShieldCheck className={`h-4.5 w-4.5 ${activeSubTab === 'account' ? 'text-violet-600' : 'text-slate-500'}`} />
+                  <span>My Account</span>
+                </div>
+              </button>
+
             </div>
           </div>
 
@@ -782,6 +799,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     activeSubTab === 'pipeline' ? `Dispatch Pipeline Board ${statusFilter ? `[${getStatusLabel(statusFilter as OrderStatus)}]` : ''}` :
                     activeSubTab === 'payments' ? 'Manual Payments Ledger & Audit Logs' :
                     activeSubTab === 'staff' ? 'Staff Accounts & Permissions' :
+                    activeSubTab === 'account' ? 'My Account & Security' :
                     'Pricing Configuration Rate Panel'
                   }</span>
                 </h1>
@@ -1419,6 +1437,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
       {activeSubTab === 'staff' && canManageStaff && (
         <div className="animate-in fade-in duration-200" id="dash_subtab_staff">
           <StaffManagement token={token} currentUser={user} />
+        </div>
+      )}
+
+      {activeSubTab === 'account' && (
+        <div className="animate-in fade-in duration-200" id="dash_subtab_account">
+          <AccountSecurity token={token} user={user} />
         </div>
       )}
 

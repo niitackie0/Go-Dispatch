@@ -13,10 +13,11 @@ Small jobs, real exposure. None take more than a few minutes.
   transcript. Neon Console → Roles → `neondb_owner` → Reset password, then
   update the two lines in `.env`. Do this before real customer data exists.
 
-- [ ] **Store the admin password somewhere safe** — **S**
-  `admin@waypoint.com` / `u8MoA64Xg588wuLH8dvd`. It is an Argon2 hash in the
-  database and cannot be recovered — losing it means re-running the seed.
-  Put it in a password manager, then consider changing it to something you pick.
+- [ ] **Change the admin password to one you choose** — **S**
+  Currently `admin@waypoint.com` / `u8MoA64Xg588wuLH8dvd`, which was generated
+  by the seed and has since appeared in a chat transcript. Change it from
+  **My Account** in the console, and store the new one in a password manager —
+  only a hash is kept, so it cannot be recovered.
 
 - [ ] **Delete the stale `db.json`** — **S**
   Untracked and unread by anything since the Postgres port. It only exists now
@@ -44,11 +45,6 @@ what the redesign is building into.
 - [ ] **Redesign the admin dashboard** — **L**
   Simple and decluttered, tables over card-grids, lists paginated to 10.
   Must now also be **role-aware**: hide what the signed-in role cannot do.
-
-- [ ] **Staff management screen** — **M**
-  RBAC works but is API-only (`/api/admins`), so roles cannot currently be
-  assigned without curl. Owner-only screen: list staff, add, change role,
-  reset password, remove. Fold into the admin redesign.
 
 - [ ] **Rider view redesign** — **M**
   Used one-handed, outdoors, on a phone, possibly in sunlight. Big targets,
@@ -86,6 +82,21 @@ what the redesign is building into.
   bugs. This already bit us once: `stats?.revenue.today` guarded `stats` but not
   `revenue` and would have white-screened the dashboard for two roles. Expect a
   pile of existing errors when you enable it — that is the point.
+
+- [ ] **Two-factor authentication (TOTP)** — **M**
+  Authenticator-app codes, at least on `owner` accounts — that role can change
+  pricing and create staff. Purely additive: identity already lives in our own
+  tables, so this needs no migration and no vendor.
+
+- [ ] **Password reset by email** — **M** — *needs an email provider first*
+  Today a forgotten password means asking an owner to issue a new one from the
+  Staff tab, which is fine for a small team who can reach each other. Becomes
+  necessary as the team grows. Pairs naturally with booking-receipt emails.
+
+- [ ] **Auth audit log** — **M**
+  Record sign-ins, failed attempts, password changes and role changes. Orders
+  already have `status_history`; account activity has no equivalent, so there is
+  currently no way to answer "who changed this, and when".
 
 - [ ] **Write a real README** — **S**
   The AI Studio one was deleted. Needs: what Waypoint is, setup, the route map,
@@ -130,3 +141,6 @@ what the redesign is building into.
 - Fixed a data leak: tracking search matched phone numbers by substring, so
   searching "0" returned nearly every order in the system
 - RBAC: four roles, one capability table, staff API with lockout guards
+- Staff Accounts screen: add staff, change roles, issue passwords, remove
+- My Account screen: change your own password, see where you are signed in,
+  revoke individual sessions or every other device

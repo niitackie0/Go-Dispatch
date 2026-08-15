@@ -5,14 +5,12 @@
 
 import { hash } from '@node-rs/argon2';
 import { ADMIN_ROLES, type AdminRole, type AdminUser } from '../../types.js';
-import { requireAdmin } from '../auth.js';
+import { MIN_PASSWORD_LENGTH, requireAdmin } from '../auth.js';
 import { asyncRouter } from '../http.js';
 import { requirePermission } from '../permissions.js';
 import { prisma } from '../prisma.js';
 
 export const adminsRouter = asyncRouter();
-
-const MIN_PASSWORD_LENGTH = 12;
 
 function serializeAdmin(row: {
   id: string;
