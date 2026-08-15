@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Router } from 'express';
+import { asyncRouter } from '../http.js';
 import { login, loginRateLimit, requireAdmin, revokeSession } from '../auth.js';
 
-export const authRouter = Router();
+export const authRouter = asyncRouter();
 
 authRouter.post('/login', loginRateLimit, async (req, res) => {
   const { email, password } = req.body ?? {};

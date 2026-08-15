@@ -1,0 +1,160 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { randomToken } from './ids.js';
+import { prisma } from './prisma.js';
+
+/** Auto-queue an order once its pickup is within the hour. */
+const QUEUE_WINDOW_MS = 60 * 60 * 1000;
+
+/** How long a courier's self-service link stays usable once issued. */
+export const RIDER_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Automation rules engine.
+ *
+ * Deliberately only automates ADMINISTRATIVE transitions — physical states
+ * (picked_up / in_transit / delivered) are never invented here, they require a
+ * real signal from a rider.
+ *
+ * The whole pass runs in one transaction. Each rule writes two or three rows
+ * (order + history, or order + payment + history) that must land together, and
+ * later rules read the rows earlier ones wrote — Rule B picks up orders that
+ * Rule A confirmed in the same pass, exactly as the original loop did.
+ *
+ * Returns human-readable actions taken, for logging.
+ */
+export async function runAutomations(): Promise<string[]> {
+  const actions: string[] = [];
+
+  await prisma.$transaction(async (tx) => {
+    // ---- Rule A: payment received -> auto-confirm ---------------------------
+    // Prepaid orders sit in awaiting_payment and cannot dispatch until paid.
+    const toConfirm = await tx.order.findMany({
+      where: { status: 'awaiting_payment', paymentStatus: 'paid' },
+    });
+
+    for (const order of toConfirm) {
+      await tx.order.update({
+        where: { id: order.id },
+        data: { status: 'confirmed' },
+      });
+      await tx.statusHistory.create({
+        data: {
+          orderId: order.id,
+          status: 'confirmed',
+          note: 'Auto-confirmed — payment received',
+          changedByName: 'Waypoint Automation',
+        },
+      });
+      actions.push(`auto-confirmed ${order.trackingCode}`);
+    }
+
+    // ---- Rule B: pickup window + free rider -> auto-queue -------------------
+    // Capacity lives here, not at confirmation: an order stays "confirmed
+    // (awaiting rider)" for as long as the fleet is busy.
+    const due = await tx.order.findMany({
+      where: {
+        status: 'confirmed',
+        scheduledPickupAt: { lte: new Date(Date.now() + QUEUE_WINDOW_MS) },
+      },
+      orderBy: { scheduledPickupAt: 'asc' },
+    });
+
+    if (due.length > 0) {
+      const freeRiders = await tx.rider.findMany({
+        where: { available: true },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      for (const order of due) {
+        const rider = freeRiders.shift();
+        if (!rider) break; // fleet is fully committed; the rest wait
+
+        await tx.rider.update({
+          where: { id: rider.id },
+          data: { available: false },
+        });
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'queued',
+            riderId: rider.id,
+            riderToken: order.riderToken ?? randomToken(),
+            riderTokenExpiresAt: new Date(Date.now() + RIDER_TOKEN_TTL_MS),
+          },
+        });
+        await tx.statusHistory.create({
+          data: {
+            orderId: order.id,
+            status: 'queued',
+            note: `Auto-queued — assigned to ${rider.name}`,
+            changedByName: 'Waypoint Automation',
+          },
+        });
+        actions.push(`auto-queued ${order.trackingCode} -> ${rider.name}`);
+      }
+    }
+
+    // ---- Rule C: delivered on-delivery order -> auto-reconcile payment ------
+    const toReconcile = await tx.order.findMany({
+      where: {
+        status: 'delivered',
+        paymentTiming: 'on_delivery',
+        paymentStatus: { not: 'paid' },
+      },
+    });
+
+    for (const order of toReconcile) {
+      await tx.order.update({
+        where: { id: order.id },
+        data: { paymentStatus: 'paid' },
+      });
+      await tx.payment.create({
+        data: {
+          orderId: order.id,
+          amount: order.priceAmount,
+          currency: order.currency,
+          provider: 'manual',
+          status: 'success',
+          paidAt: new Date(),
+          note: `Auto-reconciled — cash collected on delivery (${order.payer})`,
+        },
+      });
+      await tx.statusHistory.create({
+        data: {
+          orderId: order.id,
+          status: 'delivered',
+          note: 'Payment auto-reconciled — collected on delivery',
+          changedByName: 'Waypoint Automation',
+        },
+      });
+      actions.push(`auto-reconciled ${order.trackingCode}`);
+    }
+
+    // ---- Free the rider once the job is finished ---------------------------
+    // The token is left in place so the courier's page still renders straight
+    // after they mark delivered; riderTokenExpiresAt retires it later.
+    const finished = await tx.order.findMany({
+      where: {
+        status: { in: ['delivered', 'cancelled'] },
+        riderId: { not: null },
+        rider: { available: false },
+      },
+      include: { rider: true },
+    });
+
+    for (const order of finished) {
+      if (!order.rider) continue;
+      await tx.rider.update({
+        where: { id: order.rider.id },
+        data: { available: true },
+      });
+      actions.push(`freed rider ${order.rider.name}`);
+    }
+  });
+
+  return actions;
+}

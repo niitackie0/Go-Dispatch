@@ -1,0 +1,66 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import type { Prisma } from '@prisma/client';
+import { asyncRouter } from '../http.js';
+import type { DashboardStats, OrderStatus } from '../../types.js';
+import { requireAdmin } from '../auth.js';
+import { prisma } from '../prisma.js';
+
+export const statsRouter = asyncRouter();
+
+/**
+ * A payment counts towards the period it was settled in, falling back to when
+ * it was created if it has no paidAt.
+ */
+function settledSince(since: Date): Prisma.PaymentWhereInput {
+  return {
+    status: 'success',
+    OR: [{ paidAt: { gte: since } }, { paidAt: null, createdAt: { gte: since } }],
+  };
+}
+
+async function sumRevenue(where: Prisma.PaymentWhereInput): Promise<number> {
+  const result = await prisma.payment.aggregate({ where, _sum: { amount: true } });
+  return result._sum.amount ?? 0;
+}
+
+statsRouter.get('/', requireAdmin, async (_req, res) => {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // Summed in the database rather than by walking every payment in memory.
+  const [today, week, month, allTime, grouped] = await Promise.all([
+    sumRevenue(settledSince(todayStart)),
+    sumRevenue(settledSince(oneWeekAgo)),
+    sumRevenue(settledSince(oneMonthAgo)),
+    sumRevenue({ status: 'success' }),
+    prisma.order.groupBy({ by: ['status'], _count: { _all: true } }),
+  ]);
+
+  // The dashboard expects every status present, including the zeroes.
+  const counts: Record<OrderStatus, number> = {
+    requested: 0,
+    awaiting_payment: 0,
+    confirmed: 0,
+    queued: 0,
+    picked_up: 0,
+    in_transit: 0,
+    delivered: 0,
+    cancelled: 0,
+  };
+  for (const row of grouped) {
+    counts[row.status] = row._count._all;
+  }
+
+  const stats: DashboardStats = {
+    revenue: { today, week, month, allTime },
+    counts,
+  };
+
+  res.json(stats);
+});
