@@ -10,6 +10,7 @@ import {
   Copy,
   KeyRound,
   Loader2,
+  LogOut,
   Plus,
   RefreshCw,
   Trash2,
@@ -183,9 +184,23 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
     const ok = await mutate(
       `/api/admins/${member.id}`,
       { method: 'PATCH', body: JSON.stringify({ password }) },
-      `New password issued for ${member.name}.`
+      // A reset always signs them out everywhere too — see the server-side
+      // comment in routes/admins.ts for why that is not optional.
+      `New password issued for ${member.name}. They are signed out everywhere until they use it.`
     );
     if (ok) setIssuedPassword({ id: member.id, value: password });
+    setBusyId(null);
+  };
+
+  /** For a lost device where the person still works here — keep the account,
+   *  drop every open session. */
+  const handleSignOutEverywhere = async (member: AdminUser) => {
+    setBusyId(member.id);
+    await mutate(
+      `/api/admins/${member.id}/sessions`,
+      { method: 'DELETE' },
+      `${member.name} signed out everywhere.`
+    );
     setBusyId(null);
   };
 
@@ -484,10 +499,21 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                             onClick={() => handleResetPassword(member)}
                             disabled={busy}
                             className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:text-slate-900 hover:border-violet-400 transition-all cursor-pointer disabled:opacity-50"
-                            title="Issue a new password"
+                            title="Issue a new password — also signs them out everywhere"
                           >
                             <KeyRound className="h-3.5 w-3.5" />
                           </button>
+
+                          {!isSelf && (
+                            <button
+                              onClick={() => handleSignOutEverywhere(member)}
+                              disabled={busy}
+                              className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:text-amber-600 hover:border-amber-400 transition-all cursor-pointer disabled:opacity-50"
+                              title="Sign out everywhere — for a lost device, without changing anything else"
+                            >
+                              <LogOut className="h-3.5 w-3.5" />
+                            </button>
+                          )}
 
                           {confirmDeleteId === member.id ? (
                             <div className="flex items-center gap-1">

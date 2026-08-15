@@ -261,6 +261,20 @@ export async function revokeOtherSessions(
   return result.count;
 }
 
+/**
+ * Signs an account out everywhere, with no exception.
+ *
+ * For an OWNER acting on someone else's account: after resetting a forgotten
+ * password, and as a standalone "sign this person out" action for a lost
+ * device or someone who has left. Deleting the account does this too (the
+ * sessions cascade), but this covers the case where the account should stay —
+ * only its open sessions should not.
+ */
+export async function revokeAllSessions(adminId: string): Promise<number> {
+  const result = await prisma.session.deleteMany({ where: { adminUserId: adminId } });
+  return result.count;
+}
+
 /** Revokes one specific session, but only if it belongs to this account. */
 export async function revokeSessionById(
   adminId: string,

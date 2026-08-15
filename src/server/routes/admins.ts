@@ -5,7 +5,7 @@
 
 import { hash } from '@node-rs/argon2';
 import { ADMIN_ROLES, type AdminRole, type AdminUser } from '../../types.js';
-import { MIN_PASSWORD_LENGTH, requireAdmin } from '../auth.js';
+import { MIN_PASSWORD_LENGTH, requireAdmin, revokeAllSessions } from '../auth.js';
 import { asyncRouter } from '../http.js';
 import { requirePermission } from '../permissions.js';
 import { prisma } from '../prisma.js';
@@ -132,8 +132,33 @@ adminsRouter.patch('/:id', requireAdmin, requirePermission('staff:manage'), asyn
     select: SELECT,
   });
 
-  res.json(serializeAdmin(updated));
+  // A password reset by an owner is almost always "I no longer trust the old
+  // one" — a forgotten password, a lost device, or someone leaving. Whatever
+  // the reason, a session opened with the old password should not survive it.
+  const revokedSessions = data.passwordHash ? await revokeAllSessions(target.id) : 0;
+
+  res.json({ ...serializeAdmin(updated), revokedSessions });
 });
+
+/**
+ * Sign an account out everywhere without touching its password or role.
+ * For a lost or stolen device where the person still works here — the account
+ * should stay, but every open session should not.
+ */
+adminsRouter.delete(
+  '/:id/sessions',
+  requireAdmin,
+  requirePermission('staff:manage'),
+  async (req, res) => {
+    const target = await prisma.adminUser.findUnique({ where: { id: req.params.id } });
+    if (!target) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    const revokedSessions = await revokeAllSessions(target.id);
+    res.json({ success: true, revokedSessions });
+  }
+);
 
 adminsRouter.delete('/:id', requireAdmin, requirePermission('staff:manage'), async (req, res) => {
   const actor = req.admin!;

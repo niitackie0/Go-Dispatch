@@ -99,6 +99,11 @@ what the redesign is building into.
   Staff tab, which is fine for a small team who can reach each other. Becomes
   necessary as the team grows. Pairs naturally with booking-receipt emails.
 
+- [ ] **Session cleanup on role/name edits from Staff Accounts** — **S**
+  A role change already takes effect immediately (checked live on every
+  request), so no session action is needed there. Worth a second look if
+  self-service profile edits are added later.
+
 - [ ] **Auth audit log** — **M**
   Record sign-ins, failed attempts, password changes and role changes. Orders
   already have `status_history`; account activity has no equivalent, so there is
