@@ -1,0 +1,288 @@
+// Waypoint — courier booking, dispatch and tracking.
+//
+// Money is stored as an integer number of pesewas (GHS minor units), never a
+// float. 5000 == GHS 50.00. All timestamps are timestamptz.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7 no longer takes the connection URL here; see prisma.config.ts.
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums — these mirror src/types.ts exactly.
+// ---------------------------------------------------------------------------
+
+enum PackageSize {
+  small
+  medium
+  large
+}
+
+enum OrderStatus {
+  requested
+  awaiting_payment
+  confirmed
+  queued
+  picked_up
+  in_transit
+  delivered
+  cancelled
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  refunded
+}
+
+enum PaymentProvider {
+  manual
+  momo
+}
+
+enum PaymentRecordStatus {
+  pending
+  success
+  failed
+}
+
+/// Who settles the bill for a delivery.
+enum Payer {
+  sender
+  recipient
+}
+
+/// When the bill is settled: up front (gates confirmation) or at the door.
+enum PaymentTiming {
+  prepaid
+  on_delivery
+}
+
+// ---------------------------------------------------------------------------
+// Staff and sessions
+// ---------------------------------------------------------------------------
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  /// Argon2id hash. Never store or log the plaintext.
+  passwordHash String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  sessions         Session[]
+  statusChanges    StatusHistory[]
+  recordedPayments Payment[]
+
+  @@map("admin_users")
+}
+
+/// Admin sessions live here rather than in process memory, so a restart or a
+/// second instance does not log everyone out.
+model Session {
+  id        String   @id @default(cuid())
+  /// SHA-256 of the bearer token. The raw token is only ever sent to the client,
+  /// so a database leak cannot be replayed as a login.
+  tokenHash String   @unique
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Fleet
+// ---------------------------------------------------------------------------
+
+model Rider {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String   @unique
+  /// False while the rider is carrying an active job.
+  available Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  orders Order[]
+
+  @@index([available])
+  @@map("riders")
+}
+
+// ---------------------------------------------------------------------------
+// Customers
+// ---------------------------------------------------------------------------
+
+/// Optional directory of repeat senders. Orders deliberately keep their own
+/// copy of the sender/recipient details: an order is a historical record of a
+/// delivery, so it must not change when someone later edits their profile.
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String   @unique
+  email     String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  orders Order[]
+
+  @@map("customers")
+}
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+
+model Order {
+  id String @id @default(cuid())
+
+  /// Customer-facing code, e.g. WP-4821-330. Unique is enforced here so a
+  /// generation collision fails loudly and can be retried, rather than
+  /// silently pointing two customers at the same parcel.
+  trackingCode String @unique
+
+  senderName   String
+  senderPhone  String
+  pickupAddress String
+  pickupNotes   String?
+
+  recipientName  String
+  recipientPhone String
+  dropoffAddress String
+  dropoffNotes   String?
+
+  packageSize        PackageSize
+  packageWeightKg    Decimal     @db.Decimal(6, 2)
+  packageDescription String
+
+  scheduledPickupAt DateTime @db.Timestamptz(3)
+
+  /// Integer pesewas. 5000 == GHS 50.00.
+  priceAmount Int
+  currency    String @default("GHS") @db.VarChar(3)
+
+  status        OrderStatus   @default(requested)
+  paymentStatus PaymentStatus @default(pending)
+  payer         Payer         @default(sender)
+  paymentTiming PaymentTiming @default(on_delivery)
+
+  /// Opaque token backing the rider's self-service link. Generated with
+  /// crypto.randomBytes, and cleared once the order reaches a terminal state
+  /// so old links stop working.
+  riderToken          String?   @unique
+  riderTokenExpiresAt DateTime? @db.Timestamptz(3)
+
+  riderId String?
+  rider   Rider?  @relation(fields: [riderId], references: [id], onDelete: SetNull)
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  payments      Payment[]
+  statusHistory StatusHistory[]
+
+  // Indexes chosen to match how the app actually queries:
+  // the dashboard filters by status, lists newest-first, and reports on ranges.
+  @@index([status])
+  @@index([createdAt])
+  @@index([riderId])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+// ---------------------------------------------------------------------------
+// Money
+// ---------------------------------------------------------------------------
+
+model Payment {
+  id String @id @default(cuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  /// Integer pesewas, matching Order.priceAmount.
+  amount   Int
+  currency String @default("GHS") @db.VarChar(3)
+
+  provider PaymentProvider
+  /// Provider-side transaction id. Unique so a replayed MoMo webhook cannot
+  /// be recorded as a second payment.
+  providerReference String? @unique
+
+  status PaymentRecordStatus @default(pending)
+  paidAt DateTime?           @db.Timestamptz(3)
+
+  /// Set when an admin records a payment by hand.
+  recordedByAdminId String?
+  recordedByAdmin   AdminUser? @relation(fields: [recordedByAdminId], references: [id], onDelete: SetNull)
+
+  note      String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([orderId])
+  @@index([status])
+  @@index([paidAt])
+  @@map("payments")
+}
+
+// ---------------------------------------------------------------------------
+// Audit trail
+// ---------------------------------------------------------------------------
+
+/// Append-only. Every status transition writes a row, which is what makes the
+/// customer tracking timeline and any later dispute investigation possible.
+model StatusHistory {
+  id String @id @default(cuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  status OrderStatus
+  note   String?
+
+  /// Null when the change came from automation or from a rider link rather
+  /// than a signed-in admin. changedByName is denormalised so the timeline
+  /// still reads correctly if the admin account is later removed.
+  changedByAdminId String?
+  changedByAdmin   AdminUser? @relation(fields: [changedByAdminId], references: [id], onDelete: SetNull)
+  changedByName    String?
+
+  changedAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([orderId, changedAt])
+  @@map("status_history")
+}
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+
+/// Single-row table holding the live price list. The id is pinned to 1 with a
+/// check constraint in the migration, so a second row cannot be created.
+model PricingConfig {
+  id Int @id @default(1)
+
+  /// All in integer pesewas.
+  small  Int
+  medium Int
+  large  Int
+
+  currency  String   @default("GHS") @db.VarChar(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("pricing_config")
+}
