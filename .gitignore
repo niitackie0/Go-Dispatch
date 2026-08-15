@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Local dev database — server.ts seeds this on first boot.
+db.json

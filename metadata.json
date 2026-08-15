@@ -1,6 +1,0 @@
-{
-  "name": "Waypoint",
-  "description": "Waypoint is a two-sided courier and parcel delivery booking, tracking, and dispatch pipeline platform with an admin dashboard.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
