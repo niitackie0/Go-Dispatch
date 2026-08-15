@@ -819,7 +819,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     <div>
                       <span className="text-[10px] uppercase tracking-widest font-mono text-slate-500 font-bold block">Today's Revenue</span>
                       <span className="text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
-                        GHS {((stats?.revenue.today || 0) / 100).toFixed(2)}
+                        GHS {((stats?.revenue?.today || 0) / 100).toFixed(2)}
                       </span>
                       <span className="text-[10px] text-emerald-600 font-semibold mt-1.5 flex items-center gap-1">
                         <TrendingUp className="h-3 w-3" /> Settled Mobile Money / Cash
@@ -835,7 +835,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     <div>
                       <span className="text-[10px] uppercase tracking-widest font-mono text-slate-500 font-bold block">Weekly Revenue</span>
                       <span className="text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
-                        GHS {((stats?.revenue.week || 0) / 100).toFixed(2)}
+                        GHS {((stats?.revenue?.week || 0) / 100).toFixed(2)}
                       </span>
                       <span className="text-[10px] text-slate-500 font-medium mt-1.5 block">
                         Past 7 trailing calendar days
@@ -851,7 +851,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     <div>
                       <span className="text-[10px] uppercase tracking-widest font-mono text-slate-500 font-bold block">Monthly Revenue</span>
                       <span className="text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
-                        GHS {((stats?.revenue.month || 0) / 100).toFixed(2)}
+                        GHS {((stats?.revenue?.month || 0) / 100).toFixed(2)}
                       </span>
                       <span className="text-[10px] text-slate-500 font-medium mt-1.5 block">
                         Past 30 calendar days
@@ -867,7 +867,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     <div>
                       <span className="text-[10px] uppercase tracking-widest font-mono text-slate-500 font-bold block">All Time Collected</span>
                       <span className="text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
-                        GHS {((stats?.revenue.allTime || 0) / 100).toFixed(2)}
+                        GHS {((stats?.revenue?.allTime || 0) / 100).toFixed(2)}
                       </span>
                       <span className="text-[10px] text-slate-500 font-medium mt-1.5 block">
                         Entire operational database sum

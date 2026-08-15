@@ -5,7 +5,7 @@
 
 import { verify } from '@node-rs/argon2';
 import type { NextFunction, Request, Response } from 'express';
-import type { AdminUser } from '../types.js';
+import type { AdminRole, AdminUser } from '../types.js';
 import { hashToken, randomToken } from './ids.js';
 import { prisma } from './prisma.js';
 
@@ -24,7 +24,7 @@ function toAdminUser(row: {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: AdminRole;
   createdAt: Date;
 }): AdminUser {
   return {

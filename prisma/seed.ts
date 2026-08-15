@@ -65,7 +65,7 @@ async function main() {
       data: {
         name: 'Waypoint Dispatch Admin',
         email: ADMIN_EMAIL,
-        role: 'admin',
+        role: 'owner',
         passwordHash: await hash(password),
       },
     });

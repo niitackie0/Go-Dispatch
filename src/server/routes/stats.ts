@@ -7,6 +7,7 @@ import type { Prisma } from '@prisma/client';
 import { asyncRouter } from '../http.js';
 import type { DashboardStats, OrderStatus } from '../../types.js';
 import { requireAdmin } from '../auth.js';
+import { can, requirePermission } from '../permissions.js';
 import { prisma } from '../prisma.js';
 
 export const statsRouter = asyncRouter();
@@ -27,18 +28,23 @@ async function sumRevenue(where: Prisma.PaymentWhereInput): Promise<number> {
   return result._sum.amount ?? 0;
 }
 
-statsRouter.get('/', requireAdmin, async (_req, res) => {
+statsRouter.get('/', requireAdmin, requirePermission('orders:read'), async (req, res) => {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+  // Turnover is not everyone's business — a dispatcher gets the counts they
+  // need to run the road operation and nothing about money. The figures are
+  // not merely hidden in the UI; they are never queried.
+  const showRevenue = can(req.admin!.role, 'revenue:read');
+
   // Summed in the database rather than by walking every payment in memory.
   const [today, week, month, allTime, grouped] = await Promise.all([
-    sumRevenue(settledSince(todayStart)),
-    sumRevenue(settledSince(oneWeekAgo)),
-    sumRevenue(settledSince(oneMonthAgo)),
-    sumRevenue({ status: 'success' }),
+    showRevenue ? sumRevenue(settledSince(todayStart)) : 0,
+    showRevenue ? sumRevenue(settledSince(oneWeekAgo)) : 0,
+    showRevenue ? sumRevenue(settledSince(oneMonthAgo)) : 0,
+    showRevenue ? sumRevenue({ status: 'success' }) : 0,
     prisma.order.groupBy({ by: ['status'], _count: { _all: true } }),
   ]);
 
@@ -58,7 +64,7 @@ statsRouter.get('/', requireAdmin, async (_req, res) => {
   }
 
   const stats: DashboardStats = {
-    revenue: { today, week, month, allTime },
+    ...(showRevenue ? { revenue: { today, week, month, allTime } } : {}),
     counts,
   };
 

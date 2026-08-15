@@ -5,6 +5,7 @@
 
 import { asyncRouter } from '../http.js';
 import { requireAdmin } from '../auth.js';
+import { requirePermission } from '../permissions.js';
 import { prisma } from '../prisma.js';
 
 export const pricingRouter = asyncRouter();
@@ -23,7 +24,7 @@ pricingRouter.get('/', async (_req, res) => {
   });
 });
 
-pricingRouter.patch('/', requireAdmin, async (req, res) => {
+pricingRouter.patch('/', requireAdmin, requirePermission('pricing:write'), async (req, res) => {
   const { small, medium, large } = req.body ?? {};
 
   // Prices are integer pesewas; a fractional or negative price is a bug

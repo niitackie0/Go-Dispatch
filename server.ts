@@ -9,6 +9,7 @@ import type { NextFunction, Request, Response } from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { runAutomations } from './src/server/automations.js';
+import { adminsRouter } from './src/server/routes/admins.js';
 import { authRouter } from './src/server/routes/auth.js';
 import { ordersRouter } from './src/server/routes/orders.js';
 import { paymentsRouter } from './src/server/routes/payments.js';
@@ -24,6 +25,7 @@ app.use(express.json());
 
 // API
 app.use('/api/auth', authRouter);
+app.use('/api/admins', adminsRouter);
 app.use('/api/pricing', pricingRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/payments', paymentsRouter);

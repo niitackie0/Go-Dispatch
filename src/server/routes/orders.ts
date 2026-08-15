@@ -7,6 +7,7 @@ import type { Prisma } from '@prisma/client';
 import { asyncRouter } from '../http.js';
 import type { OrderStatus, PackageSize, Payer, PaymentTiming } from '../../types.js';
 import { requireAdmin } from '../auth.js';
+import { requirePermission } from '../permissions.js';
 import { runAutomations } from '../automations.js';
 import { withTrackingCode } from '../ids.js';
 import { prisma } from '../prisma.js';
@@ -226,7 +227,7 @@ ordersRouter.post('/book', async (req, res) => {
 /* ---------------------------------------------------------------------------
    ADMIN: LIST WITH FILTERS
    --------------------------------------------------------------------------- */
-ordersRouter.get('/', requireAdmin, async (req, res) => {
+ordersRouter.get('/', requireAdmin, requirePermission('orders:read'), async (req, res) => {
   const { status, search, startDate, endDate } = req.query;
 
   const where: Prisma.OrderWhereInput = {};
@@ -272,7 +273,7 @@ ordersRouter.get('/', requireAdmin, async (req, res) => {
 /* ---------------------------------------------------------------------------
    ADMIN: ORDER DETAIL
    --------------------------------------------------------------------------- */
-ordersRouter.get('/:id', requireAdmin, async (req, res) => {
+ordersRouter.get('/:id', requireAdmin, requirePermission('orders:read'), async (req, res) => {
   const order = await prisma.order.findUnique({
     where: { id: req.params.id },
     include: {
@@ -296,7 +297,7 @@ ordersRouter.get('/:id', requireAdmin, async (req, res) => {
 /* ---------------------------------------------------------------------------
    ADMIN: UPDATE STATUS
    --------------------------------------------------------------------------- */
-ordersRouter.patch('/:id/status', requireAdmin, async (req, res) => {
+ordersRouter.patch('/:id/status', requireAdmin, requirePermission('orders:write'), async (req, res) => {
   const { status, note } = req.body ?? {};
   const admin = req.admin!;
 
@@ -345,7 +346,7 @@ ordersRouter.patch('/:id/status', requireAdmin, async (req, res) => {
 /* ---------------------------------------------------------------------------
    ADMIN: RECORD A PAYMENT BY HAND
    --------------------------------------------------------------------------- */
-ordersRouter.post('/:id/pay', requireAdmin, async (req, res) => {
+ordersRouter.post('/:id/pay', requireAdmin, requirePermission('payments:write'), async (req, res) => {
   const { amount, note, providerReference } = req.body ?? {};
   const admin = req.admin!;
 

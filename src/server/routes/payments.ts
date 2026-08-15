@@ -5,6 +5,7 @@
 
 import { asyncRouter } from '../http.js';
 import { requireAdmin } from '../auth.js';
+import { requirePermission } from '../permissions.js';
 import { prisma } from '../prisma.js';
 import { serializePayment } from '../serialize.js';
 
@@ -16,7 +17,7 @@ function csvCell(value: unknown): string {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
-paymentsRouter.get('/export', requireAdmin, async (_req, res) => {
+paymentsRouter.get('/export', requireAdmin, requirePermission('payments:read'), async (_req, res) => {
   const payments = await prisma.payment.findMany({
     include: { order: true },
     orderBy: { createdAt: 'desc' },
@@ -52,7 +53,7 @@ paymentsRouter.get('/export', requireAdmin, async (_req, res) => {
   res.status(200).send(rows.join('\n') + '\n');
 });
 
-paymentsRouter.get('/', requireAdmin, async (_req, res) => {
+paymentsRouter.get('/', requireAdmin, requirePermission('payments:read'), async (_req, res) => {
   const payments = await prisma.payment.findMany({
     include: { order: true },
     orderBy: { createdAt: 'desc' },

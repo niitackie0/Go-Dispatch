@@ -63,6 +63,18 @@ enum PaymentTiming {
   on_delivery
 }
 
+/// Staff roles. Capabilities are mapped in src/server/permissions.ts.
+enum Role {
+  /// Everything, including pricing and staff accounts.
+  owner
+  /// Orders, statuses and riders. No pricing, no payment recording.
+  dispatcher
+  /// Payments, exports and revenue. No dispatch.
+  finance
+  /// Read-only, for answering customer calls.
+  support
+}
+
 // ---------------------------------------------------------------------------
 // Staff and sessions
 // ---------------------------------------------------------------------------
@@ -73,7 +85,8 @@ model AdminUser {
   email        String   @unique
   /// Argon2id hash. Never store or log the plaintext.
   passwordHash String
-  role         String   @default("admin")
+  /// Least privilege by default; an owner must deliberately grant more.
+  role         Role     @default(support)
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 

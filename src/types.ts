@@ -130,16 +130,25 @@ export interface PricingConfig {
   currency: string;
 }
 
+/**
+ * Staff roles. Capabilities are mapped in src/server/permissions.ts, which is
+ * the single place the rules live — the UI only uses these to hide controls.
+ */
+export type AdminRole = 'owner' | 'dispatcher' | 'finance' | 'support';
+
+export const ADMIN_ROLES: AdminRole[] = ['owner', 'dispatcher', 'finance', 'support'];
+
 export interface AdminUser {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: AdminRole;
   createdAt: string;
 }
 
 export interface DashboardStats {
-  revenue: {
+  /** Omitted for roles without `revenue:read` — a dispatcher sees no turnover. */
+  revenue?: {
     today: number;
     week: number;
     month: number;
