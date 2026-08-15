@@ -12,34 +12,70 @@ import TrackPage from './components/TrackPage.js';
 import AdminLogin from './components/AdminLogin.js';
 import AdminDashboard from './components/AdminDashboard.js';
 import RiderView from './components/RiderView.js';
-
-interface AdminUserInfo {
-  name: string;
-  email: string;
-}
+import type { AdminUser } from './types.js';
 
 export default function App() {
   const { path, navigate } = useRouter();
   const [adminToken, setAdminToken] = useState<string | null>(null);
-  const [adminUser, setAdminUser] = useState<AdminUserInfo | null>(null);
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [authLoaded, setAuthLoaded] = useState(false);
 
-  // Restore admin session from localStorage on mount.
+  // Restore the admin session on mount, then confirm it with the server.
+  //
+  // The stored copy is only a hint: the token may have been revoked, or the
+  // account's role changed, since it was written. /api/auth/me is the source of
+  // truth, and it also repairs sessions stored before roles existed.
   useEffect(() => {
     const storedToken = localStorage.getItem('wp_admin_token');
     const storedUser = localStorage.getItem('wp_admin_user');
-    if (storedToken && storedUser) {
-      setAdminToken(storedToken);
+
+    if (!storedToken) {
+      setAuthLoaded(true);
+      return;
+    }
+
+    setAdminToken(storedToken);
+    if (storedUser) {
       try {
         setAdminUser(JSON.parse(storedUser));
       } catch {
         setAdminUser(null);
       }
     }
-    setAuthLoaded(true);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${storedToken}` },
+        });
+        if (cancelled) return;
+
+        if (res.status === 401) {
+          localStorage.removeItem('wp_admin_token');
+          localStorage.removeItem('wp_admin_user');
+          setAdminToken(null);
+          setAdminUser(null);
+        } else if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem('wp_admin_user', JSON.stringify(data.user));
+          setAdminUser(data.user);
+        }
+        // Any other status (e.g. 503) leaves the stored session alone rather
+        // than signing someone out over a transient server problem.
+      } catch {
+        // Offline — keep what we have.
+      } finally {
+        if (!cancelled) setAuthLoaded(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const handleAdminLogin = (token: string, user: AdminUserInfo) => {
+  const handleAdminLogin = (token: string, user: AdminUser) => {
     localStorage.setItem('wp_admin_token', token);
     localStorage.setItem('wp_admin_user', JSON.stringify(user));
     setAdminToken(token);

@@ -6,14 +6,15 @@
 import React, { useState } from 'react';
 import { Lock, Mail, Loader2, AlertCircle, ShieldAlert, Truck, ArrowLeft, Layers, CreditCard, TrendingUp } from 'lucide-react';
 import { Link } from '../router.js';
+import type { AdminUser } from '../types.js';
 
 interface AdminLoginProps {
-  onLoginSuccess: (token: string, user: { name: string; email: string }) => void;
+  onLoginSuccess: (token: string, user: AdminUser) => void;
 }
 
 export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
-  const [email, setEmail] = useState('admin@waypoint.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,7 +30,12 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
         body: JSON.stringify({ email, password }),
       });
       if (!res.ok) {
-        throw new Error('Invalid email or password credentials. Please try again.');
+        // Surface what the server actually said — "too many attempts" is very
+        // different from "wrong password", and guessing again will not help.
+        const body = await res.json().catch(() => null);
+        throw new Error(
+          body?.error || 'Invalid email or password credentials. Please try again.'
+        );
       }
       const data = await res.json();
       onLoginSuccess(data.token, data.user);

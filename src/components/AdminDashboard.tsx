@@ -32,18 +32,22 @@ import {
   LogOut,
   ExternalLink,
   Copy,
-  Check
+  Check,
+  Users
 } from 'lucide-react';
-import { 
-  Order, 
-  Payment, 
-  StatusHistory, 
-  PricingConfig, 
-  DashboardStats, 
-  OrderStatus, 
+import {
+  Order,
+  Payment,
+  StatusHistory,
+  PricingConfig,
+  DashboardStats,
+  OrderStatus,
   PaymentStatus,
-  PackageSize
+  PackageSize,
+  AdminUser
 } from '../types.js';
+import { can } from '../capabilities.js';
+import StaffManagement from './StaffManagement.js';
 import { 
   BarChart, 
   Bar, 
@@ -58,7 +62,7 @@ import { Link } from '../router.js';
 
 interface AdminDashboardProps {
   token: string;
-  user: { name: string; email: string } | null;
+  user: AdminUser | null;
   onLogout: () => void;
 }
 
@@ -84,7 +88,20 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     .toUpperCase();
 
   // Navigation tabs within dashboard
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'pipeline' | 'payments' | 'pricing'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'pipeline' | 'payments' | 'pricing' | 'staff'>('overview');
+
+  // Which controls this role may see. The server enforces the same table; this
+  // only stops the console offering buttons that would come back 403.
+  const canSeePayments = can(user?.role, 'payments:read');
+  const canSetPricing = can(user?.role, 'pricing:write');
+  const canManageStaff = can(user?.role, 'staff:manage');
+
+  // A role that loses access to the tab it is standing on gets moved off it.
+  useEffect(() => {
+    if (activeSubTab === 'payments' && !canSeePayments) setActiveSubTab('overview');
+    if (activeSubTab === 'pricing' && !canSetPricing) setActiveSubTab('overview');
+    if (activeSubTab === 'staff' && !canManageStaff) setActiveSubTab('overview');
+  }, [activeSubTab, canSeePayments, canSetPricing, canManageStaff]);
 
   // Loading indicator states
   const [loadingStats, setLoadingStats] = useState(true);
@@ -684,6 +701,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               </button>
 
               {/* Tab 3: Payments Ledger */}
+              {canSeePayments && (
               <button
                 onClick={() => setActiveSubTab('payments')}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -697,8 +715,10 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <span>Payments Ledger</span>
                 </div>
               </button>
+              )}
 
               {/* Tab 4: Pricing Controller */}
+              {canSetPricing && (
               <button
                 onClick={() => setActiveSubTab('pricing')}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -712,6 +732,24 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <span>Pricing Configuration</span>
                 </div>
               </button>
+              )}
+
+              {/* Tab 5: Staff Accounts — owners only */}
+              {canManageStaff && (
+                <button
+                  onClick={() => setActiveSubTab('staff')}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeSubTab === 'staff'
+                      ? 'bg-slate-100 text-slate-900 shadow-md border border-slate-200'
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2.5">
+                    <Users className={`h-4.5 w-4.5 ${activeSubTab === 'staff' ? 'text-violet-600' : 'text-slate-500'}`} />
+                    <span>Staff Accounts</span>
+                  </div>
+                </button>
+              )}
 
             </div>
           </div>
@@ -743,6 +781,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     activeSubTab === 'overview' ? 'Operational Overview & Stats' :
                     activeSubTab === 'pipeline' ? `Dispatch Pipeline Board ${statusFilter ? `[${getStatusLabel(statusFilter as OrderStatus)}]` : ''}` :
                     activeSubTab === 'payments' ? 'Manual Payments Ledger & Audit Logs' :
+                    activeSubTab === 'staff' ? 'Staff Accounts & Permissions' :
                     'Pricing Configuration Rate Panel'
                   }</span>
                 </h1>
@@ -1374,6 +1413,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             )}
 
           </div>
+        </div>
+      )}
+
+      {activeSubTab === 'staff' && canManageStaff && (
+        <div className="animate-in fade-in duration-200" id="dash_subtab_staff">
+          <StaffManagement token={token} currentUser={user} />
         </div>
       )}
 
