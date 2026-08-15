@@ -31,30 +31,23 @@ Small jobs, real exposure. None take more than a few minutes.
 
 ---
 
-## P1 — Current focus: separation and UI
+## P1 — Paused: visual redesign
 
-The redesign is the main event. The bundle split comes first because it decides
-what the redesign is building into.
+Five admin console directions were mocked up for comparison (Ledger, Command,
+Atlas, Market, Grid — Ledger fits the brief already on file). **Decision on
+which direction, for admin and customer both, is deliberately deferred.**
+Current UI stays exactly as it is until that's picked. Nothing here blocks
+backend/logic work below.
 
+- [ ] **Pick a visual direction** (admin + customer) — unblocks everything else in this section
 - [ ] **Split admin into its own bundle at a private path** — **M**
   Today admin code ships to every customer and sits at the guessable `/admin`.
   New `admin.html` Vite entry + `src/AdminApp.tsx`, path from `ADMIN_PATH` in
-  `.env` (default `/ops`). Server rewrites that path to `admin.html` before the
-  Vite/static layer. Prerequisite for the redesign — do not skip it and retrofit.
-
-- [ ] **Redesign the customer site** — **L**
-  `/`, `/book`, `/track`. This is the shop window: it decides whether someone
-  trusts you with a parcel. Booking form and tracking timeline are the two
-  screens that matter.
-  *Open question: keep the current dark look, or go somewhere new?*
-
-- [ ] **Redesign the admin dashboard** — **L**
-  Simple and decluttered, tables over card-grids, lists paginated to 10.
-  Must now also be **role-aware**: hide what the signed-in role cannot do.
-
-- [ ] **Rider view redesign** — **M**
-  Used one-handed, outdoors, on a phone, possibly in sunlight. Big targets,
-  high contrast, minimal text. Easy to forget because you will never use it.
+  `.env` (default `/ops`). Independent of which visual direction wins — could
+  be done now if useful before that decision.
+- [ ] **Redesign the customer site** — **L** — `/`, `/book`, `/track`
+- [ ] **Redesign the admin dashboard** — **L** — role-aware once built
+- [ ] **Rider view redesign** — **M** — one-handed, outdoors, high contrast
 
 ---
 
