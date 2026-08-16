@@ -123,7 +123,7 @@ export default function Home() {
               <div className="glass relative rounded-2xl p-6">
                 <div className="flex items-center justify-between pb-4 border-b border-slate-200/80">
                   <div>
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 block">Tracking</span>
+                    <span className="text-xs font-mono uppercase tracking-widest text-slate-400 block">Tracking</span>
                     <span className="text-xl font-semibold font-mono text-slate-900">WP-8293-102</span>
                   </div>
                   <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700">
@@ -154,7 +154,7 @@ export default function Home() {
                             {step.label}
                           </span>
                         </div>
-                        <span className="text-[10px] font-mono text-slate-400">{step.desc}</span>
+                        <span className="text-xs font-mono text-slate-400">{step.desc}</span>
                       </div>
                     );
                   })}
@@ -162,11 +162,11 @@ export default function Home() {
 
                 <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-200/80 text-sm">
                   <div>
-                    <span className="text-[10px] text-slate-400 block">From</span>
+                    <span className="text-xs text-slate-400 block">From</span>
                     <span className="font-medium text-slate-900">Airport Residential</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block">To</span>
+                    <span className="text-xs text-slate-400 block">To</span>
                     <span className="font-medium text-slate-900">Kokomlemle, Accra</span>
                   </div>
                 </div>
@@ -285,7 +285,7 @@ export default function Home() {
                 }`}
               >
                 {featured && (
-                  <span className="btn-aurora absolute -top-2.5 left-6 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                  <span className="btn-aurora absolute -top-2.5 left-6 rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider">
                     Most popular
                   </span>
                 )}
@@ -297,7 +297,7 @@ export default function Home() {
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-slate-700 font-medium">{t.note}</p>
-                <p className="mt-2 text-xs text-slate-500 leading-relaxed">{t.hint}</p>
+                <p className="mt-2 text-sm text-slate-500 leading-relaxed">{t.hint}</p>
                 <Link
                   to="/book"
                   className={`mt-5 inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${

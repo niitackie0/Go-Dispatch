@@ -300,12 +300,12 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-violet-600 border border-slate-200">
                 <MapPin className="h-4 w-4" />
               </div>
-              <h2 className="text-lg font-bold text-slate-900">1. Pickup Coordinates (Sender)</h2>
+              <h2 className="text-lg font-bold text-slate-900">Where we collect</h2>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Sender Full Name *</label>
+                <label className="block text-sm font-semibold text-slate-500 mb-1">Your name *</label>
                 <div className="relative">
                   <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                   <input
@@ -315,13 +315,13 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                     value={senderName}
                     onChange={(e) => setSenderName(e.target.value)}
                     placeholder="e.g. Ama Osei"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Sender Phone Number *</label>
+                <label className="block text-sm font-semibold text-slate-500 mb-1">Your phone number *</label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                   <input
@@ -331,13 +331,13 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                     value={senderPhone}
                     onChange={(e) => setSenderPhone(e.target.value)}
                     placeholder="e.g. 0244123456"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Pickup Street Address *</label>
+                <label className="block text-sm font-semibold text-slate-500 mb-1">Pickup address *</label>
                 <textarea
                   id="input_pickup_address"
                   required
@@ -345,19 +345,19 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                   onChange={(e) => setPickupAddress(e.target.value)}
                   placeholder="e.g. Block C, Airport Residential Area, Accra"
                   rows={2}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all resize-none"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all resize-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Pickup Notes / Landmarks (Optional)</label>
+                <label className="block text-sm font-semibold text-slate-500 mb-1">Pickup Notes / Landmarks (Optional)</label>
                 <input
                   id="input_pickup_notes"
                   type="text"
                   value={pickupNotes}
                   onChange={(e) => setPickupNotes(e.target.value)}
                   placeholder="e.g. Opposite the French School, ring gate bell"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
                 />
               </div>
             </div>
@@ -369,12 +369,12 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-violet-600 border border-slate-200">
                 <MapPin className="h-4 w-4" />
               </div>
-              <h2 className="text-lg font-bold text-slate-900">2. Dropoff Coordinates (Recipient)</h2>
+              <h2 className="text-lg font-bold text-slate-900">Where it goes</h2>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Recipient Full Name *</label>
+                <label className="block text-sm font-semibold text-slate-500 mb-1">Recipient's name *</label>
                 <div className="relative">
                   <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                   <input
@@ -384,13 +384,13 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
                     placeholder="e.g. Kofi Mensah"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Recipient Phone Number *</label>
+                <label className="block text-sm font-semibold text-slate-500 mb-1">Recipient's phone number *</label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                   <input
@@ -400,13 +400,13 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                     value={recipientPhone}
                     onChange={(e) => setRecipientPhone(e.target.value)}
                     placeholder="e.g. 0207987654"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Dropoff Street Address *</label>
+                <label className="block text-sm font-semibold text-slate-500 mb-1">Delivery address *</label>
                 <textarea
                   id="input_dropoff_address"
                   required
@@ -414,19 +414,19 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                   onChange={(e) => setDropoffAddress(e.target.value)}
                   placeholder="e.g. House No. 12, Ring Road Central, Kokomlemle, Accra"
                   rows={2}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all resize-none"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all resize-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Dropoff Notes / Landmarks (Optional)</label>
+                <label className="block text-sm font-semibold text-slate-500 mb-1">Dropoff Notes / Landmarks (Optional)</label>
                 <input
                   id="input_dropoff_notes"
                   type="text"
                   value={dropoffNotes}
                   onChange={(e) => setDropoffNotes(e.target.value)}
                   placeholder="e.g. Next to the MTN office"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
                 />
               </div>
             </div>
@@ -439,72 +439,60 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-violet-600 border border-slate-200">
               <Package className="h-4 w-4" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">3. Parcel Specifications & Schedule</h2>
+            <h2 className="text-lg font-bold text-slate-900">What you are sending</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Size Selector */}
             <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-500 mb-2">Package Size Tier *</label>
-              <div className="grid grid-cols-3 gap-3" id="package_size_selectors">
-                
-                {/* Small Selector */}
-                <button
-                  type="button"
-                  onClick={() => setPackageSize('small')}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 text-center transition-all cursor-pointer ${
-                    packageSize === 'small'
-                      ? 'border-violet-500 bg-violet-50 text-slate-900 font-medium shadow-md shadow-violet-500/10'
-                      : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 hover:text-slate-800'
-                  }`}
-                >
-                  <span className="text-xs uppercase font-mono tracking-wider text-slate-500 mb-1">Small</span>
-                  <span className={`text-sm font-semibold ${packageSize === 'small' ? 'text-violet-600' : 'text-slate-800'}`}>
-                    {pricing.currency} {(pricing.small / 100).toFixed(2)}
-                  </span>
-                  <span className="text-[10px] text-slate-500 mt-1">Fits in courier pouch</span>
-                </button>
-
-                {/* Medium Selector */}
-                <button
-                  type="button"
-                  onClick={() => setPackageSize('medium')}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 text-center transition-all cursor-pointer ${
-                    packageSize === 'medium'
-                      ? 'border-violet-500 bg-violet-50 text-slate-900 font-medium shadow-md shadow-violet-500/10'
-                      : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 hover:text-slate-800'
-                  }`}
-                >
-                  <span className="text-xs uppercase font-mono tracking-wider text-slate-500 mb-1">Medium</span>
-                  <span className={`text-sm font-semibold ${packageSize === 'medium' ? 'text-violet-600' : 'text-slate-800'}`}>
-                    {pricing.currency} {(pricing.medium / 100).toFixed(2)}
-                  </span>
-                  <span className="text-[10px] text-slate-500 mt-1">Fits in motorcycle box</span>
-                </button>
-
-                {/* Large Selector */}
-                <button
-                  type="button"
-                  onClick={() => setPackageSize('large')}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 text-center transition-all cursor-pointer ${
-                    packageSize === 'large'
-                      ? 'border-violet-500 bg-violet-50 text-slate-900 font-medium shadow-md shadow-violet-500/10'
-                      : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 hover:text-slate-800'
-                  }`}
-                >
-                  <span className="text-xs uppercase font-mono tracking-wider text-slate-500 mb-1">Large</span>
-                  <span className={`text-sm font-semibold ${packageSize === 'large' ? 'text-violet-600' : 'text-slate-800'}`}>
-                    {pricing.currency} {(pricing.large / 100).toFixed(2)}
-                  </span>
-                  <span className="text-[10px] text-slate-500 mt-1">Requires strapping / van</span>
-                </button>
+              <label className="block text-sm font-semibold text-slate-500 mb-2">Parcel size *</label>
+              {/* One full-width row per size on a phone, three cards from sm up.
+                  Side by side at 390px each tier got ~100px and its description
+                  broke across four lines. */}
+              <div
+                className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+                id="package_size_selectors"
+                role="radiogroup"
+                aria-label="Package size"
+              >
+                {([
+                  { key: 'small', label: 'Small', blurb: 'Fits in a courier pouch', price: pricing.small },
+                  { key: 'medium', label: 'Medium', blurb: 'Fits in a motorcycle box', price: pricing.medium },
+                  { key: 'large', label: 'Large', blurb: 'Needs strapping or a van', price: pricing.large },
+                ] as const).map(({ key, label, blurb, price }) => {
+                  const selected = packageSize === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setPackageSize(key)}
+                      className={`flex sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-3 sm:gap-1 min-h-16 p-4 rounded-xl border-2 text-left transition-colors cursor-pointer ${
+                        selected
+                          ? 'border-violet-500 bg-violet-50'
+                          : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                      }`}
+                    >
+                      <span className="min-w-0">
+                        <span className={`block text-base font-semibold ${selected ? 'text-violet-700' : 'text-slate-900'}`}>
+                          {label}
+                        </span>
+                        <span className="block text-sm text-slate-500">{blurb}</span>
+                      </span>
+                      <span className={`shrink-0 sm:mt-1 text-lg font-bold tabular-nums ${selected ? 'text-violet-700' : 'text-slate-900'}`}>
+                        {pricing.currency} {(price / 100).toFixed(2)}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {/* Estimated weight */}
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-2">Estimated Weight (kg)</label>
+              <label className="block text-sm font-semibold text-slate-500 mb-2">Rough weight (kg)</label>
               <input
                 id="input_package_weight"
                 type="number"
@@ -513,7 +501,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                 value={packageWeight}
                 onChange={(e) => setPackageWeight(e.target.value)}
                 placeholder="e.g. 1.5"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:bg-slate-100 focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-slate-100 focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
               />
             </div>
 
@@ -521,7 +509,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Detailed Package Description *</label>
+              <label className="block text-sm font-semibold text-slate-500 mb-1">What is in the parcel? *</label>
               <div className="relative">
                 <FileText className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                 <input
@@ -531,13 +519,13 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                   value={packageDescription}
                   onChange={(e) => setPackageDescription(e.target.value)}
                   placeholder="e.g. Legal documents and keys in manila folder"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Preferred Pickup Date & Time *</label>
+              <label className="block text-sm font-semibold text-slate-500 mb-1">When should we collect? *</label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                 <input
@@ -547,7 +535,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                   value={scheduledPickup}
                   onChange={(e) => setScheduledPickup(e.target.value)}
                   style={{ colorScheme: 'dark' }}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 transition-all"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 transition-all"
                 />
               </div>
             </div>
@@ -560,7 +548,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-violet-600 border border-slate-200">
               <CreditCard className="h-4 w-4" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">4. Select Payment Channel</h2>
+            <h2 className="text-lg font-bold text-slate-900">How you want to pay</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -583,7 +571,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                 <span className="block text-xs text-slate-500 mt-1">
                   Trigger instant Request-to-Pay USSD prompt to approve on your mobile handset immediately.
                 </span>
-                <span className="inline-block mt-2 rounded bg-amber-500/15 border border-amber-500/20 text-amber-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                <span className="inline-block mt-2 rounded bg-amber-500/15 border border-amber-500/20 text-amber-600 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider">
                   Highly Recommended
                 </span>
               </div>
@@ -603,7 +591,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                 {paymentProvider === 'manual' && <div className="h-2.5 w-2.5 rounded-full bg-violet-600" />}
               </div>
               <div>
-                <span className="block font-bold text-slate-900">Manual Payment / Dispatch Tracking</span>
+                <span className="block font-bold text-slate-900">Pay on collection</span>
                 <span className="block text-xs text-slate-500 mt-1">
                   Confirm booking first. You can coordinate cash on pickup, bank transfer, or offline MoMo. Your payment is logged once received.
                 </span>
@@ -614,12 +602,12 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
           {/* Pricing Total Summary Box */}
           <div className="rounded-xl bg-slate-100 border border-slate-200 text-slate-900 p-6 flex flex-col sm:flex-row items-center justify-between shadow-lg">
             <div className="mb-4 sm:mb-0 text-center sm:text-left">
-              <span className="text-xs text-slate-500 uppercase tracking-wider font-mono">Total Estimated Charge</span>
+              <span className="text-sm font-semibold text-slate-500">Total</span>
               <div className="text-3xl font-semibold mt-1 text-violet-600 tabular-nums">
                 {pricing.currency} {getPrice().toFixed(2)}
               </div>
-              <p className="text-slate-500 text-xs mt-1">
-                * Based on flat-rate size tier pricing config ({packageSize.toUpperCase()}).
+              <p className="text-slate-500 text-sm mt-1">
+                Flat rate for a {packageSize} parcel.
               </p>
             </div>
 
@@ -670,20 +658,20 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                   Provide your MTN phone number. This simulates a real <strong className="text-slate-900">Request-to-Pay (R2P)</strong> API pull.
                 </p>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">Moneys Wallet Number</label>
+                  <label className="block text-sm font-semibold text-slate-500 mb-1">Moneys Wallet Number</label>
                   <input
                     id="input_momo_phone"
                     type="tel"
                     value={momoPhoneNumber}
                     onChange={(e) => setMomoPhoneNumber(e.target.value)}
                     placeholder="e.g. 0244123456"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 px-4 py-2.5 text-sm outline-none font-mono focus:border-violet-500 placeholder-slate-400"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 px-4 py-3 text-sm outline-none font-mono focus:border-violet-500 placeholder-slate-400"
                   />
                 </div>
                 <button
                   id="btn_confirm_sim_momo"
                   onClick={handleMomoPaymentConfirm}
-                  className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 py-3 text-sm font-bold text-black shadow-md transition-colors cursor-pointer"
+                  className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 min-h-12 text-base font-bold text-black shadow-md transition-colors cursor-pointer"
                 >
                   Send USSD Request Prompt
                 </button>
@@ -695,12 +683,12 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                 <Loader2 className="h-10 w-10 text-amber-500 animate-spin mx-auto" />
                 <div>
                   <h4 className="font-bold text-slate-900">Processing USSD Push</h4>
-                  <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                  <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">
                     Sending a Request-to-Pay alert of <strong className="text-violet-600">{pricing.currency} {getPrice().toFixed(2)}</strong> to {momoPhoneNumber}. Approve prompt on your handset now.
                   </p>
                 </div>
                 <div className="bg-black/60 p-3 rounded-lg text-left text-xs font-mono text-slate-500 border border-slate-200/85 max-w-xs mx-auto">
-                  <span className="text-slate-500 uppercase tracking-widest text-[9px] font-semibold block mb-1">Simulation logs</span>
+                  <span className="text-slate-500 uppercase tracking-widest text-xs font-semibold block mb-1">Simulation logs</span>
                   &gt; curl R2P push status... PENDING<br/>
                   &gt; waiting for MTN provider hook...
                 </div>
@@ -714,7 +702,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-900">Payment Approved!</h4>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-sm text-slate-500 mt-1">
                     Received MTN verification reference. Finalizing your order dispatch booking...
                   </p>
                 </div>

@@ -107,7 +107,7 @@ export default function RiderView({ token }: { token: string }) {
           <AlertCircle className="mx-auto h-9 w-9 text-red-500" />
           <h1 className="mt-3 text-lg font-semibold text-slate-900">Link not valid</h1>
           <p className="mt-2 text-sm text-slate-600">{error}</p>
-          <p className="mt-4 text-xs text-slate-400">Ask dispatch to resend your delivery link.</p>
+          <p className="mt-4 text-sm text-slate-400">Ask dispatch to resend your delivery link.</p>
         </div>
       </div>
     );
@@ -145,7 +145,7 @@ export default function RiderView({ token }: { token: string }) {
               <p className="text-sm font-semibold text-amber-900">
                 Collect {job.currency} {(job.priceAmount / 100).toFixed(2)}
               </p>
-              <p className="mt-0.5 text-xs text-amber-800">
+              <p className="mt-0.5 text-sm text-amber-800">
                 Payable by the {job.payer === 'recipient' ? 'recipient at dropoff' : 'sender'}.
               </p>
               <button
@@ -177,7 +177,7 @@ export default function RiderView({ token }: { token: string }) {
         {/* Pickup */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-3">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-100 text-[11px] font-bold text-violet-700">P</span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-100 text-xs font-bold text-violet-700">P</span>
             <h2 className="text-sm font-semibold text-slate-900">Pickup</h2>
           </div>
           <p className="text-sm font-medium text-slate-900">{job.senderName}</p>
@@ -185,7 +185,7 @@ export default function RiderView({ token }: { token: string }) {
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
             {job.pickupAddress}
           </p>
-          {job.pickupNotes && <p className="mt-1 pl-5.5 text-xs italic text-slate-500">{job.pickupNotes}</p>}
+          {job.pickupNotes && <p className="mt-1 pl-5.5 text-sm italic text-slate-500">{job.pickupNotes}</p>}
           <a
             href={`tel:${job.senderPhone}`}
             className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700"
@@ -198,7 +198,7 @@ export default function RiderView({ token }: { token: string }) {
         {/* Dropoff */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-3">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-100 text-[11px] font-bold text-sky-700">D</span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-100 text-xs font-bold text-sky-700">D</span>
             <h2 className="text-sm font-semibold text-slate-900">Dropoff</h2>
           </div>
           <p className="text-sm font-medium text-slate-900">{job.recipientName}</p>
@@ -206,7 +206,7 @@ export default function RiderView({ token }: { token: string }) {
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
             {job.dropoffAddress}
           </p>
-          {job.dropoffNotes && <p className="mt-1 pl-5.5 text-xs italic text-slate-500">{job.dropoffNotes}</p>}
+          {job.dropoffNotes && <p className="mt-1 pl-5.5 text-sm italic text-slate-500">{job.dropoffNotes}</p>}
           <a
             href={`tel:${job.recipientPhone}`}
             className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700"
@@ -258,7 +258,7 @@ export default function RiderView({ token }: { token: string }) {
               {working ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
               {action.label}
             </button>
-            <p className="mt-2 text-center text-xs text-slate-500">{action.hint}</p>
+            <p className="mt-2 text-center text-sm text-slate-500">{action.hint}</p>
           </>
         ) : (
           <div className="flex items-center justify-center gap-2 py-2 text-slate-500">

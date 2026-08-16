@@ -31,7 +31,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             </div>
             <div className="leading-none">
               <span className="block text-lg font-bold font-display tracking-tight text-slate-900">Waypoint</span>
-              <span className="block text-[10px] font-mono uppercase tracking-[0.18em] text-slate-400 mt-0.5">Parcel &amp; Dispatch</span>
+              <span className="block text-xs font-mono uppercase tracking-[0.18em] text-slate-400 mt-0.5">Parcel &amp; Dispatch</span>
             </div>
           </Link>
 
@@ -66,7 +66,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
           {/* Mobile toggle */}
           <button
             onClick={() => setMobileOpen((v) => !v)}
-            className="md:hidden flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 transition-colors"
+            className="md:hidden flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 transition-colors"
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
           >
@@ -126,9 +126,9 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             <div>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Services</h4>
               <ul className="space-y-2 text-sm text-slate-500">
-                <li><Link to="/book" className="hover:text-violet-700 transition-colors">Book a delivery</Link></li>
-                <li><Link to="/track" className="hover:text-violet-700 transition-colors">Track a shipment</Link></li>
-                <li><Link to="/#pricing" className="hover:text-violet-700 transition-colors">Pricing tiers</Link></li>
+                <li><Link to="/book" className="inline-flex items-center min-h-11 hover:text-violet-700 transition-colors">Book a delivery</Link></li>
+                <li><Link to="/track" className="inline-flex items-center min-h-11 hover:text-violet-700 transition-colors">Track a shipment</Link></li>
+                <li><Link to="/#pricing" className="inline-flex items-center min-h-11 hover:text-violet-700 transition-colors">Pricing tiers</Link></li>
               </ul>
             </div>
 
@@ -144,7 +144,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             <div>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Company</h4>
               <ul className="space-y-2 text-sm text-slate-500">
-                <li><Link to="/track" className="hover:text-violet-700 transition-colors">Track a shipment</Link></li>
+                <li><Link to="/track" className="inline-flex items-center min-h-11 hover:text-violet-700 transition-colors">Track a shipment</Link></li>
                 <li>Accra, Ghana</li>
               </ul>
             </div>

@@ -198,7 +198,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                 <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-bold">This booking has been cancelled</h4>
-                  <p className="text-xs text-red-600 mt-1">Our dispatch managers marked this order as cancelled. Please contact our support team if this is an error.</p>
+                  <p className="text-sm text-red-600 mt-1">Our dispatch managers marked this order as cancelled. Please contact our support team if this is an error.</p>
                 </div>
               </div>
             ) : (
@@ -235,7 +235,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                             <span className={`block text-xs font-bold ${isCurrent ? 'text-violet-600' : isCompleted ? 'text-slate-800' : 'text-slate-500'}`}>
                               {step.label}
                             </span>
-                            <span className="block text-[10px] text-slate-500 mt-1 max-w-[120px] mx-auto leading-relaxed">
+                            <span className="block text-xs text-slate-500 mt-1 max-w-[120px] mx-auto leading-relaxed">
                               {step.desc}
                             </span>
                           </div>
@@ -274,7 +274,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
               </h4>
               <div className="space-y-2 bg-slate-50 rounded-xl p-4 border border-slate-200">
                 {order.timeline.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">No verification events tracked yet.</p>
+                  <p className="text-sm text-slate-500 italic">No verification events tracked yet.</p>
                 ) : (
                   order.timeline.map((item, idx) => (
                     <div key={idx} className="flex items-start text-xs font-sans text-slate-700 gap-3">
@@ -285,7 +285,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                         <strong className="text-slate-900 capitalize">{item.status.replace('_', ' ')}</strong>
                         <span className="mx-1.5 text-slate-300">|</span>
                         <span>{item.note || 'Verification checkpoint passed.'}</span>
-                        <span className="block font-mono text-[10px] text-slate-500 mt-0.5">
+                        <span className="block font-mono text-xs text-slate-500 mt-0.5">
                           {new Date(item.changedAt).toLocaleDateString()}
                         </span>
                       </div>
