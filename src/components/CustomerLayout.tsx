@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { MapPin, Phone, Truck, Menu, X, ArrowUpRight } from 'lucide-react';
 import { REGIONS } from '../regions.js';
-import { CONTACT_PHONE, CONTACT_PHONE_E164, OFFICE_ADDRESS, OFFICE_LANDMARK, WHATSAPP_URL } from '../brand.js';
+import { CONTACT_PHONE, CONTACT_PHONE_E164, OFFICE_ADDRESS, OFFICE_LANDMARK, SOCIAL } from '../brand.js';
 import { Link, useRouter } from '../router.js';
 
 const NAV_LINKS = [
@@ -16,6 +16,41 @@ const NAV_LINKS = [
   { to: '/contact', label: 'Contact' },
   { to: '/policy', label: 'Policy' },
 ];
+
+/** Social glyphs, drawn to one weight so the row reads as a set. */
+function SocialIcon({ name }: { name: string }) {
+  const common = { width: 22, height: 22, viewBox: '0 0 24 24', 'aria-hidden': true as const };
+  switch (name) {
+    case 'WhatsApp':
+      return (
+        <svg {...common} fill="currentColor">
+          <path d="M12.04 2C6.6 2 2.2 6.4 2.2 11.84c0 1.94.55 3.75 1.5 5.29L2 22l5-1.63a9.8 9.8 0 0 0 5.04 1.38h.01c5.43 0 9.84-4.4 9.84-9.84 0-2.63-1.03-5.1-2.89-6.96A9.77 9.77 0 0 0 12.04 2Zm0 1.8a8 8 0 0 1 5.69 2.36 7.98 7.98 0 0 1 2.36 5.68c0 4.45-3.62 8.05-8.06 8.05a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.06 1 1.02-2.98-.19-.31a7.97 7.97 0 0 1-1.22-4.25c0-4.44 3.62-8.05 8.06-8.05Zm-3.2 4.2c-.16 0-.42.06-.64.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34 1 2.5.12.16 1.7 2.6 4.13 3.55 2.02.8 2.43.64 2.87.6.44-.04 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.93-1.19-.71-.63-1.19-1.42-1.33-1.66-.14-.24-.02-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.53-1.3-.74-1.78-.19-.46-.39-.4-.53-.4h-.5Z"/>
+        </svg>
+      );
+    case 'Facebook':
+      return (
+        <svg {...common} fill="currentColor">
+          <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06C2 17.08 5.66 21.24 10.44 22v-7.03H7.9v-2.91h2.54V9.85c0-2.52 1.5-3.91 3.77-3.91 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.57v1.89h2.78l-.45 2.91h-2.33V22C18.34 21.24 22 17.08 22 12.06Z"/>
+        </svg>
+      );
+    case 'Instagram':
+      return (
+        <svg {...common} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="5" />
+          <circle cx="12" cy="12" r="4" />
+          <circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 'TikTok':
+      return (
+        <svg {...common} fill="currentColor">
+          <path d="M16.5 2h-2.9v13.2a2.5 2.5 0 1 1-2.5-2.5c.2 0 .4 0 .6.07V9.8a5.6 5.6 0 1 0 4.9 5.55V8.9a6.4 6.4 0 0 0 3.7 1.18V7.2a3.7 3.7 0 0 1-3.8-3.6V2Z"/>
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   const { path } = useRouter();
@@ -155,112 +190,67 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
           here. The two things a customer actually wants at the bottom of a
           courier site are the phone number and where you are, so those are the
           whole first band — not a link column. */}
-      <footer className="mt-auto">
-        {/* The line arrives, and ends. */}
-        <div className="h-px bg-gradient-to-r from-transparent via-red-500 to-transparent" aria-hidden="true" />
+      {/* ---------- Footer ----------
+          Sign-off: the strapline set large, the number as a pill, one line of
+          links. A closing statement rather than a directory — everything that
+          was in the old link columns is either in the nav or on the contact
+          page, so repeating it here earned nothing. */}
+      <footer className="mt-auto border-t border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 sm:py-16 text-center">
 
-        <div className="bg-slate-900 text-white">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-14">
+          <p className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 text-balance">
+            One rate.
+            <span className="block text-red-600">Many places.</span>
+          </p>
 
-            {/* Contact band — the reason most people scroll this far. */}
-            <div className="grid gap-8 md:grid-cols-[1.2fr_1fr] md:items-end pb-10 border-b border-white/10">
-              <div>
-                <span className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
-                  End of the line
-                </span>
-                <p className="mt-3 font-display text-2xl sm:text-3xl font-bold tracking-tight text-balance max-w-lg">
-                  Somewhere to be? We collect anywhere in Accra.
-                </p>
-              </div>
+          <a
+            href={`tel:${CONTACT_PHONE_E164}`}
+            className="mt-7 inline-flex items-center gap-3 min-h-14 rounded-full bg-red-600 hover:bg-red-700 px-8 text-white text-lg font-bold tabular-nums shadow-[0_16px_22px_-16px_rgba(216,30,36,0.9)] transition-colors"
+          >
+            <Phone className="h-5 w-5" />
+            {CONTACT_PHONE}
+          </a>
 
-              <div className="flex flex-col sm:flex-row md:flex-col gap-3">
+          {/* Only profiles with a URL are rendered — see SOCIAL in brand.ts. */}
+          <ul className="mt-7 flex items-center justify-center gap-3">
+            {SOCIAL.filter((s) => s.url).map((s) => (
+              <li key={s.name}>
                 <a
-                  href={`tel:${CONTACT_PHONE_E164}`}
-                  className="group flex items-center justify-between gap-4 min-h-14 rounded-xl bg-red-600 hover:bg-red-500 px-5 transition-colors"
-                >
-                  <span className="flex items-center gap-3">
-                    <Phone className="h-5 w-5" />
-                    <span className="text-lg font-bold tabular-nums">{CONTACT_PHONE}</span>
-                  </span>
-                  <ArrowUpRight className="h-5 w-5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                </a>
-                <a
-                  href={WHATSAPP_URL}
+                  href={s.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between gap-4 min-h-14 rounded-xl border border-white/20 hover:border-white/40 hover:bg-white/5 px-5 transition-colors"
+                  aria-label={`GO DISPATCH on ${s.name}`}
+                  title={s.name}
+                  className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition-colors"
                 >
-                  <span className="text-base font-semibold">Message us on WhatsApp</span>
-                  <ArrowUpRight className="h-5 w-5 opacity-70" />
+                  <SocialIcon name={s.name} />
                 </a>
-              </div>
-            </div>
+              </li>
+            ))}
+          </ul>
 
-            {/* Coverage, stated as regions with the towns underneath, because
-                the towns are what the flyer advertises and what people search. */}
-            <div className="grid gap-8 md:grid-cols-[1.2fr_1fr] py-10 border-b border-white/10">
-              <div>
-                <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-white/40 mb-4">
-                  Nine regions, thirteen towns
-                </h4>
-                <ul className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
-                  {REGIONS.map((region) => (
-                    <li key={region.name}>
-                      <span className="block text-base font-semibold">{region.name}</span>
-                      <span className="block text-sm text-white/50">{region.towns.join(', ')}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          <nav aria-label="Footer" className="mt-8 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-base text-slate-600">
+            {[
+              { to: '/book', label: 'Book' },
+              { to: '/track', label: 'Track' },
+              { to: '/contact', label: 'Contact' },
+              { to: '/policy', label: 'Terms & policy' },
+            ].map((l, i) => (
+              <React.Fragment key={l.to}>
+                {i > 0 && <span className="text-slate-300" aria-hidden="true">·</span>}
+                <Link to={l.to} className="inline-flex items-center min-h-11 px-1 hover:text-red-700 transition-colors">
+                  {l.label}
+                </Link>
+              </React.Fragment>
+            ))}
+          </nav>
 
-              <div className="grid grid-cols-2 md:grid-cols-1 gap-8">
-                <div>
-                  <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-white/40 mb-3">Find us</h4>
-                  <p className="flex items-start gap-2 text-base text-white/80">
-                    <MapPin className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
-                    <span>{OFFICE_ADDRESS}<br /><span className="text-white/50">{OFFICE_LANDMARK}</span></span>
-                  </p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-white/40 mb-3">Site</h4>
-                  <ul className="space-y-1">
-                    {[
-                      { to: '/book', label: 'Book a delivery' },
-                      { to: '/track', label: 'Track a parcel' },
-                      { to: '/policy', label: 'Terms & policy' },
-                    ].map((l) => (
-                      <li key={l.to}>
-                        <Link
-                          to={l.to}
-                          className="inline-flex items-center min-h-11 text-base text-white/70 hover:text-white transition-colors"
-                        >
-                          {l.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-600">
-                  <Truck className="h-5 w-5" />
-                </div>
-                <div className="leading-tight">
-                  <span className="block text-base font-bold">GO DISPATCH</span>
-                  <span className="block text-sm text-white/40">We deliver trust</span>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/40">
-                <span>Safe</span><span aria-hidden="true">·</span>
-                <span>Fast</span><span aria-hidden="true">·</span>
-                <span>Reliable</span>
-                <span className="w-full sm:w-auto sm:ml-4">&copy; 2026 GO DISPATCH</span>
-              </div>
-            </div>
-          </div>
+          <p className="mt-6 text-sm text-slate-500">
+            {OFFICE_ADDRESS} — {OFFICE_LANDMARK}
+          </p>
+          <p className="mt-2 text-sm text-slate-400">
+            &copy; 2026 GO DISPATCH · We deliver trust · Safe · Fast · Reliable
+          </p>
         </div>
       </footer>
     </div>
