@@ -34,75 +34,41 @@ import GhanaMap from './GhanaMap.js';
 const FLOW = ['Booked', 'Confirmed', 'Collected', 'On the road', 'Delivered'];
 
 /**
- * What we will not carry, drawn.
+ * What we will not carry.
  *
- * Hand-authored SVG rather than an icon-set lookup: several of these — a
- * banknote, a firearm, a jerrycan — either do not exist in the set the rest of
- * the app uses or arrive in a different weight, and a row of six symbols is
- * exactly where a mismatch shows. All are 40x40, 1.7 stroke, round caps.
+ * Twelve items rather than six, because the short list read as arbitrary — a
+ * customer's first thought was "is that all?". Each is drawn: a symbol is read
+ * faster than a line of text, and this is a row meant to be scanned.
+ *
+ * Hand-authored SVG rather than an icon-set lookup. Several of these — a
+ * banknote, a firearm, a jerrycan — either are not in the set the rest of the
+ * app uses or arrive at a different weight, and a row of a dozen symbols is
+ * exactly where a mismatch shows.
  */
-const S = { width: 40, height: 40, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+const S = {
+  width: 30,
+  height: 30,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.7,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+};
 
 const PROHIBITED: { label: string; icon: React.ReactNode }[] = [
-  {
-    label: 'Cash and bank cards',
-    icon: (
-      <svg {...S} aria-hidden="true">
-        <rect x="2" y="6" width="20" height="12" rx="2" />
-        <circle cx="12" cy="12" r="2.6" />
-        <path d="M5 9v6M19 9v6" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Firearms and ammunition',
-    icon: (
-      <svg {...S} aria-hidden="true">
-        <path d="M3 9h13l3 3h2v3h-6l-2-2H9v4H6v-4H3z" />
-        <path d="M8 15l-2 5" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Drugs and controlled substances',
-    icon: (
-      <svg {...S} aria-hidden="true">
-        <rect x="2.5" y="9" width="19" height="6.5" rx="3.25" transform="rotate(-30 12 12)" />
-        <path d="M8.6 7.4l6.8 6.8" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Live animals',
-    icon: (
-      <svg {...S} aria-hidden="true">
-        <ellipse cx="12" cy="15.5" rx="4" ry="3.3" />
-        <ellipse cx="6.4" cy="10.6" rx="1.9" ry="2.5" />
-        <ellipse cx="17.6" cy="10.6" rx="1.9" ry="2.5" />
-        <ellipse cx="9.6" cy="6.6" rx="1.8" ry="2.3" />
-        <ellipse cx="14.4" cy="6.6" rx="1.8" ry="2.3" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Flammable or corrosive goods',
-    icon: (
-      <svg {...S} aria-hidden="true">
-        <path d="M7 8h8l2 3v9a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1z" />
-        <path d="M10 8V5h4v3" />
-        <path d="M12 13c-1.2 1.2-1.6 2-1.6 2.8a1.6 1.6 0 0 0 3.2 0c0-.8-.4-1.6-1.6-2.8z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Perishable food, unarranged',
-    icon: (
-      <svg {...S} aria-hidden="true">
-        <path d="M12 8.5c2.6-2.6 8 0 6.4 5.2C17.3 17.4 14 20 12 20s-5.3-2.6-6.4-6.3C4 8.5 9.4 5.9 12 8.5z" />
-        <path d="M12 8.5V5.5M12 5.5c1.6 0 2.6-1 2.8-2.3-1.5-.2-2.6.7-2.8 2.3z" />
-      </svg>
-    ),
-  },
+  { label: 'Cash and bank cards', icon: (<svg {...S}><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.6" /><path d="M5 9v6M19 9v6" /></svg>) },
+  { label: 'Firearms and ammunition', icon: (<svg {...S}><path d="M3 9h13l3 3h2v3h-6l-2-2H9v4H6v-4H3z" /><path d="M8 15l-2 5" /></svg>) },
+  { label: 'Drugs and controlled substances', icon: (<svg {...S}><rect x="2.5" y="9" width="19" height="6.5" rx="3.25" transform="rotate(-30 12 12)" /><path d="M8.6 7.4l6.8 6.8" /></svg>) },
+  { label: 'Live animals', icon: (<svg {...S}><ellipse cx="12" cy="15.5" rx="4" ry="3.3" /><ellipse cx="6.4" cy="10.6" rx="1.9" ry="2.5" /><ellipse cx="17.6" cy="10.6" rx="1.9" ry="2.5" /><ellipse cx="9.6" cy="6.6" rx="1.8" ry="2.3" /><ellipse cx="14.4" cy="6.6" rx="1.8" ry="2.3" /></svg>) },
+  { label: 'Flammable liquids', icon: (<svg {...S}><path d="M7 8h8l2 3v9a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1z" /><path d="M10 8V5h4v3" /><path d="M12 13c-1.2 1.2-1.6 2-1.6 2.8a1.6 1.6 0 0 0 3.2 0c0-.8-.4-1.6-1.6-2.8z" /></svg>) },
+  { label: 'Perishable food, unarranged', icon: (<svg {...S}><path d="M12 8.5c2.6-2.6 8 0 6.4 5.2C17.3 17.4 14 20 12 20s-5.3-2.6-6.4-6.3C4 8.5 9.4 5.9 12 8.5z" /><path d="M12 8.5V5.5M12 5.5c1.6 0 2.6-1 2.8-2.3-1.5-.2-2.6.7-2.8 2.3z" /></svg>) },
+  { label: 'Explosives and fireworks', icon: (<svg {...S}><path d="M12 21a5 5 0 0 0 5-5c0-3-5-9-5-9s-5 6-5 9a5 5 0 0 0 5 5z" /><path d="M12 3v2M6 5l1.4 1.4M18 5l-1.4 1.4" /></svg>) },
+  { label: 'Loose lithium batteries', icon: (<svg {...S}><rect x="2" y="8" width="16" height="9" rx="2" /><path d="M18 11h3v3h-3" /><path d="M9 10.5l-2 3h3l-2 3" /></svg>) },
+  { label: 'Aerosols and gas canisters', icon: (<svg {...S}><rect x="8" y="8" width="8" height="13" rx="2" /><path d="M10 8V5h4v3" /><path d="M17 5h1M17 8h1M17 11h1" /></svg>) },
+  { label: 'Corrosive chemicals', icon: (<svg {...S}><path d="M10 3h4v5l4 9a2 2 0 0 1-1.8 2.9H7.8A2 2 0 0 1 6 17l4-9z" /><path d="M9 15h6" /></svg>) },
+  { label: 'Counterfeit goods', icon: (<svg {...S}><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2a2 2 0 0 1-.6-1.4V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.4 7.4a2 2 0 0 1 0 2.8z" /><circle cx="7.5" cy="7.5" r="1.2" /></svg>) },
+  { label: 'Unpacked glass or fragile items', icon: (<svg {...S}><path d="M7 3h10l-1.2 7.5a4 4 0 0 1-3.8 3.2h0a4 4 0 0 1-3.8-3.2z" /><path d="M12 13.7V21M9 21h6" /></svg>) },
 ];
 
 export default function Home() {
@@ -175,16 +141,16 @@ export default function Home() {
                 <div className="mt-9 flex flex-col sm:flex-row gap-3">
                   <Link
                     to="/book"
-                    className="gd-submit inline-flex items-center justify-center gap-2 !w-auto px-8"
+                    className="gd-submit inline-flex items-center justify-center gap-2 !w-auto px-6"
                   >
                     Book a delivery
-                    <ArrowRight className="h-5 w-5" />
+                    <ArrowRight className="h-4 w-4" />
                   </Link>
                   <a
                     href={`tel:${CONTACT_PHONE_E164}`}
-                    className="inline-flex items-center justify-center gap-2.5 rounded-[18px] border border-white/20 bg-white/5 px-8 py-4 text-base font-semibold text-white hover:border-white/40 hover:bg-white/10 transition-colors"
+                    className="inline-flex items-center justify-center gap-2.5 rounded-[14px] border border-white/20 bg-white/5 px-6 py-3 text-[15px] font-semibold text-white hover:border-white/40 hover:bg-white/10 transition-colors"
                   >
-                    <Phone className="h-5 w-5 text-red-400" />
+                    <Phone className="h-4 w-4 text-red-400" />
                     {CONTACT_PHONE}
                   </a>
                 </div>
@@ -214,50 +180,58 @@ export default function Home() {
       </section>
 
       {/* ---------------- WHAT WE WON'T CARRY ----------------
-          Directly under the hero, because it is the first thing that can waste
-          somebody's trip. Each item is drawn rather than bulleted — a symbol is
-          read faster than a line of text, and this list is meant to be scanned,
-          not studied. */}
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 sm:py-16">
+          A drifting row rather than a static grid. Twelve items would be a wall
+          as a grid; as one moving line it reads as "there is a list, here is
+          the shape of it", and the detail lives in the terms. The track holds
+          the list twice so the loop is seamless, it pauses on hover or focus,
+          and under reduced motion it becomes a plain scrollable row. */}
+      <section className="border-b border-slate-200 bg-white py-12 sm:py-14">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Reveal>
-            <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <span className="text-sm font-semibold uppercase tracking-widest text-red-600">
                   Before you pack
                 </span>
                 <h2 className="mt-2 font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                  Six things we cannot carry.
+                  Things we cannot carry.
                 </h2>
               </div>
               <Link
                 to="/policy"
-                className="inline-flex items-center gap-2 min-h-11 text-base font-bold text-red-700 hover:underline"
+                className="inline-flex items-center gap-2 min-h-11 text-[15px] font-bold text-red-700 hover:underline"
               >
                 Full terms
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </Reveal>
+        </div>
 
-          <ul className="mt-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {PROHIBITED.map((item, i) => (
-              <Reveal key={item.label} delay={i * 60}>
-                <li className="group h-full rounded-2xl border border-slate-200 bg-[var(--wp-bg)] p-5 flex flex-col items-center text-center transition-colors hover:border-red-200 hover:bg-red-50/40">
-                  <span className="relative text-slate-400 group-hover:text-red-500 transition-colors">
+        <div className="mt-8 marquee" aria-label="Items we cannot carry">
+          <ul className="marquee-track">
+            {/* Rendered twice: the second copy is what the loop lands on, and is
+                hidden from assistive tech so the list is not read out doubled. */}
+            {[0, 1].map((copy) =>
+              PROHIBITED.map((item) => (
+                <li
+                  key={`${copy}-${item.label}`}
+                  aria-hidden={copy === 1 ? true : undefined}
+                  className="shrink-0 w-[168px] rounded-2xl border border-slate-200 bg-[var(--wp-bg)] px-4 py-5 flex flex-col items-center text-center"
+                >
+                  <span className="relative text-slate-400">
                     {item.icon}
-                    {/* The bar that makes it a prohibition rather than a category. */}
                     <span
                       aria-hidden="true"
-                      className="absolute left-1/2 top-1/2 h-0.5 w-11 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full bg-red-500/80"
+                      className="absolute left-1/2 top-1/2 h-0.5 w-9 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full bg-red-500/80"
                     />
                   </span>
-                  <span className="mt-3 text-sm font-semibold text-slate-800 leading-snug">
+                  <span className="mt-3 text-[13px] font-semibold text-slate-800 leading-snug">
                     {item.label}
                   </span>
                 </li>
-              </Reveal>
-            ))}
+              ))
+            )}
           </ul>
         </div>
       </section>
@@ -285,7 +259,7 @@ export default function Home() {
               </div>
               <button
                 type="submit"
-                className="min-h-14 px-7 rounded-xl bg-slate-900 text-white text-base font-semibold hover:bg-slate-800 transition-colors cursor-pointer"
+                className="min-h-12 px-6 rounded-xl bg-slate-900 text-white text-[15px] font-semibold hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Track it
               </button>
@@ -367,13 +341,13 @@ export default function Home() {
               <div className="flex flex-col gap-3">
                 <Link
                   to="/book"
-                  className="flex items-center justify-center min-h-14 rounded-xl bg-red-600 hover:bg-red-500 text-base font-bold transition-colors"
+                  className="flex items-center justify-center min-h-12 rounded-xl bg-red-600 hover:bg-red-500 text-[15px] font-bold transition-colors"
                 >
                   Book a delivery
                 </Link>
                 <a
                   href={`tel:${CONTACT_PHONE_E164}`}
-                  className="flex items-center justify-center gap-2.5 min-h-14 rounded-xl border border-white/20 hover:border-white/40 hover:bg-white/5 text-base font-semibold transition-colors"
+                  className="flex items-center justify-center gap-2.5 min-h-12 rounded-xl border border-white/20 hover:border-white/40 hover:bg-white/5 text-[15px] font-semibold transition-colors"
                 >
                   <Phone className="h-5 w-5" />
                   {CONTACT_PHONE}

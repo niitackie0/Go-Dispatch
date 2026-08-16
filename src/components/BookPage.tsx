@@ -7,34 +7,38 @@ import React from 'react';
 import { ShieldCheck, Route, Smartphone } from 'lucide-react';
 import BookingForm from './BookingForm.js';
 import { useRouter } from '../router.js';
+import { DEFAULT_PRICING, formatAmount } from '../pricing.js';
 
 export default function BookPage() {
   // A region arriving from the map on the home page, so the customer does not
   // have to choose it twice.
   const { search } = useRouter();
   const initialRegion = new URLSearchParams(search).get('region') ?? '';
+  // The published rate, so the bar reads correctly without waiting on the API.
+  const rule = DEFAULT_PRICING;
 
   const { navigate } = useRouter();
 
   return (
     <div className="relative">
-      {/* Slim page header */}
-      <section className="relative overflow-hidden aurora-bg border-b border-slate-200/70">
-        <div className="absolute inset-0 wp-grid opacity-70" aria-hidden="true" />
-        <div className="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-14 pb-10 text-center">
-          <span className="text-xs font-mono uppercase tracking-widest text-red-600 font-semibold">Book a delivery</span>
-          <h1 className="mt-3 font-display text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
-            Schedule your parcel pickup
-          </h1>
-          <p className="mt-3 text-slate-600 max-w-xl mx-auto">
-            Tell us where to collect, where it is going, and how much it weighs. One flat rate to every town we serve.
-          </p>
-
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-500">
-            <span className="flex items-center gap-1.5"><Route className="h-4 w-4 text-red-600" /> Real-time tracking</span>
-            <span className="flex items-center gap-1.5"><Smartphone className="h-4 w-4 text-red-600" /> Instant MoMo prompt</span>
-            <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-red-600" /> Auditable payments</span>
+      {/* A slim bar, not a hero.
+          The stepped form carries its own large heading ("Where do we
+          collect?") immediately below, so a centred marketing headline here
+          just said the same thing twice and pushed the first field off the
+          screen. What is left is the one fact worth repeating at the moment
+          somebody starts: the rate. */}
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          <div className="flex items-baseline gap-3">
+            <span className="text-sm font-semibold uppercase tracking-widest text-red-600">
+              Book a delivery
+            </span>
+            <span className="text-sm text-slate-500">Takes about two minutes</span>
           </div>
+          <p className="text-[15px] text-slate-600">
+            <strong className="font-semibold text-slate-900">{formatAmount(rule.baseAmount, rule.currency)}</strong>
+            {' '}up to {rule.includedKg}kg · {formatAmount(rule.perExtraKgAmount, rule.currency)} per extra kilo
+          </p>
         </div>
       </section>
 

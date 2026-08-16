@@ -196,23 +196,23 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
           was in the old link columns is either in the nav or on the contact
           page, so repeating it here earned nothing. */}
       <footer className="mt-auto border-t border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 sm:py-16 text-center">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 text-center">
 
-          <p className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 text-balance">
+          <p className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 text-balance">
             One rate.
             <span className="block text-red-600">Many places.</span>
           </p>
 
           <a
             href={`tel:${CONTACT_PHONE_E164}`}
-            className="mt-7 inline-flex items-center gap-3 min-h-14 rounded-full bg-red-600 hover:bg-red-700 px-8 text-white text-lg font-bold tabular-nums shadow-[0_16px_22px_-16px_rgba(216,30,36,0.9)] transition-colors"
+            className="mt-5 inline-flex items-center gap-2.5 min-h-12 rounded-full bg-red-600 hover:bg-red-700 px-6 text-white text-base font-bold tabular-nums shadow-[0_12px_18px_-14px_rgba(216,30,36,0.9)] transition-colors"
           >
             <Phone className="h-5 w-5" />
             {CONTACT_PHONE}
           </a>
 
           {/* Only profiles with a URL are rendered — see SOCIAL in brand.ts. */}
-          <ul className="mt-7 flex items-center justify-center gap-3">
+          <ul className="mt-5 flex items-center justify-center gap-2.5">
             {SOCIAL.filter((s) => s.url).map((s) => (
               <li key={s.name}>
                 <a
@@ -221,7 +221,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                   rel="noreferrer"
                   aria-label={`GO DISPATCH on ${s.name}`}
                   title={s.name}
-                  className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition-colors"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition-colors"
                 >
                   <SocialIcon name={s.name} />
                 </a>
@@ -229,7 +229,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             ))}
           </ul>
 
-          <nav aria-label="Footer" className="mt-8 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-base text-slate-600">
+          <nav aria-label="Footer" className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-base text-slate-600">
             {[
               { to: '/book', label: 'Book' },
               { to: '/track', label: 'Track' },
@@ -245,7 +245,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             ))}
           </nav>
 
-          <p className="mt-6 text-sm text-slate-500">
+          <p className="mt-5 text-sm text-slate-500">
             {OFFICE_ADDRESS} — {OFFICE_LANDMARK}
           </p>
           <p className="mt-2 text-sm text-slate-400">

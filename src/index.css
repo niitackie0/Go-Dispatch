@@ -275,13 +275,13 @@ body {
   display: block;
   width: 100%;
   border: none;
-  border-radius: 18px;
-  padding-block: 16px;
+  border-radius: 14px;
+  padding-block: 12px;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 15px;
   color: #fff;
   background: var(--wp-grad);
-  box-shadow: 0 20px 18px -14px color-mix(in srgb, var(--wp-red) 62%, transparent);
+  box-shadow: 0 14px 14px -12px color-mix(in srgb, var(--wp-red) 55%, transparent);
   transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
   cursor: pointer;
 }
@@ -327,4 +327,33 @@ body {
   .fan-card { transform: none; margin-inline: 8px; transition: none; }
   .road-dot { transition: none; }
   .gd-submit { transition: none; }
+}
+
+
+/* ============================================================
+   Marquee — a single row that drifts sideways forever.
+   The track holds the list twice; translating exactly -50%
+   lands the copy where the original started, so the loop is
+   seamless rather than snapping back.
+   ============================================================ */
+@keyframes wp-marquee { to { transform: translate3d(-50%, 0, 0); } }
+
+.marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  gap: 12px;
+  animation: wp-marquee 46s linear infinite;
+}
+/* Stop when someone is trying to read it. */
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
+  .marquee-track { animation: none; }
 }

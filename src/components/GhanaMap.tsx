@@ -112,7 +112,7 @@ export default function GhanaMap({ onSelect, className = '' }: GhanaMapProps) {
                 textAnchor="middle"
                 className="fill-white"
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: 700,
                   paintOrder: 'stroke',
                   stroke: 'rgba(10,6,7,.78)',
@@ -134,7 +134,7 @@ export default function GhanaMap({ onSelect, className = '' }: GhanaMapProps) {
               textAnchor="middle"
               className="fill-white"
               style={{
-                fontSize: 11.5,
+                fontSize: 13.5,
                 fontWeight: 800,
                 paintOrder: 'stroke',
                 stroke: 'rgba(10,6,7,.78)',
