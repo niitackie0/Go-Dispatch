@@ -3,21 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Package,
-  MapPin,
-  User,
-  Phone,
-  FileText,
-  Calendar,
-  CreditCard,
-  CheckCircle,
   ArrowRight,
-  Loader2,
-  Info,
+  CheckCircle,
   Copy,
-  Check
+  Check,
+  Loader2,
+  Plus,
+  Trash2,
+  Package,
+  AlertCircle,
 } from 'lucide-react';
 import { PricingConfig } from '../types.js';
 import RegionPicker from './RegionPicker.js';
@@ -26,328 +22,272 @@ import { quote, formatAmount, DEFAULT_PRICING } from '../pricing.js';
 
 interface BookingFormProps {
   onSuccessBooking: (trackingCode: string) => void;
-  /** Preselected from the map on the home page. Ignored if not a region we serve. */
+  /** Preselected from the map on the home page. */
   initialRegion?: string;
 }
 
+interface ParcelDraft {
+  key: number;
+  destinationRegion: string;
+  dropoffAddress: string;
+  recipientName: string;
+  recipientPhone: string;
+  packageWeightKg: string;
+  packageDescription: string;
+}
+
+interface BookedParcel {
+  trackingCode: string;
+  destinationRegion?: string;
+  recipientName: string;
+  priceAmount: number;
+  currency: string;
+}
+
+const blankParcel = (key: number, region = ''): ParcelDraft => ({
+  key,
+  destinationRegion: region,
+  dropoffAddress: '',
+  recipientName: '',
+  recipientPhone: '',
+  packageWeightKg: '1',
+  packageDescription: '',
+});
+
+/**
+ * Booking, in three steps.
+ *
+ * The shape follows how the office works rather than how the table is laid
+ * out: one sender and one collection, then any number of parcels going to
+ * different regions, then a review.
+ *
+ * Two things are stated plainly rather than buried, because they are the two
+ * that would otherwise cause an argument at the counter:
+ *
+ *  - Every price here is an ESTIMATE. Parcels are weighed at the office and
+ *    the weighed figure is what is charged.
+ *  - The RECIPIENT pays, per parcel, at their door. There is no payment step
+ *    because the sender is not being asked for money.
+ */
 export default function BookingForm({ onSuccessBooking, initialRegion = '' }: BookingFormProps) {
-  // Pricing configuration loaded from API
-  // Seeded with the published rate so the form can quote before the API
-  // answers. The server prices the booking authoritatively either way.
   const [pricing, setPricing] = useState<PricingConfig>(DEFAULT_PRICING);
-
-  // Loading and feedback states
-  const [loadingPricing, setLoadingPricing] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(false);
-  const [successOrder, setSuccessOrder] = useState<{
-    trackingCode: string;
-    priceAmount: number;
-    senderName: string;
-    recipientName: string;
-  } | null>(null);
+  const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
 
-  // Form Fields
+  const [step, setStep] = useState(1);
+  const TOTAL_STEPS = 3;
+  const TITLES = ['Where do we collect?', 'What are you sending?', 'Check and confirm'];
+  const BLURBS = [
+    'We collect anywhere in Accra.',
+    'Add a parcel for each place it is going.',
+    'Prices are estimates until we weigh them.',
+  ];
+
   const [senderName, setSenderName] = useState('');
   const [senderPhone, setSenderPhone] = useState('');
   const [pickupAddress, setPickupAddress] = useState('');
   const [pickupNotes, setPickupNotes] = useState('');
-
-  const [recipientName, setRecipientName] = useState('');
-  const [recipientPhone, setRecipientPhone] = useState('');
-  const [dropoffAddress, setDropoffAddress] = useState('');
-  const [dropoffNotes, setDropoffNotes] = useState('');
-
-  // Validated rather than trusted: a hand-edited ?region= must not put a
-  // value in the form that the server would then reject.
-  const [destinationRegion, setDestinationRegion] = useState(
-    isRegion(initialRegion) ? initialRegion : ''
-  );
-  const [packageWeight, setPackageWeight] = useState('1');
-  const [packageDescription, setPackageDescription] = useState('');
   const [scheduledPickup, setScheduledPickup] = useState('');
-  const [paymentProvider, setPaymentProvider] = useState<'momo' | 'manual'>('momo');
 
-  // MoMo simulated interactive state
-  const [showMomoModal, setShowMomoModal] = useState(false);
-  const [momoPhoneNumber, setMomoPhoneNumber] = useState('');
-  const [momoStep, setMomoStep] = useState<1 | 2 | 3>(1); // 1: Prompt, 2: Simulating approval, 3: Completed
-  const [validationError, setValidationError] = useState('');
+  const [parcels, setParcels] = useState<ParcelDraft[]>([
+    blankParcel(1, isRegion(initialRegion) ? initialRegion : ''),
+  ]);
+  const [nextKey, setNextKey] = useState(2);
 
-  /**
-   * Four short screens instead of one long form.
-   *
-   * The order follows the job rather than the database: where it is going
-   * first, because that is the question a customer has already answered in
-   * their head, then where we collect, then the parcel, then payment. Each
-   * step validates only its own fields, so an error always points at
-   * something on screen.
-   */
-  const [step, setStep] = useState(1);
-  const TOTAL_STEPS = 4;
-  const STEP_TITLES = ['Where do we collect?', 'Where is it going?', 'What are you sending?', 'How would you like to pay?'];
-  const STEP_BLURBS = [
-    'We collect anywhere in Accra.',
-    'We deliver to nine regions across Ghana.',
-    'Weight decides the price, so be roughly right.',
-    'Mobile Money now, or cash when we collect.',
-  ];
+  const [result, setResult] = useState<{
+    reference: string;
+    parcels: BookedParcel[];
+    estimatedTotal: number;
+    currency: string;
+  } | null>(null);
 
-  /** Returns an error for the step, or '' when it is complete. */
-  const validateStep = (s: number): string => {
+  useEffect(() => {
+    fetch('/api/pricing')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setPricing(d))
+      .catch(() => {});
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    const tz = tomorrow.getTimezoneOffset() * 60000;
+    setScheduledPickup(new Date(tomorrow.getTime() - tz).toISOString().slice(0, 16));
+  }, []);
+
+  const patch = (key: number, f: keyof ParcelDraft, value: string) =>
+    setParcels((list) => list.map((p) => (p.key === key ? { ...p, [f]: value } : p)));
+
+  const addParcel = () => {
+    setParcels((list) => [...list, blankParcel(nextKey)]);
+    setNextKey((n) => n + 1);
+  };
+
+  const removeParcel = (key: number) =>
+    setParcels((list) => (list.length > 1 ? list.filter((p) => p.key !== key) : list));
+
+  const estimateFor = (p: ParcelDraft) => quote(Number(p.packageWeightKg), pricing).total;
+  const estimatedTotal = parcels.reduce((sum, p) => sum + estimateFor(p), 0);
+
+  const validate = (s: number): string => {
     if (s === 1) {
       if (!senderName.trim()) return 'Your name is required';
       if (!senderPhone.trim()) return 'Your phone number is required';
       if (!pickupAddress.trim()) return 'Pickup address is required';
+      if (!scheduledPickup) return 'Choose when we should collect';
     }
     if (s === 2) {
-      if (!destinationRegion) return 'Choose the region this parcel is going to';
-      if (!dropoffAddress.trim()) return 'Delivery address is required';
-      if (!recipientName.trim()) return "Recipient's name is required";
-      if (!recipientPhone.trim()) return "Recipient's phone number is required";
-    }
-    if (s === 3) {
-      if (!(Number(packageWeight) > 0)) return 'Parcel weight is required';
-      if (!packageDescription.trim()) return 'Tell us briefly what is in the parcel';
-      if (!scheduledPickup) return 'Choose when we should collect';
+      for (let i = 0; i < parcels.length; i++) {
+        const p = parcels[i];
+        const at = `Parcel ${i + 1}: `;
+        if (!p.destinationRegion) return `${at}choose the region it is going to`;
+        if (!p.dropoffAddress.trim()) return `${at}delivery address is required`;
+        if (!p.recipientName.trim()) return `${at}recipient's name is required`;
+        if (!p.recipientPhone.trim()) return `${at}recipient's phone number is required`;
+        if (!(Number(p.packageWeightKg) > 0)) return `${at}give us a rough weight`;
+        if (!p.packageDescription.trim()) return `${at}say briefly what is inside`;
+      }
     }
     return '';
   };
 
   const goNext = () => {
-    const err = validateStep(step);
-    if (err) { setValidationError(err); return; }
-    setValidationError('');
+    const err = validate(step);
+    if (err) { setError(err); return; }
+    setError('');
     setStep((s) => Math.min(TOTAL_STEPS, s + 1));
-    // The next step starts at its own heading, not wherever the last one ended.
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const goBack = () => {
-    setValidationError('');
+    setError('');
     setStep((s) => Math.max(1, s - 1));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Fetch Pricing configuration
-  useEffect(() => {
-    async function loadPricing() {
-      try {
-        const res = await fetch('/api/pricing');
-        if (res.ok) {
-          const data = await res.json();
-          setPricing(data);
-        }
-      } catch (err) {
-        console.error('Failed to load pricing config', err);
-      } finally {
-        setLoadingPricing(false);
-      }
-    }
-    loadPricing();
-
-    // Set default pickup date/time to tomorrow
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(9, 0, 0, 0);
-    // Format to local ISO-like dateTime-local string: YYYY-MM-DDThh:mm
-    const tzOffset = tomorrow.getTimezoneOffset() * 60000;
-    const localISOTime = new Date(tomorrow.getTime() - tzOffset).toISOString().slice(0, 16);
-    setScheduledPickup(localISOTime);
-  }, []);
-
-  // Same function the server prices with, so the quote on screen is the
-  // amount that will be charged.
-  const currentQuote = quote(Number(packageWeight), pricing);
-  const getPrice = () => currentQuote.total / 100;
-
-  const handleCopyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
-  };
-
-  /** Every step's rules, for the final submit. */
-  const validateForm = () => validateStep(1) || validateStep(2) || validateStep(3) || '';
-
-  const handleTriggerBooking = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setValidationError('');
+    const err = validate(1) || validate(2);
+    if (err) { setError(err); return; }
 
-    const err = validateForm();
-    if (err) {
-      setValidationError(err);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
-    if (paymentProvider === 'momo') {
-      setMomoPhoneNumber(senderPhone);
-      setMomoStep(1);
-      setShowMomoModal(true);
-    } else {
-      // Manual cash / Bank payment booking flow
-      submitBooking();
-    }
-  };
-
-  const submitBooking = async (providerRef?: string) => {
     setSubmitting(true);
-    setValidationError('');
+    setError('');
     try {
-      const payload = {
-        senderName,
-        senderPhone,
-        pickupAddress,
-        pickupNotes,
-        recipientName,
-        recipientPhone,
-        dropoffAddress,
-        destinationRegion,
-        dropoffNotes,
-        packageWeightKg: Number(packageWeight),
-        packageDescription,
-        scheduledPickupAt: new Date(scheduledPickup).toISOString(),
-        paymentProvider
-      };
-
-      const res = await fetch('/api/orders/book', {
+      const res = await fetch('/api/bookings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderName,
+          senderPhone,
+          pickupAddress,
+          pickupNotes,
+          scheduledPickupAt: new Date(scheduledPickup).toISOString(),
+          parcels: parcels.map((p) => ({
+            destinationRegion: p.destinationRegion,
+            dropoffAddress: p.dropoffAddress,
+            recipientName: p.recipientName,
+            recipientPhone: p.recipientPhone,
+            packageWeightKg: Number(p.packageWeightKg),
+            packageDescription: p.packageDescription,
+          })),
+        }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to submit booking');
-      }
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'That booking could not be submitted.');
 
-      const result = await res.json();
-
-      setSuccessOrder({
-        trackingCode: result.trackingCode,
-        priceAmount: result.order.priceAmount,
-        senderName: result.order.senderName,
-        recipientName: result.order.recipientName,
+      setResult({
+        reference: body.reference,
+        parcels: body.parcels ?? [],
+        estimatedTotal: body.estimatedTotal ?? 0,
+        currency: body.currency ?? 'GHS',
       });
-
-      // Clear Form Fields
-      setSenderName('');
-      setSenderPhone('');
-      setPickupAddress('');
-      setPickupNotes('');
-      setRecipientName('');
-      setRecipientPhone('');
-      setDropoffAddress('');
-      setDestinationRegion('');
-      setDropoffNotes('');
-      setPackageDescription('');
-      setStep(1);
+      onSuccessBooking(body.parcels?.[0]?.trackingCode ?? body.reference);
     } catch (err: any) {
-      setValidationError(err.message || 'Error occurred while creating delivery order.');
+      setError(err.message || 'That booking could not be submitted.');
     } finally {
       setSubmitting(false);
-      setShowMomoModal(false);
     }
   };
 
-  const handleMomoPaymentConfirm = () => {
-    setMomoStep(2);
-    // Mimic the USSD push flow
-    setTimeout(() => {
-      setMomoStep(3);
-      setTimeout(() => {
-        submitBooking('MOMO-AUTO-' + Math.floor(10000000 + Math.random() * 90000000));
-      }, 1200);
-    }, 2200);
+  const copyReference = (value: string) => {
+    navigator.clipboard?.writeText(value).then(
+      () => { setCopied(true); setTimeout(() => setCopied(false), 2000); },
+      () => {}
+    );
   };
 
-  // Success Confirmation screen
-  if (successOrder) {
+  const field =
+    'w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-[15px] outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-colors';
+  const label = 'block text-sm font-medium text-slate-500 mb-1';
+
+  /* ---------------- confirmation ---------------- */
+  if (result) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8" id="booking_success_container">
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-2xl">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 mb-6">
-            <CheckCircle className="h-10 w-10" />
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+            <CheckCircle className="h-8 w-8" />
           </div>
 
-          <h2 className="text-2xl font-semibold text-slate-900 mb-2">Booking Confirmed!</h2>
-          <p className="text-slate-500 mb-6">
-            Your parcel delivery request has been registered. Our dispatch team will review details and reach out shortly.
+          <h2 className="mt-5 font-display text-2xl font-semibold text-slate-900">
+            {result.parcels.length === 1 ? 'Parcel booked' : `${result.parcels.length} parcels booked`}
+          </h2>
+          <p className="mt-2 text-slate-600">
+            Bring them to Adabraka and we will weigh each one. Each recipient pays for
+            theirs when it arrives.
           </p>
 
-          {/* Tracking Ticket Widget */}
-          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-left mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-dashed border-slate-200 mb-4">
-              <div>
-                <span className="text-xs uppercase tracking-wider font-mono text-slate-500">Tracking Code</span>
-                <div className="flex items-center space-x-2 mt-1">
-                  <span className="text-xl font-medium font-mono text-slate-900">{successOrder.trackingCode}</span>
-                  <button
-                    onClick={() => handleCopyCode(successOrder.trackingCode)}
-                    className="p-1 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-sm cursor-pointer"
-                    title="Copy tracking code"
-                  >
-                    {copiedCode ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-              <div className="mt-4 sm:mt-0 text-right">
-                <span className="text-xs uppercase tracking-wider font-mono text-slate-500 block">Calculated Price</span>
-                <span className="text-lg font-semibold text-red-600">
-                  {pricing.currency} {(successOrder.priceAmount / 100).toFixed(2)}
+          <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 flex items-center justify-between gap-3">
+            <span className="min-w-0">
+              <span className="block text-sm text-slate-500">Your booking reference</span>
+              <span className="block font-mono text-xl font-semibold text-slate-900">{result.reference}</span>
+            </span>
+            <button
+              onClick={() => copyReference(result.reference)}
+              aria-label="Copy booking reference"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shrink-0"
+            >
+              {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+            </button>
+          </div>
+
+          <ul className="mt-5 divide-y divide-slate-200 border-y border-slate-200">
+            {result.parcels.map((p) => (
+              <li key={p.trackingCode} className="py-3 flex items-center justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block font-mono text-[15px] font-medium text-slate-900">{p.trackingCode}</span>
+                  <span className="block text-sm text-slate-500 truncate">
+                    {p.destinationRegion} · {p.recipientName}
+                  </span>
                 </span>
-              </div>
-            </div>
+                <span className="text-[15px] font-medium text-slate-900 tabular-nums shrink-0">
+                  ~{formatAmount(p.priceAmount, p.currency)}
+                </span>
+              </li>
+            ))}
+          </ul>
 
-            <div className="grid grid-cols-2 gap-4 text-sm font-sans text-slate-700">
-              <div>
-                <span className="text-xs text-slate-500 block">Sender</span>
-                <span className="font-medium text-slate-900">{successOrder.senderName}</span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-500 block">Recipient</span>
-                <span className="font-medium text-slate-900">{successOrder.recipientName}</span>
-              </div>
-            </div>
+          <div className="mt-4 flex items-baseline justify-between">
+            <span className="text-slate-500">Estimated total</span>
+            <span className="text-xl font-semibold text-slate-900 tabular-nums">
+              ~{formatAmount(result.estimatedTotal, result.currency)}
+            </span>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button
-              onClick={() => onSuccessBooking(successOrder.trackingCode)}
-              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 rounded-xl btn-aurora px-6 py-3.5 text-sm font-medium text-white shadow-md hover:scale-[1.01] transition-all cursor-pointer"
-            >
-              <span>Track this Parcel</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setSuccessOrder(null)}
-              className="w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-6 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
-            >
-              Book Another Parcel
-            </button>
-          </div>
+          <p className="mt-4 text-sm text-slate-500">
+            Every figure here is an estimate from the weight you gave us. We weigh each
+            parcel at the office, and that is the price the recipient pays.
+          </p>
         </div>
       </div>
     );
   }
 
+  /* ---------------- the form ---------------- */
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 animate-in fade-in duration-200" id="booking_form_container">
-
-      {validationError && (
-        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start space-x-2">
-          <Info className="h-5 w-5 shrink-0 text-red-500 mt-0.5" />
-          <span>{validationError}</span>
-        </div>
-      )}
-
-      <form onSubmit={handleTriggerBooking} className="space-y-8">
-
-        {/* Progress. Segments rather than a percentage — four steps is few
-            enough to show all of them at once. */}
+    <div className="mx-auto max-w-2xl px-4 py-8">
+      <form onSubmit={submit} className="space-y-7">
         <div>
           <div
             className="flex gap-1.5"
@@ -358,476 +298,207 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             aria-label={`Step ${step} of ${TOTAL_STEPS}`}
           >
             {Array.from({ length: TOTAL_STEPS }, (_, i) => (
-              <span
-                key={i}
-                className={`h-1.5 flex-1 rounded-full transition-colors ${i < step ? 'bg-red-600' : 'bg-slate-200'}`}
-              />
+              <span key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i < step ? 'bg-red-600' : 'bg-slate-200'}`} />
             ))}
           </div>
           <div className="mt-4 flex items-baseline justify-between gap-3">
             <h2 className="font-display text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight text-balance">
-              {STEP_TITLES[step - 1]}
+              {TITLES[step - 1]}
             </h2>
-            <span className="text-sm text-slate-500 shrink-0 tabular-nums">
-              Step {step} of {TOTAL_STEPS}
-            </span>
+            <span className="text-sm text-slate-500 shrink-0 tabular-nums">Step {step} of {TOTAL_STEPS}</span>
           </div>
-          <p className="mt-1 text-base text-slate-500">{STEP_BLURBS[step - 1]}</p>
+          <p className="mt-1 text-slate-500">{BLURBS[step - 1]}</p>
         </div>
 
-        <div className={step === 1 ? '' : 'hidden'}>
-          {/* Pickup */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
-            <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
-                <MapPin className="h-4 w-4" />
-              </div>
-              <h2 className="text-lg font-semibold text-slate-900">Where we collect</h2>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-500 mb-1">Your name *</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                  <input
-                    id="input_sender_name"
-                    type="text"
-                    required
-                    value={senderName}
-                    onChange={(e) => setSenderName(e.target.value)}
-                    placeholder="e.g. Ama Osei"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-500 mb-1">Your phone number *</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                  <input
-                    id="input_sender_phone"
-                    type="tel"
-                    required
-                    value={senderPhone}
-                    onChange={(e) => setSenderPhone(e.target.value)}
-                    placeholder="e.g. 0244123456"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-500 mb-1">Pickup address *</label>
-                <textarea
-                  id="input_pickup_address"
-                  required
-                  value={pickupAddress}
-                  onChange={(e) => setPickupAddress(e.target.value)}
-                  placeholder="e.g. Block C, Airport Residential Area, Accra"
-                  rows={2}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-500 mb-1">Pickup Notes / Landmarks (Optional)</label>
-                <input
-                  id="input_pickup_notes"
-                  type="text"
-                  value={pickupNotes}
-                  onChange={(e) => setPickupNotes(e.target.value)}
-                  placeholder="e.g. Opposite the French School, ring gate bell"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
-                />
-              </div>
-            </div>
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-2.5" role="alert">
+            <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+            <p className="text-[15px] text-red-700">{error}</p>
           </div>
+        )}
 
-        </div>
-
-        <div className={step === 2 ? '' : 'hidden'}>
-          {/* Destination */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
-            <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
-                <MapPin className="h-4 w-4" />
-              </div>
-              <h2 className="text-lg font-semibold text-slate-900">Where it goes</h2>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-500 mb-1">Recipient's name *</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                  <input
-                    id="input_recipient_name"
-                    type="text"
-                    required
-                    value={recipientName}
-                    onChange={(e) => setRecipientName(e.target.value)}
-                    placeholder="e.g. Kofi Mensah"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-500 mb-1">Recipient's phone number *</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                  <input
-                    id="input_recipient_phone"
-                    type="tel"
-                    required
-                    value={recipientPhone}
-                    onChange={(e) => setRecipientPhone(e.target.value)}
-                    placeholder="e.g. 0207987654"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Region from the served list, then the exact address. Three of
-                  the advertised towns share Central Region, so the region alone
-                  never locates a door. */}
-              <div>
-                <label htmlFor="input_destination_region" className="block text-sm font-medium text-slate-500 mb-1">
-                  Destination region *
-                </label>
-                <RegionPicker
-                  id="input_destination_region"
-                  value={destinationRegion}
-                  onChange={setDestinationRegion}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="input_dropoff_address" className="block text-sm font-medium text-slate-500 mb-1">
-                  Exact delivery address *
-                </label>
-                <textarea
-                  id="input_dropoff_address"
-                  required
-                  value={dropoffAddress}
-                  onChange={(e) => setDropoffAddress(e.target.value)}
-                  placeholder="e.g. Lamashegu, near the Total filling station"
-                  rows={2}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-500 mb-1">Dropoff Notes / Landmarks (Optional)</label>
-                <input
-                  id="input_dropoff_notes"
-                  type="text"
-                  value={dropoffNotes}
-                  onChange={(e) => setDropoffNotes(e.target.value)}
-                  placeholder="e.g. Next to the MTN office"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
-                />
-              </div>
-            </div>
+        {/* ---- 1. Collection ---- */}
+        <div className={step === 1 ? 'space-y-4' : 'hidden'}>
+          <div>
+            <label htmlFor="b_name" className={label}>Your name *</label>
+            <input id="b_name" className={field} value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="e.g. Ama Osei" />
+          </div>
+          <div>
+            <label htmlFor="b_phone" className={label}>Your phone number *</label>
+            <input id="b_phone" type="tel" className={field} value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} placeholder="e.g. 0244123456" />
+          </div>
+          <div>
+            <label htmlFor="b_pickup" className={label}>Pickup address in Accra *</label>
+            <textarea id="b_pickup" rows={2} className={`${field} resize-none`} value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)} placeholder="e.g. Block C, Airport Residential Area" />
+          </div>
+          <div>
+            <label htmlFor="b_notes" className={label}>Landmark (optional)</label>
+            <input id="b_notes" className={field} value={pickupNotes} onChange={(e) => setPickupNotes(e.target.value)} placeholder="e.g. Opposite the French School" />
+          </div>
+          <div>
+            <label htmlFor="b_when" className={label}>When should we collect? *</label>
+            <input id="b_when" type="datetime-local" className={field} value={scheduledPickup} onChange={(e) => setScheduledPickup(e.target.value)} />
           </div>
         </div>
 
-        <div className={step === 3 ? '' : 'hidden'}>
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-6">
-          <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
-              <Package className="h-4 w-4" />
+        {/* ---- 2. Parcels ---- */}
+        <div className={step === 2 ? 'space-y-4' : 'hidden'}>
+          {parcels.map((p, i) => (
+            <div key={p.key} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
+              <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                <span className="flex items-center gap-2 text-[15px] font-medium text-slate-900">
+                  <Package className="h-4 w-4 text-red-600" />
+                  Parcel {i + 1}
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-[15px] text-slate-500 tabular-nums">
+                    ~{formatAmount(estimateFor(p), pricing.currency)}
+                  </span>
+                  {parcels.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeParcel(p.key)}
+                      aria-label={`Remove parcel ${i + 1}`}
+                      className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </span>
+              </div>
+
+              <div>
+                <label className={label}>Region it is going to *</label>
+                <RegionPicker value={p.destinationRegion} onChange={(v) => patch(p.key, 'destinationRegion', v)} />
+              </div>
+              <div>
+                <label className={label}>Delivery address *</label>
+                <textarea rows={2} className={`${field} resize-none`} value={p.dropoffAddress} onChange={(e) => patch(p.key, 'dropoffAddress', e.target.value)} placeholder="e.g. Lamashegu, near the Total station" />
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={label}>Recipient&rsquo;s name *</label>
+                  <input className={field} value={p.recipientName} onChange={(e) => patch(p.key, 'recipientName', e.target.value)} placeholder="e.g. Kofi Mensah" />
+                </div>
+                <div>
+                  <label className={label}>Recipient&rsquo;s phone *</label>
+                  <input type="tel" className={field} value={p.recipientPhone} onChange={(e) => patch(p.key, 'recipientPhone', e.target.value)} placeholder="e.g. 0207987654" />
+                </div>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={label}>Rough weight (kg) *</label>
+                  <input type="number" min="0.1" max="100" step="0.1" className={field} value={p.packageWeightKg} onChange={(e) => patch(p.key, 'packageWeightKg', e.target.value)} />
+                </div>
+                <div>
+                  <label className={label}>What is inside? *</label>
+                  <input className={field} value={p.packageDescription} onChange={(e) => patch(p.key, 'packageDescription', e.target.value)} placeholder="e.g. documents" />
+                </div>
+              </div>
             </div>
-            <h2 className="text-lg font-semibold text-slate-900">What you are sending</h2>
+          ))}
+
+          <button
+            type="button"
+            onClick={addParcel}
+            className="w-full min-h-14 flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 text-[15px] font-medium text-slate-600 hover:border-red-300 hover:text-red-700 hover:bg-red-50/40 transition-colors cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            Add another parcel
+          </button>
+
+          <p className="text-sm text-slate-500">
+            Each parcel gets its own tracking code and can go to a different region. The
+            recipient pays for theirs when it arrives.
+          </p>
+        </div>
+
+        {/* ---- 3. Review ---- */}
+        <div className={step === 3 ? 'space-y-4' : 'hidden'}>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h3 className="text-sm font-medium text-slate-500">Collection</h3>
+            <p className="mt-1 text-[15px] text-slate-900">{senderName || '—'} · {senderPhone}</p>
+            <p className="text-[15px] text-slate-600">{pickupAddress}</p>
+            <p className="text-sm text-slate-500 mt-1">
+              {scheduledPickup ? new Date(scheduledPickup).toLocaleString() : ''}
+            </p>
           </div>
 
-          {/* Weight is the only thing that moves the price now, so it gets the
-              room the size tiers used to have, and quotes as you type. */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="input_package_weight" className="block text-sm font-medium text-slate-500 mb-2">
-                Parcel weight (kg) *
-              </label>
-              <input
-                id="input_package_weight"
-                type="number"
-                min="0.1"
-                max="100"
-                step="0.1"
-                required
-                value={packageWeight}
-                onChange={(e) => setPackageWeight(e.target.value)}
-                placeholder="e.g. 1.5"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-base outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
-              />
-              <p className="text-sm text-slate-500 mt-2">
-                {formatAmount(pricing.baseAmount, pricing.currency)} covers up to {pricing.includedKg}kg.
-                Each extra kilo is {formatAmount(pricing.perExtraKgAmount, pricing.currency)}.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex flex-col justify-center">
-              <span className="text-sm font-medium text-red-900">This parcel</span>
-              <span className="mt-1 text-3xl font-semibold text-red-700 tabular-nums tracking-tight">
-                {formatAmount(currentQuote.total, currentQuote.currency)}
-              </span>
-              <span className="text-sm text-red-900/70 mt-1">
-                {currentQuote.extraKg > 0
-                  ? `${formatAmount(currentQuote.baseAmount, currentQuote.currency)} + ${currentQuote.extraKg}kg over ${pricing.includedKg}kg`
-                  : `Flat rate, any region we serve`}
+          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+            <ul className="divide-y divide-slate-200">
+              {parcels.map((p, i) => (
+                <li key={p.key} className="p-4 flex items-start justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="block text-[15px] font-medium text-slate-900">
+                      Parcel {i + 1} · {p.destinationRegion || '—'}
+                    </span>
+                    <span className="block text-sm text-slate-500 truncate">
+                      {p.recipientName} · {p.dropoffAddress}
+                    </span>
+                    <span className="block text-sm text-slate-400">
+                      {p.packageWeightKg}kg · {p.packageDescription}
+                    </span>
+                  </span>
+                  <span className="text-[15px] text-slate-900 tabular-nums shrink-0">
+                    ~{formatAmount(estimateFor(p), pricing.currency)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="p-4 bg-slate-50 flex items-baseline justify-between">
+              <span className="text-slate-600">Estimated total</span>
+              <span className="text-xl font-semibold text-slate-900 tabular-nums">
+                ~{formatAmount(estimatedTotal, pricing.currency)}
               </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-500 mb-1">What is in the parcel? *</label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                <input
-                  id="input_package_desc"
-                  type="text"
-                  required
-                  value={packageDescription}
-                  onChange={(e) => setPackageDescription(e.target.value)}
-                  placeholder="e.g. Legal documents and keys in manila folder"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-500 mb-1">When should we collect? *</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                <input
-                  id="input_pickup_time"
-                  type="datetime-local"
-                  required
-                  value={scheduledPickup}
-                  onChange={(e) => setScheduledPickup(e.target.value)}
-                  style={{ colorScheme: 'dark' }}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 transition-all"
-                />
-              </div>
-            </div>
+          {/* The two facts most likely to cause an argument later. */}
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+            <p className="text-[15px] text-amber-900">
+              <strong className="font-semibold">This is an estimate.</strong> We weigh every
+              parcel at our office in Adabraka, and the weighed price is the one charged.
+            </p>
+            <p className="text-[15px] text-amber-900">
+              <strong className="font-semibold">The recipient pays.</strong> Each parcel is
+              settled by the person receiving it, when it arrives.
+            </p>
           </div>
         </div>
 
-        </div>
-
-        {/* Step 4: Payment Methods */}
-        <div className={step === 4 ? '' : 'hidden'}>
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-6">
-          <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
-              <CreditCard className="h-4 w-4" />
-            </div>
-            <h2 className="text-lg font-semibold text-slate-900">How you want to pay</h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-            {/* MoMo Option */}
-            <button
-              type="button"
-              onClick={() => setPaymentProvider('momo')}
-              className={`flex items-start p-4 rounded-xl border-2 text-left transition-all cursor-pointer ${
-                paymentProvider === 'momo'
-                  ? 'border-amber-500 bg-amber-500/5 text-slate-900'
-                  : 'border-slate-200 hover:border-slate-300 bg-slate-50 text-slate-500'
-              }`}
-            >
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-300 mt-0.5 mr-3">
-                {paymentProvider === 'momo' && <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />}
-              </div>
-              <div>
-                <span className="block font-semibold text-slate-900">MTN Mobile Money (MoMo)</span>
-                <span className="block text-xs text-slate-500 mt-1">
-                  Trigger instant Request-to-Pay USSD prompt to approve on your mobile handset immediately.
-                </span>
-                <span className="inline-block mt-2 rounded bg-amber-500/15 border border-amber-500/20 text-amber-600 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wider">
-                  Highly Recommended
-                </span>
-              </div>
-            </button>
-
-            {/* Manual Payment Option */}
-            <button
-              type="button"
-              onClick={() => setPaymentProvider('manual')}
-              className={`flex items-start p-4 rounded-xl border-2 text-left transition-all cursor-pointer ${
-                paymentProvider === 'manual'
-                  ? 'border-red-500 bg-red-50 text-slate-900'
-                  : 'border-slate-200 hover:border-slate-300 bg-slate-50 text-slate-500'
-              }`}
-            >
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-300 mt-0.5 mr-3">
-                {paymentProvider === 'manual' && <div className="h-2.5 w-2.5 rounded-full bg-red-600" />}
-              </div>
-              <div>
-                <span className="block font-semibold text-slate-900">Pay on collection</span>
-                <span className="block text-xs text-slate-500 mt-1">
-                  Confirm booking first. You can coordinate cash on pickup, bank transfer, or offline MoMo. Your payment is logged once received.
-                </span>
-              </div>
-            </button>
-          </div>
-
-          {/* Pricing Total Summary Box */}
-          <div className="rounded-xl bg-slate-100 border border-slate-200 text-slate-900 p-6 flex flex-col sm:flex-row items-center justify-between shadow-lg">
-            <div className="mb-4 sm:mb-0 text-center sm:text-left">
-              <span className="text-sm font-medium text-slate-500">Total</span>
-              <div className="text-3xl font-medium mt-1 text-red-600 tabular-nums">
-                {pricing.currency} {getPrice().toFixed(2)}
-              </div>
-              <p className="text-slate-500 text-sm mt-1">
-                {destinationRegion ? `To ${destinationRegion} Region. ` : ''}
-                {currentQuote.extraKg > 0
-                  ? `Flat rate plus ${currentQuote.extraKg}kg over ${pricing.includedKg}kg.`
-                  : 'One flat rate, any region we serve.'}
-              </p>
-            </div>
-
-            <button
-              id="btn_submit_booking"
-              type="submit"
-              disabled={submitting}
-              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2.5 rounded-xl btn-aurora px-8 py-4 text-sm font-semibold text-white shadow-md shadow-red-500/20 hover:scale-[1.01] transition-all disabled:opacity-50 cursor-pointer"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Processing...</span>
-                </>
-              ) : (
-                <>
-                  <span>Book Delivery Now</span>
-                  <ArrowRight className="h-4.5 w-4.5" />
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-        </div>
-
-        {/* Step navigation. Continue validates only the step you are on, so an
-            error always points at a field currently on screen. */}
         <div className="flex items-center gap-3">
           {step > 1 && (
             <button
               type="button"
               onClick={goBack}
-              className="min-h-14 px-6 rounded-xl border border-slate-200 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              className="min-h-12 px-5 rounded-xl border border-slate-200 bg-white text-[15px] font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
             >
               Back
             </button>
           )}
 
-          {step < TOTAL_STEPS && (
-            <button
-              type="button"
-              onClick={goNext}
-              className="gd-submit flex-1 inline-flex items-center justify-center gap-2"
-            >
+          {step < TOTAL_STEPS ? (
+            <button type="button" onClick={goNext} className="gd-submit flex-1">
               Continue
-              <ArrowRight className="h-5 w-5" />
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          ) : (
+            <button type="submit" id="btn_submit_booking" disabled={submitting} className="gd-submit flex-1">
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {submitting ? 'Booking…' : `Book ${parcels.length === 1 ? 'this parcel' : `${parcels.length} parcels`}`}
             </button>
           )}
 
-          {/* The running price, from the second step on — before that there is
-              nothing to price. */}
-          {step > 1 && step < TOTAL_STEPS && (
+          {step === 2 && (
             <span className="hidden sm:block text-right shrink-0">
-              <span className="block text-sm text-slate-500">Total</span>
-              <span className="block text-xl font-semibold text-slate-900 tabular-nums">
-                {formatAmount(currentQuote.total, currentQuote.currency)}
+              <span className="block text-sm text-slate-500">Estimate</span>
+              <span className="block text-lg font-semibold text-slate-900 tabular-nums">
+                ~{formatAmount(estimatedTotal, pricing.currency)}
               </span>
             </span>
           )}
         </div>
       </form>
-
-      {/* Real-time Simulated MoMo Prompt Modal */}
-      {showMomoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
-              <div className="flex items-center space-x-2">
-                <div className="h-6 w-6 rounded-md bg-amber-500 flex items-center justify-center text-black text-xs font-semibold">
-                  M
-                </div>
-                <h3 className="font-semibold text-slate-900 text-base">MTN Mobile Money Prompt</h3>
-              </div>
-              <button
-                onClick={() => setShowMomoModal(false)}
-                className="text-slate-500 hover:text-slate-700 text-sm font-medium p-1 cursor-pointer"
-              >
-                Cancel
-              </button>
-            </div>
-
-            {momoStep === 1 && (
-              <div className="space-y-4">
-                <p className="text-sm text-slate-500">
-                  Provide your MTN phone number. This simulates a real <strong className="text-slate-900">Request-to-Pay (R2P)</strong> API pull.
-                </p>
-                <div>
-                  <label className="block text-sm font-medium text-slate-500 mb-1">Moneys Wallet Number</label>
-                  <input
-                    id="input_momo_phone"
-                    type="tel"
-                    value={momoPhoneNumber}
-                    onChange={(e) => setMomoPhoneNumber(e.target.value)}
-                    placeholder="e.g. 0244123456"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 px-4 py-3 text-sm outline-none font-mono focus:border-red-500 placeholder-slate-400"
-                  />
-                </div>
-                <button
-                  id="btn_confirm_sim_momo"
-                  onClick={handleMomoPaymentConfirm}
-                  className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 min-h-12 text-base font-semibold text-black shadow-md transition-colors cursor-pointer"
-                >
-                  Send USSD Request Prompt
-                </button>
-              </div>
-            )}
-
-            {momoStep === 2 && (
-              <div className="text-center py-6 space-y-4">
-                <Loader2 className="h-10 w-10 text-amber-500 animate-spin mx-auto" />
-                <div>
-                  <h4 className="font-semibold text-slate-900">Processing USSD Push</h4>
-                  <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">
-                    Sending a Request-to-Pay alert of <strong className="text-red-600">{pricing.currency} {getPrice().toFixed(2)}</strong> to {momoPhoneNumber}. Approve prompt on your handset now.
-                  </p>
-                </div>
-                <div className="bg-black/60 p-3 rounded-lg text-left text-xs font-mono text-slate-500 border border-slate-200/85 max-w-xs mx-auto">
-                  <span className="text-slate-500 uppercase tracking-widest text-xs font-medium block mb-1">Simulation logs</span>
-                  &gt; curl R2P push status... PENDING<br/>
-                  &gt; waiting for MTN provider hook...
-                </div>
-              </div>
-            )}
-
-            {momoStep === 3 && (
-              <div className="text-center py-6 space-y-4">
-                <div className="h-12 w-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center justify-center mx-auto">
-                  <CheckCircle className="h-7 w-7" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-slate-900">Payment Approved!</h4>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Received MTN verification reference. Finalizing your order dispatch booking...
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

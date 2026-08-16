@@ -43,7 +43,11 @@ export default function BookPage() {
       </section>
 
       {/* The booking form */}
-      <BookingForm initialRegion={initialRegion} onSuccessBooking={(code) => navigate(`/track?code=${encodeURIComponent(code)}`)} />
+      {/* No navigation on success. A booking can now hold several parcels
+          going to different regions, so jumping to one parcel's tracking page
+          would hide the rest — the form shows its own confirmation with the
+          booking reference and every code. */}
+      <BookingForm initialRegion={initialRegion} onSuccessBooking={() => {}} />
     </div>
   );
 }
