@@ -47,7 +47,7 @@ function Num({ children, dark = false }: { children: React.ReactNode; dark?: boo
 }
 
 /** The status flow a parcel moves through, in customer words. */
-const FLOW = ['Booked', 'Confirmed', 'Collected', 'On the road', 'Delivered'];
+const FLOW = ['Booked', 'Rider collects', 'Weighed', 'On the road', 'Delivered'];
 
 /**
  * What we will not carry.

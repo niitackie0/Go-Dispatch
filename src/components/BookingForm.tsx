@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { PricingConfig } from '../types.js';
 import RegionPicker from './RegionPicker.js';
+import WhenPicker from './WhenPicker.js';
 import { isRegion } from '../regions.js';
 import { quote, formatAmount, DEFAULT_PRICING } from '../pricing.js';
 
@@ -234,8 +235,8 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             {result.parcels.length === 1 ? 'Parcel booked' : `${result.parcels.length} parcels booked`}
           </h2>
           <p className="mt-2 text-slate-600">
-            Bring them to Adabraka and we will weigh each one. Each recipient pays for
-            theirs when it arrives.
+            A rider will come to your address and collect. We weigh each parcel back at
+            the office, and each recipient pays for theirs when it arrives.
           </p>
 
           <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 flex items-center justify-between gap-3">
@@ -276,8 +277,9 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           </div>
 
           <p className="mt-4 text-sm text-slate-500">
-            Every figure here is an estimate from the weight you gave us. We weigh each
-            parcel at the office, and that is the price the recipient pays.
+            Every figure here is an estimate from the weight you gave us. Each parcel is
+            weighed once our rider brings it in, and that weighed price is what the
+            recipient pays.
           </p>
         </div>
       </div>
@@ -336,8 +338,8 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             <input id="b_notes" className={field} value={pickupNotes} onChange={(e) => setPickupNotes(e.target.value)} placeholder="e.g. Opposite the French School" />
           </div>
           <div>
-            <label htmlFor="b_when" className={label}>When should we collect? *</label>
-            <input id="b_when" type="datetime-local" className={field} value={scheduledPickup} onChange={(e) => setScheduledPickup(e.target.value)} />
+            <label htmlFor="b_when" className={label}>When should we come? *</label>
+            <WhenPicker id="b_when" value={scheduledPickup} onChange={setScheduledPickup} />
           </div>
         </div>
 
@@ -456,8 +458,9 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           {/* The two facts most likely to cause an argument later. */}
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
             <p className="text-[15px] text-amber-900">
-              <strong className="font-semibold">This is an estimate.</strong> We weigh every
-              parcel at our office in Adabraka, and the weighed price is the one charged.
+              <strong className="font-semibold">This is an estimate.</strong> Our rider
+              collects from you, we weigh each parcel back at the office, and that weighed
+              price is the one charged.
             </p>
             <p className="text-[15px] text-amber-900">
               <strong className="font-semibold">The recipient pays.</strong> Each parcel is

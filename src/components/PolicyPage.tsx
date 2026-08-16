@@ -151,6 +151,11 @@ export default function PolicyPage() {
 
           <Clause id="pricing" n={2} title="Pricing">
             <p>
+              Every parcel is weighed at our office after collection, and the weighed
+              figure is what is charged. The price quoted at booking is an estimate from
+              the weight you declare.
+            </p>
+            <p>
               One flat rate of{' '}
               <strong>{formatAmount(rule.baseAmount, rule.currency)}</strong> covers any
               parcel up to <strong>{rule.includedKg}kg</strong>, to any region we serve.
@@ -171,9 +176,10 @@ export default function PolicyPage() {
 
           <Clause id="collection" n={3} title="Collection and delivery">
             <p>
-              You choose a preferred collection time when booking. We will confirm it, and
-              we will tell you if we cannot make it. Collection is from an address in Accra;
-              we do not currently collect from the destination regions.
+              You choose a collection day and time when booking, and a rider comes to your
+              address to take the parcel — you do not need to come to our office. We will
+              confirm the slot and tell you if we cannot make it. Collection is from an
+              address in Accra; we do not currently collect from the destination regions.
             </p>
             <p>
               Delivery times depend on the route and are{' '}
