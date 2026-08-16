@@ -272,8 +272,15 @@ body {
 .gd-field:disabled { opacity: 0.55; }
 
 .gd-submit {
-  display: block;
-  width: 100%;
+  /* inline-flex, not block: this rule is unlayered, so it beats Tailwind's
+     display utility. As block it forced the icon onto a text baseline and
+     added ~16px of leading, which is why the button stayed oversized however
+     much the padding came down. Width is left to the caller. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
   border: none;
   border-radius: 14px;
   padding-block: 12px;
