@@ -179,3 +179,152 @@ body {
   }
   .road-line { animation: none; }
 }
+
+/* ============================================================
+   The road strip — towns as stops on one horizontal line.
+   Each stop carries its own connector, so the line survives
+   wrapping onto a second and third row instead of breaking.
+   ============================================================ */
+/* One line, never wrapped — a road that breaks onto a second row stops
+   reading as a road. Narrow screens scroll it sideways instead, with a fade
+   at the edge so it is obvious there is more. */
+.road-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+  -webkit-mask-image: linear-gradient(to right, #000 0 92%, transparent 100%);
+  mask-image: linear-gradient(to right, #000 0 92%, transparent 100%);
+}
+.road-strip::-webkit-scrollbar { display: none; }
+
+@media (min-width: 1024px) {
+  /* Everything fits, so no scroll and no fade. */
+  .road-strip { overflow-x: visible; -webkit-mask-image: none; mask-image: none; }
+  .road-stop { flex: 1 1 0; }
+}
+
+.road-stop {
+  position: relative;
+  flex: 0 0 auto;
+  width: 96px;
+  scroll-snap-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* The connector, drawn from this stop's dot to the next. */
+.road-stop::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: calc(50% + 10px);
+  right: calc(-50% + 10px);
+  height: 2px;
+  background-image: linear-gradient(to right, var(--wp-red) 0 7px, transparent 7px 14px);
+  background-size: 14px 2px;
+  background-repeat: repeat-x;
+  opacity: 0.55;
+}
+.road-stop:last-child::after { display: none; }
+
+.road-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 3px solid var(--wp-red);
+  background: var(--wp-surface);
+  position: relative;
+  z-index: 1;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.road-stop:first-child .road-dot { background: var(--wp-red); }
+.road-stop:hover .road-dot {
+  transform: scale(1.35);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--wp-red) 16%, transparent);
+}
+
+/* ============================================================
+   Soft forms — pillowy fields, gradient action, spring press.
+   ============================================================ */
+.gd-field {
+  width: 100%;
+  background: #fff;
+  border: none;
+  border-inline: 2px solid transparent;
+  border-radius: 18px;
+  padding: 15px 20px;
+  font-size: 16px;
+  color: var(--wp-ink);
+  box-shadow: 0 10px 14px -10px color-mix(in srgb, var(--wp-red) 34%, transparent);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.gd-field::placeholder { color: #B4A3A6; }
+.gd-field:focus {
+  outline: none;
+  border-inline-color: var(--wp-red);
+  box-shadow: 0 12px 18px -10px color-mix(in srgb, var(--wp-red) 46%, transparent);
+}
+.gd-field:disabled { opacity: 0.55; }
+
+.gd-submit {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 18px;
+  padding-block: 16px;
+  font-weight: 700;
+  font-size: 16px;
+  color: #fff;
+  background: var(--wp-grad);
+  box-shadow: 0 20px 18px -14px color-mix(in srgb, var(--wp-red) 62%, transparent);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+  cursor: pointer;
+}
+.gd-submit:hover { transform: scale(1.02); filter: saturate(1.06) brightness(1.03); }
+.gd-submit:active { transform: scale(0.97); box-shadow: 0 12px 14px -12px color-mix(in srgb, var(--wp-red) 62%, transparent); }
+.gd-submit:disabled { opacity: 0.6; transform: none; cursor: not-allowed; }
+
+/* The panel those fields sit in. */
+.gd-panel {
+  background: linear-gradient(0deg, #fff 0%, color-mix(in srgb, var(--wp-red) 4%, #fff) 100%);
+  border: 5px solid #fff;
+  border-radius: 32px;
+  box-shadow: 0 30px 34px -24px color-mix(in srgb, var(--wp-maroon) 40%, transparent);
+}
+
+/* ============================================================
+   Fanned cards — stacked and tilted, spreading on hover.
+   ============================================================ */
+.fan { display: flex; justify-content: center; align-items: center; }
+.fan-card {
+  position: relative;
+  flex: 0 0 auto;
+  width: 176px;
+  min-height: 208px;
+  margin-inline: -34px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--wp-red) 18%, transparent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--wp-red) 10%, #fff), #fff);
+  box-shadow: 0 24px 28px -22px color-mix(in srgb, var(--wp-maroon) 55%, transparent);
+  transform: rotate(var(--fan-r, 0deg));
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), margin 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+.fan:hover .fan-card,
+.fan:focus-within .fan-card {
+  transform: rotate(0deg);
+  margin-inline: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fan-card { transform: none; margin-inline: 8px; transition: none; }
+  .road-dot { transition: none; }
+  .gd-submit { transition: none; }
+}

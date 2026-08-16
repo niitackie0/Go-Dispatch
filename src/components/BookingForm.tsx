@@ -21,13 +21,16 @@ import {
 } from 'lucide-react';
 import { PricingConfig } from '../types.js';
 import RegionPicker from './RegionPicker.js';
+import { isRegion } from '../regions.js';
 import { quote, formatAmount, DEFAULT_PRICING } from '../pricing.js';
 
 interface BookingFormProps {
   onSuccessBooking: (trackingCode: string) => void;
+  /** Preselected from the map on the home page. Ignored if not a region we serve. */
+  initialRegion?: string;
 }
 
-export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
+export default function BookingForm({ onSuccessBooking, initialRegion = '' }: BookingFormProps) {
   // Pricing configuration loaded from API
   // Seeded with the published rate so the form can quote before the API
   // answers. The server prices the booking authoritatively either way.
@@ -55,7 +58,11 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
   const [dropoffAddress, setDropoffAddress] = useState('');
   const [dropoffNotes, setDropoffNotes] = useState('');
 
-  const [destinationRegion, setDestinationRegion] = useState('');
+  // Validated rather than trusted: a hand-edited ?region= must not put a
+  // value in the form that the server would then reject.
+  const [destinationRegion, setDestinationRegion] = useState(
+    isRegion(initialRegion) ? initialRegion : ''
+  );
   const [packageWeight, setPackageWeight] = useState('1');
   const [packageDescription, setPackageDescription] = useState('');
   const [scheduledPickup, setScheduledPickup] = useState('');

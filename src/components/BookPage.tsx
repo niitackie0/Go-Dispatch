@@ -9,6 +9,11 @@ import BookingForm from './BookingForm.js';
 import { useRouter } from '../router.js';
 
 export default function BookPage() {
+  // A region arriving from the map on the home page, so the customer does not
+  // have to choose it twice.
+  const { search } = useRouter();
+  const initialRegion = new URLSearchParams(search).get('region') ?? '';
+
   const { navigate } = useRouter();
 
   return (
@@ -34,7 +39,7 @@ export default function BookPage() {
       </section>
 
       {/* The booking form */}
-      <BookingForm onSuccessBooking={(code) => navigate(`/track?code=${encodeURIComponent(code)}`)} />
+      <BookingForm initialRegion={initialRegion} onSuccessBooking={(code) => navigate(`/track?code=${encodeURIComponent(code)}`)} />
     </div>
   );
 }

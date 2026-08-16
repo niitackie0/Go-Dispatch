@@ -11,6 +11,7 @@ import { REGIONS, ALL_TOWNS } from '../regions.js';
 import { quote, formatAmount, DEFAULT_PRICING } from '../pricing.js';
 import { CONTACT_PHONE, CONTACT_PHONE_E164 } from '../brand.js';
 import Reveal from './Reveal.js';
+import GhanaMap from './GhanaMap.js';
 
 /**
  * Home.
@@ -66,69 +67,86 @@ export default function Home() {
   return (
     <div>
       {/* ---------------- HERO ----------------
-          The rate is the headline, because it is the thing that separates this
-          business from the man with a van. */}
-      <section className="relative overflow-hidden border-b border-slate-200 bg-white">
-        <div className="absolute inset-0 aurora-bg opacity-60" aria-hidden="true" />
+          Night Run over the map: dark ground, a red glow behind the type the
+          way a road looks at night, and the country itself carrying the
+          coverage claim. The map is not decoration — every region is a button
+          that starts a booking to it. */}
+      <section className="relative overflow-hidden bg-slate-950 text-white">
+        {/* The glow. Two sources so the light falls off unevenly, like real
+            light rather than a centred radial. */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          aria-hidden="true"
+          style={{
+            background:
+              'radial-gradient(58% 62% at 72% 26%, rgba(216,30,36,0.55), transparent 62%), radial-gradient(48% 55% at 18% 82%, rgba(122,15,19,0.55), transparent 66%)',
+          }}
+        />
 
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-14 pb-16 sm:pt-20 sm:pb-20">
-          <Reveal>
-            <span className="text-sm font-semibold uppercase tracking-widest text-red-600">
-              Accra to nine regions
-            </span>
-          </Reveal>
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
+          <div className="grid lg:grid-cols-[1fr_minmax(0,460px)] gap-12 lg:gap-16 items-center">
 
-          <Reveal delay={70}>
-            <h1 className="mt-4 font-display text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900 leading-[1.02] max-w-4xl text-balance">
-              One rate to anywhere we go.
-              <span className="block text-red-600">
-                {formatAmount(rule.baseAmount, rule.currency)}.
-              </span>
-            </h1>
-          </Reveal>
+            <div>
+              <Reveal>
+                <span className="text-sm font-semibold uppercase tracking-widest text-red-400">
+                  We deliver trust
+                </span>
+              </Reveal>
 
-          <Reveal delay={130}>
-            <p className="mt-6 text-lg sm:text-xl text-slate-600 max-w-xl leading-relaxed">
-              Any parcel up to {rule.includedKg}kg, collected anywhere in Accra and
-              delivered to {ALL_TOWNS.length} towns across the country. The distance is
-              our problem, not your bill.
-            </p>
-          </Reveal>
+              <Reveal delay={70}>
+                <h1 className="mt-4 font-display text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[0.95] text-balance">
+                  Anywhere in Ghana.
+                  <span className="block text-red-400">One rate.</span>
+                </h1>
+              </Reveal>
 
-          <Reveal delay={190}>
-            <div className="mt-9 flex flex-col sm:flex-row gap-3">
-              <Link
-                to="/book"
-                className="btn-aurora inline-flex items-center justify-center gap-2 rounded-xl px-7 py-4 text-base font-semibold"
-              >
-                Book a delivery
-                <ArrowRight className="h-5 w-5" />
-              </Link>
-              <a
-                href={`tel:${CONTACT_PHONE_E164}`}
-                className="inline-flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-7 py-4 text-base font-semibold text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-colors"
-              >
-                <Phone className="h-5 w-5 text-red-600" />
-                {CONTACT_PHONE}
-              </a>
+              <Reveal delay={130}>
+                <p className="mt-6 text-lg sm:text-xl text-white/70 max-w-md leading-relaxed">
+                  {formatAmount(rule.baseAmount, rule.currency)} for any parcel up to{' '}
+                  {rule.includedKg}kg, collected anywhere in Accra. The distance is our
+                  problem, not your bill.
+                </p>
+              </Reveal>
+
+              <Reveal delay={190}>
+                <div className="mt-9 flex flex-col sm:flex-row gap-3">
+                  <Link
+                    to="/book"
+                    className="gd-submit inline-flex items-center justify-center gap-2 !w-auto px-8"
+                  >
+                    Book a delivery
+                    <ArrowRight className="h-5 w-5" />
+                  </Link>
+                  <a
+                    href={`tel:${CONTACT_PHONE_E164}`}
+                    className="inline-flex items-center justify-center gap-2.5 rounded-[18px] border border-white/20 bg-white/5 px-8 py-4 text-base font-semibold text-white hover:border-white/40 hover:bg-white/10 transition-colors"
+                  >
+                    <Phone className="h-5 w-5 text-red-400" />
+                    {CONTACT_PHONE}
+                  </a>
+                </div>
+              </Reveal>
+
+              <Reveal delay={250}>
+                <dl className="mt-12 flex flex-wrap gap-x-10 gap-y-4">
+                  {[
+                    ['9', 'regions'],
+                    [String(ALL_TOWNS.length), 'towns'],
+                    [formatAmount(rule.baseAmount, rule.currency), 'flat rate'],
+                  ].map(([value, label]) => (
+                    <div key={label}>
+                      <dt className="text-sm text-white/50">{label}</dt>
+                      <dd className="text-2xl font-bold tabular-nums">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </Reveal>
             </div>
-          </Reveal>
 
-          {/* The flow, stated once, inline — not a section of its own. */}
-          <Reveal delay={250}>
-            <ol className="mt-12 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-500">
-              {FLOW.map((step, i) => (
-                <li key={step} className="flex items-center gap-3">
-                  <span className={i === FLOW.length - 1 ? 'font-semibold text-slate-900' : undefined}>
-                    {step}
-                  </span>
-                  {i < FLOW.length - 1 && (
-                    <span className="text-red-300" aria-hidden="true">&rarr;</span>
-                  )}
-                </li>
-              ))}
-            </ol>
-          </Reveal>
+            <Reveal delay={160}>
+              <GhanaMap onSelect={(region) => navigate(`/book?region=${encodeURIComponent(region)}`)} />
+            </Reveal>
+          </div>
         </div>
       </section>
 
