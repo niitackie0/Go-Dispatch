@@ -4,17 +4,17 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Package, 
-  MapPin, 
-  User, 
-  Phone, 
-  FileText, 
-  Calendar, 
-  CreditCard, 
-  CheckCircle, 
-  ArrowRight, 
-  Loader2, 
+import {
+  Package,
+  MapPin,
+  User,
+  Phone,
+  FileText,
+  Calendar,
+  CreditCard,
+  CheckCircle,
+  ArrowRight,
+  Loader2,
   Info,
   Copy,
   Check
@@ -74,6 +74,61 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
   const [momoStep, setMomoStep] = useState<1 | 2 | 3>(1); // 1: Prompt, 2: Simulating approval, 3: Completed
   const [validationError, setValidationError] = useState('');
 
+  /**
+   * Four short screens instead of one long form.
+   *
+   * The order follows the job rather than the database: where it is going
+   * first, because that is the question a customer has already answered in
+   * their head, then where we collect, then the parcel, then payment. Each
+   * step validates only its own fields, so an error always points at
+   * something on screen.
+   */
+  const [step, setStep] = useState(1);
+  const TOTAL_STEPS = 4;
+  const STEP_TITLES = ['Where do we collect?', 'Where is it going?', 'What are you sending?', 'How would you like to pay?'];
+  const STEP_BLURBS = [
+    'We collect anywhere in Accra.',
+    'We deliver to nine regions across Ghana.',
+    'Weight decides the price, so be roughly right.',
+    'Mobile Money now, or cash when we collect.',
+  ];
+
+  /** Returns an error for the step, or '' when it is complete. */
+  const validateStep = (s: number): string => {
+    if (s === 1) {
+      if (!senderName.trim()) return 'Your name is required';
+      if (!senderPhone.trim()) return 'Your phone number is required';
+      if (!pickupAddress.trim()) return 'Pickup address is required';
+    }
+    if (s === 2) {
+      if (!destinationRegion) return 'Choose the region this parcel is going to';
+      if (!dropoffAddress.trim()) return 'Delivery address is required';
+      if (!recipientName.trim()) return "Recipient's name is required";
+      if (!recipientPhone.trim()) return "Recipient's phone number is required";
+    }
+    if (s === 3) {
+      if (!(Number(packageWeight) > 0)) return 'Parcel weight is required';
+      if (!packageDescription.trim()) return 'Tell us briefly what is in the parcel';
+      if (!scheduledPickup) return 'Choose when we should collect';
+    }
+    return '';
+  };
+
+  const goNext = () => {
+    const err = validateStep(step);
+    if (err) { setValidationError(err); return; }
+    setValidationError('');
+    setStep((s) => Math.min(TOTAL_STEPS, s + 1));
+    // The next step starts at its own heading, not wherever the last one ended.
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const goBack = () => {
+    setValidationError('');
+    setStep((s) => Math.max(1, s - 1));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Fetch Pricing configuration
   useEffect(() => {
     async function loadPricing() {
@@ -112,24 +167,13 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  const validateForm = () => {
-    if (!senderName.trim()) return 'Sender Name is required';
-    if (!senderPhone.trim()) return 'Sender Phone number is required';
-    if (!pickupAddress.trim()) return 'Pickup Address is required';
-    if (!recipientName.trim()) return 'Recipient Name is required';
-    if (!recipientPhone.trim()) return 'Recipient Phone number is required';
-    if (!destinationRegion) return 'Choose the region this parcel is going to';
-    if (!dropoffAddress.trim()) return 'Delivery address is required';
-    if (!(Number(packageWeight) > 0)) return 'Parcel weight is required';
-    if (!packageDescription.trim()) return 'Please provide a short package description';
-    if (!scheduledPickup) return 'Please specify a preferred pickup date and time';
-    return '';
-  };
+  /** Every step's rules, for the final submit. */
+  const validateForm = () => validateStep(1) || validateStep(2) || validateStep(3) || '';
 
   const handleTriggerBooking = (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError('');
-    
+
     const err = validateForm();
     if (err) {
       setValidationError(err);
@@ -181,7 +225,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
       }
 
       const result = await res.json();
-      
+
       setSuccessOrder({
         trackingCode: result.trackingCode,
         priceAmount: result.order.priceAmount,
@@ -200,6 +244,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
       setDestinationRegion('');
       setDropoffNotes('');
       setPackageDescription('');
+      setStep(1);
     } catch (err: any) {
       setValidationError(err.message || 'Error occurred while creating delivery order.');
     } finally {
@@ -300,11 +345,38 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
       )}
 
       <form onSubmit={handleTriggerBooking} className="space-y-8">
-        
-        {/* Step 1 & 2: Coordinates Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          {/* Sender Coordinates */}
+
+        {/* Progress. Segments rather than a percentage — four steps is few
+            enough to show all of them at once. */}
+        <div>
+          <div
+            className="flex gap-1.5"
+            role="progressbar"
+            aria-valuemin={1}
+            aria-valuemax={TOTAL_STEPS}
+            aria-valuenow={step}
+            aria-label={`Step ${step} of ${TOTAL_STEPS}`}
+          >
+            {Array.from({ length: TOTAL_STEPS }, (_, i) => (
+              <span
+                key={i}
+                className={`h-1.5 flex-1 rounded-full transition-colors ${i < step ? 'bg-red-600' : 'bg-slate-200'}`}
+              />
+            ))}
+          </div>
+          <div className="mt-4 flex items-baseline justify-between gap-3">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight text-balance">
+              {STEP_TITLES[step - 1]}
+            </h2>
+            <span className="text-sm text-slate-500 shrink-0 tabular-nums">
+              Step {step} of {TOTAL_STEPS}
+            </span>
+          </div>
+          <p className="mt-1 text-base text-slate-500">{STEP_BLURBS[step - 1]}</p>
+        </div>
+
+        <div className={step === 1 ? '' : 'hidden'}>
+          {/* Pickup */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
             <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
@@ -373,7 +445,10 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             </div>
           </div>
 
-          {/* Recipient Coordinates */}
+        </div>
+
+        <div className={step === 2 ? '' : 'hidden'}>
+          {/* Destination */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
             <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
@@ -459,7 +534,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           </div>
         </div>
 
-        {/* Step 3: Package Details & Pricing */}
+        <div className={step === 3 ? '' : 'hidden'}>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-6">
           <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
@@ -541,7 +616,10 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           </div>
         </div>
 
+        </div>
+
         {/* Step 4: Payment Methods */}
+        <div className={step === 4 ? '' : 'hidden'}>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-6">
           <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
@@ -551,7 +629,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            
+
             {/* MoMo Option */}
             <button
               type="button"
@@ -632,6 +710,43 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               )}
             </button>
           </div>
+        </div>
+        </div>
+
+        {/* Step navigation. Continue validates only the step you are on, so an
+            error always points at a field currently on screen. */}
+        <div className="flex items-center gap-3">
+          {step > 1 && (
+            <button
+              type="button"
+              onClick={goBack}
+              className="min-h-14 px-6 rounded-xl border border-slate-200 bg-white text-base font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              Back
+            </button>
+          )}
+
+          {step < TOTAL_STEPS && (
+            <button
+              type="button"
+              onClick={goNext}
+              className="gd-submit flex-1 inline-flex items-center justify-center gap-2"
+            >
+              Continue
+              <ArrowRight className="h-5 w-5" />
+            </button>
+          )}
+
+          {/* The running price, from the second step on — before that there is
+              nothing to price. */}
+          {step > 1 && step < TOTAL_STEPS && (
+            <span className="hidden sm:block text-right shrink-0">
+              <span className="block text-sm text-slate-500">Total</span>
+              <span className="block text-xl font-bold text-slate-900 tabular-nums">
+                {formatAmount(currentQuote.total, currentQuote.currency)}
+              </span>
+            </span>
+          )}
         </div>
       </form>
 
