@@ -54,17 +54,17 @@ function render(event: NotificationEvent, order: OrderFacts): string {
   const code = order.trackingCode;
   switch (event) {
     case 'booking_confirmed':
-      return `Waypoint: booking confirmed. Your tracking code is ${code}. Track it at waypoint.com/track`;
+      return `GO DISPATCH: booking confirmed. Your tracking code is ${code}. Track it on our site or call 054 030 4994.`;
     case 'payment_received':
-      return `Waypoint: payment received for ${code}. Thank you.`;
+      return `GO DISPATCH: payment received for ${code}. Thank you.`;
     case 'rider_assigned':
       return order.riderName
-        ? `Waypoint: ${order.riderName} is collecting ${code}.`
-        : `Waypoint: a rider has been assigned to ${code}.`;
+        ? `GO DISPATCH: ${order.riderName} is collecting ${code}.`
+        : `GO DISPATCH: a rider has been assigned to ${code}.`;
     case 'out_for_delivery':
-      return `Waypoint: ${code} is on its way to ${order.recipientName}.`;
+      return `GO DISPATCH: ${code} is on its way to ${order.recipientName}.`;
     case 'delivered':
-      return `Waypoint: ${code} was delivered to ${order.recipientName}. Thank you for using Waypoint.`;
+      return `GO DISPATCH: ${code} was delivered to ${order.recipientName}. Thank you for choosing GO DISPATCH.`;
   }
 }
 

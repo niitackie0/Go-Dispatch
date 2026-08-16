@@ -23,11 +23,11 @@ export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-/** Customer-facing code, e.g. WP-4821-330. */
+/** Customer-facing code, e.g. GD-4821-330. */
 export function generateTrackingCode(): string {
   const num1 = crypto.randomInt(1000, 10000);
   const num2 = crypto.randomInt(100, 1000);
-  return `WP-${num1}-${num2}`;
+  return `GD-${num1}-${num2}`;
 }
 
 /** Prisma's unique-constraint violation. */

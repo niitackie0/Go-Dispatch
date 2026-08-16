@@ -47,6 +47,8 @@ export interface RiderJob {
   recipientPhone: string;
   dropoffAddress: string;
   dropoffNotes?: string;
+  /** Town this parcel is going to. Absent on orders predating the routes. */
+  destinationTown?: string;
   packageSize: PackageSize;
   packageWeightKg: number;
   packageDescription: string;
@@ -78,6 +80,8 @@ export interface Order {
   recipientPhone: string;
   dropoffAddress: string;
   dropoffNotes?: string;
+  /** Town this parcel is going to. Absent on orders predating the routes. */
+  destinationTown?: string;
   packageSize: PackageSize;
   packageWeightKg: number;
   packageDescription: string;
@@ -123,10 +127,13 @@ export interface StatusHistory {
   changedAt: string;
 }
 
+/** The weight-based rate. See src/pricing.ts for how a quote is computed. */
 export interface PricingConfig {
-  small: number;  // in pesewas (GHS)
-  medium: number; // in pesewas (GHS)
-  large: number;  // in pesewas (GHS)
+  /** Flat rate covering a parcel up to includedKg, in pesewas. */
+  baseAmount: number;
+  includedKg: number;
+  /** Per whole kilo above the allowance, in pesewas. */
+  perExtraKgAmount: number;
   currency: string;
 }
 

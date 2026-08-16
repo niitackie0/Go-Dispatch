@@ -47,7 +47,7 @@ export async function runAutomations(): Promise<string[]> {
           orderId: order.id,
           status: 'confirmed',
           note: 'Auto-confirmed — payment received',
-          changedByName: 'Waypoint Automation',
+          changedByName: 'GO DISPATCH Automation',
         },
       });
       await queueNotification(tx, 'payment_received', order);
@@ -138,7 +138,7 @@ export async function runAutomations(): Promise<string[]> {
             orderId: order.id,
             status: 'queued',
             note: `Auto-queued — assigned to ${rider.name}`,
-            changedByName: 'Waypoint Automation',
+            changedByName: 'GO DISPATCH Automation',
           },
         });
         await queueNotification(tx, 'rider_assigned', { ...order, riderName: rider.name });
@@ -176,7 +176,7 @@ export async function runAutomations(): Promise<string[]> {
           orderId: order.id,
           status: 'delivered',
           note: 'Payment auto-reconciled — collected on delivery',
-          changedByName: 'Waypoint Automation',
+          changedByName: 'GO DISPATCH Automation',
         },
       });
       actions.push(`auto-reconciled ${order.trackingCode}`);

@@ -194,7 +194,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
         className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 space-y-3.5"
       >
         <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-          <ShieldCheck className="h-4 w-4 text-violet-600" />
+          <ShieldCheck className="h-4 w-4 text-red-600" />
           Change password
         </div>
 
@@ -208,7 +208,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
             onChange={(e) => setCurrentPassword(e.target.value)}
             required
             autoComplete="current-password"
-            className="mt-1 w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-violet-400"
+            className="mt-1 w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-red-400"
           />
         </label>
 
@@ -224,7 +224,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
               required
               minLength={MIN_PASSWORD_LENGTH}
               autoComplete="new-password"
-              className="mt-1 w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-violet-400"
+              className="mt-1 w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-red-400"
             />
           </label>
 
@@ -239,7 +239,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
               required
               minLength={MIN_PASSWORD_LENGTH}
               autoComplete="new-password"
-              className="mt-1 w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-violet-400"
+              className="mt-1 w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-red-400"
             />
           </label>
         </div>
@@ -253,7 +253,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
         <button
           type="submit"
           disabled={saving}
-          className="w-full sm:w-auto min-h-11 px-5 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full sm:w-auto min-h-11 px-5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
         >
           {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           Update password
@@ -264,7 +264,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-            <Monitor className="h-4 w-4 text-violet-600" />
+            <Monitor className="h-4 w-4 text-red-600" />
             Where you are signed in
           </div>
           {otherSessions > 0 && (

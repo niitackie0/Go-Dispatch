@@ -94,15 +94,15 @@ export default function RiderView({ token }: { token: string }) {
   // ---------- loading / invalid link ----------
   if (loading) {
     return (
-      <div className="min-h-dvh bg-[#F5F8FE] flex items-center justify-center">
-        <Loader2 className="h-7 w-7 animate-spin text-violet-600" />
+      <div className="min-h-dvh bg-[var(--wp-bg)] flex items-center justify-center">
+        <Loader2 className="h-7 w-7 animate-spin text-red-600" />
       </div>
     );
   }
 
   if (error && !job) {
     return (
-      <div className="min-h-dvh bg-[#F5F8FE] flex items-center justify-center px-5">
+      <div className="min-h-dvh bg-[var(--wp-bg)] flex items-center justify-center px-5">
         <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
           <AlertCircle className="mx-auto h-9 w-9 text-red-500" />
           <h1 className="mt-3 text-lg font-semibold text-slate-900">Link not valid</h1>
@@ -120,12 +120,12 @@ export default function RiderView({ token }: { token: string }) {
   const isCancelled = job.status === 'cancelled';
 
   return (
-    <div className="min-h-dvh bg-[#F5F8FE] text-slate-900 font-sans pb-32">
+    <div className="min-h-dvh bg-[var(--wp-bg)] text-slate-900 font-sans pb-32">
       {/* Header */}
       <header className="text-white px-5 pt-6 pb-8" style={{ background: 'var(--wp-grad)' }}>
         <div className="flex items-center gap-2 text-white/80">
           <Truck className="h-4 w-4" />
-          <span className="text-xs font-mono uppercase tracking-[0.16em]">Waypoint courier</span>
+          <span className="text-xs font-mono uppercase tracking-[0.16em]">GO DISPATCH courier</span>
         </div>
         <h1 className="mt-3 font-mono text-2xl font-semibold">{job.trackingCode}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -177,7 +177,7 @@ export default function RiderView({ token }: { token: string }) {
         {/* Pickup */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-3">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-100 text-xs font-bold text-violet-700">P</span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-100 text-xs font-bold text-red-700">P</span>
             <h2 className="text-sm font-semibold text-slate-900">Pickup</h2>
           </div>
           <p className="text-sm font-medium text-slate-900">{job.senderName}</p>
@@ -190,7 +190,7 @@ export default function RiderView({ token }: { token: string }) {
             href={`tel:${job.senderPhone}`}
             className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700"
           >
-            <Phone className="h-4 w-4 text-violet-600" />
+            <Phone className="h-4 w-4 text-red-600" />
             {job.senderPhone}
           </a>
         </section>
@@ -211,7 +211,7 @@ export default function RiderView({ token }: { token: string }) {
             href={`tel:${job.recipientPhone}`}
             className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700"
           >
-            <Phone className="h-4 w-4 text-violet-600" />
+            <Phone className="h-4 w-4 text-red-600" />
             {job.recipientPhone}
           </a>
         </section>
@@ -219,7 +219,7 @@ export default function RiderView({ token }: { token: string }) {
         {/* Parcel */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-3">
-            <Package className="h-4 w-4 text-violet-600" />
+            <Package className="h-4 w-4 text-red-600" />
             <h2 className="text-sm font-semibold text-slate-900">Parcel</h2>
           </div>
           <dl className="grid grid-cols-2 gap-y-2 text-sm">

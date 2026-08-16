@@ -102,7 +102,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
 
       {/* Search Input Box */}
       <div className="max-w-2xl mx-auto mb-10">
-        <form onSubmit={handleTrack} className="flex gap-2 p-1.5 rounded-2xl border-2 border-slate-200 bg-white shadow-xl focus-within:border-violet-500 transition-all">
+        <form onSubmit={handleTrack} className="flex gap-2 p-1.5 rounded-2xl border-2 border-slate-200 bg-white shadow-xl focus-within:border-red-500 transition-all">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-500" />
             <input
@@ -118,7 +118,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
             id="btn_tracking_search"
             type="submit"
             disabled={searching}
-            className="rounded-xl btn-aurora text-white font-semibold px-6 py-3 shadow-md shadow-violet-500/20 transition-colors disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer"
+            className="rounded-xl btn-aurora text-white font-semibold px-6 py-3 shadow-md shadow-red-500/20 transition-colors disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer"
           >
             <span>{searching ? 'Locating...' : 'Search'}</span>
             <ArrowRight className="h-4 w-4" />
@@ -220,7 +220,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                           {/* Dot / Indicator */}
                           <div className={`flex h-12 w-12 items-center justify-center rounded-full border-2 transition-colors ${
                             isCompleted 
-                              ? 'bg-violet-600 border-violet-500 text-white shadow-md shadow-violet-500/30' 
+                              ? 'bg-red-600 border-red-500 text-white shadow-md shadow-red-500/30' 
                               : 'bg-slate-50 border-slate-200 text-slate-400'
                           }`}>
                             {isCompleted ? (
@@ -232,7 +232,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                           
                           {/* Labels */}
                           <div className="mt-3">
-                            <span className={`block text-xs font-bold ${isCurrent ? 'text-violet-600' : isCompleted ? 'text-slate-800' : 'text-slate-500'}`}>
+                            <span className={`block text-xs font-bold ${isCurrent ? 'text-red-600' : isCompleted ? 'text-slate-800' : 'text-slate-500'}`}>
                               {step.label}
                             </span>
                             <span className="block text-xs text-slate-500 mt-1 max-w-[120px] mx-auto leading-relaxed">
@@ -251,7 +251,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-200 text-sm text-slate-700">
               <div className="space-y-2">
                 <div className="flex items-center space-x-1.5 text-xs text-slate-500 uppercase tracking-wider font-semibold">
-                  <MapPin className="h-3.5 w-3.5 text-violet-600" />
+                  <MapPin className="h-3.5 w-3.5 text-red-600" />
                   <span>Pickup Coordinates</span>
                 </div>
                 <p className="font-semibold text-slate-900">{order.pickupAddress}</p>
@@ -259,7 +259,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
 
               <div className="space-y-2">
                 <div className="flex items-center space-x-1.5 text-xs text-slate-500 uppercase tracking-wider font-semibold">
-                  <MapPin className="h-3.5 w-3.5 text-violet-600" />
+                  <MapPin className="h-3.5 w-3.5 text-red-600" />
                   <span>Dropoff Destination</span>
                 </div>
                 <p className="font-semibold text-slate-900">{order.dropoffAddress}</p>
@@ -269,7 +269,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
             {/* Audit History Logs (Sanitized, only shows timestamps) */}
             <div className="space-y-3 pt-6 border-t border-slate-200">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center">
-                <Clock className="h-3.5 w-3.5 mr-1.5 text-violet-600" />
+                <Clock className="h-3.5 w-3.5 mr-1.5 text-red-600" />
                 <span>Verification Logs & Events</span>
               </h4>
               <div className="space-y-2 bg-slate-50 rounded-xl p-4 border border-slate-200">

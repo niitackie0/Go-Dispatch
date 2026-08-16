@@ -9,6 +9,9 @@ import type { OrderStatus, PackageSize, Payer, PaymentTiming } from '../../types
 import { requireAdmin } from '../auth.js';
 import { requirePermission } from '../permissions.js';
 import { canTransition, isTerminal, nextStatuses } from '../../transitions.js';
+import { isDestination, DESTINATIONS } from '../../destinations.js';
+import { quote, sizeForWeight } from '../../pricing.js';
+import { currentRule } from './pricing.js';
 import { runAutomations } from '../automations.js';
 import { notifyForStatus } from '../notifications.js';
 import { withTrackingCode } from '../ids.js';
@@ -105,9 +108,9 @@ ordersRouter.post('/book', async (req, res) => {
     recipientPhone,
     dropoffAddress,
     dropoffNotes,
-    packageSize,
     packageWeightKg,
     packageDescription,
+    destinationTown,
     scheduledPickupAt,
     paymentProvider,
     payer,
@@ -120,23 +123,39 @@ ordersRouter.post('/book', async (req, res) => {
     !pickupAddress ||
     !recipientName ||
     !recipientPhone ||
-    !dropoffAddress ||
-    !packageSize
+    !dropoffAddress
   ) {
     return res.status(400).json({ error: 'Missing required fields for parcel booking' });
   }
 
-  if (!PACKAGE_SIZES.includes(packageSize)) {
-    return res.status(400).json({ error: 'Invalid package size' });
+  // We collect in Accra and deliver to a fixed list of towns. A booking for
+  // anywhere else is a job we cannot actually do.
+  if (!isDestination(destinationTown)) {
+    return res.status(400).json({
+      error: 'Choose a destination town we deliver to',
+      allowed: DESTINATIONS,
+    });
   }
 
-  const pricing = await prisma.pricingConfig.findUnique({ where: { id: 1 } });
-  if (!pricing) {
+  const weightKg = Number(packageWeightKg);
+  if (!Number.isFinite(weightKg) || weightKg <= 0) {
+    return res.status(400).json({ error: 'Parcel weight is required' });
+  }
+  if (weightKg > 100) {
+    return res.status(400).json({ error: 'For parcels over 100kg, please call 054 030 4994' });
+  }
+
+  // The price is computed here, never accepted from the browser. The booking
+  // form quotes with the same function so the customer sees this figure first.
+  let rule;
+  try {
+    rule = await currentRule();
+  } catch {
     return res.status(500).json({ error: 'Pricing is not configured' });
   }
-
-  const size = packageSize as PackageSize;
-  const basePrice = pricing[size];
+  const basePrice = quote(weightKg, rule).total;
+  const size = sizeForWeight(weightKg);
+  const pricing = { currency: rule.currency };
 
   // Legacy mapping kept so existing clients keep working:
   // MoMo = pay up front, manual = settle at the door.
@@ -170,8 +189,9 @@ ordersRouter.post('/book', async (req, res) => {
           recipientPhone,
           dropoffAddress,
           dropoffNotes: dropoffNotes || null,
+          destinationTown,
           packageSize: size,
-          packageWeightKg: Number(packageWeightKg) || 1,
+          packageWeightKg: weightKg,
           packageDescription: packageDescription || 'Parcel Delivery',
           scheduledPickupAt: scheduled,
           priceAmount: basePrice,
@@ -190,7 +210,7 @@ ordersRouter.post('/book', async (req, res) => {
           note: isPrepaid
             ? `Order submitted — awaiting payment from ${resolvedPayer}`
             : `Order submitted and auto-confirmed — payment due on delivery (${resolvedPayer})`,
-          changedByName: 'Waypoint Automation',
+          changedByName: 'GO DISPATCH Automation',
         },
       });
 

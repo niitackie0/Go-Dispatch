@@ -7,46 +7,52 @@ import { asyncRouter } from '../http.js';
 import { requireAdmin } from '../auth.js';
 import { requirePermission } from '../permissions.js';
 import { prisma } from '../prisma.js';
+import type { PricingRule } from '../../pricing.js';
 
 export const pricingRouter = asyncRouter();
 
-pricingRouter.get('/', async (_req, res) => {
-  const pricing = await prisma.pricingConfig.findUnique({ where: { id: 1 } });
-  if (!pricing) {
-    return res.status(500).json({ error: 'Pricing is not configured' });
-  }
+/** The rate the whole system prices against. */
+export async function currentRule(): Promise<PricingRule> {
+  const row = await prisma.pricingConfig.findUnique({ where: { id: 1 } });
+  if (!row) throw new Error('Pricing is not configured');
+  return {
+    baseAmount: row.baseAmount,
+    includedKg: row.includedKg,
+    perExtraKgAmount: row.perExtraKgAmount,
+    currency: row.currency,
+  };
+}
 
-  res.json({
-    small: pricing.small,
-    medium: pricing.medium,
-    large: pricing.large,
-    currency: pricing.currency,
-  });
+pricingRouter.get('/', async (_req, res) => {
+  try {
+    res.json(await currentRule());
+  } catch {
+    res.status(500).json({ error: 'Pricing is not configured' });
+  }
 });
 
 pricingRouter.patch('/', requireAdmin, requirePermission('pricing:write'), async (req, res) => {
-  const { small, medium, large } = req.body ?? {};
+  const { baseAmount, includedKg, perExtraKgAmount } = req.body ?? {};
 
-  // Prices are integer pesewas; a fractional or negative price is a bug
-  // upstream, not something to round silently.
-  const data: { small?: number; medium?: number; large?: number } = {};
-  for (const [key, value] of Object.entries({ small, medium, large })) {
+  // Amounts are integer pesewas and the allowance is a whole number of kilos.
+  // A fraction or a negative here is a bug upstream, not something to round
+  // away quietly.
+  const data: Partial<Record<'baseAmount' | 'includedKg' | 'perExtraKgAmount', number>> = {};
+  for (const [key, value] of Object.entries({ baseAmount, includedKg, perExtraKgAmount })) {
     if (value === undefined) continue;
     if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-      return res.status(400).json({ error: `Invalid price for ${key}` });
+      return res.status(400).json({ error: `Invalid value for ${key}` });
     }
-    data[key as 'small' | 'medium' | 'large'] = value;
+    data[key as keyof typeof data] = value;
   }
 
-  const pricing = await prisma.pricingConfig.update({ where: { id: 1 }, data });
+  // An allowance of zero would bill the very first kilo as an extra, which is
+  // not what "flat rate up to 3kg" means anywhere.
+  if (data.includedKg !== undefined && data.includedKg < 1) {
+    return res.status(400).json({ error: 'The included weight must be at least 1kg' });
+  }
 
-  res.json({
-    success: true,
-    pricing: {
-      small: pricing.small,
-      medium: pricing.medium,
-      large: pricing.large,
-      currency: pricing.currency,
-    },
-  });
+  await prisma.pricingConfig.update({ where: { id: 1 }, data });
+
+  res.json({ success: true, pricing: await currentRule() });
 });

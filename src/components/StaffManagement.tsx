@@ -32,7 +32,7 @@ const ROLE_INFO: Record<AdminRole, { label: string; blurb: string; chip: string 
   owner: {
     label: 'Owner',
     blurb: 'Everything, including pricing and staff accounts.',
-    chip: 'bg-violet-500/10 border border-violet-500/20 text-violet-600',
+    chip: 'bg-red-500/10 border border-red-500/20 text-red-600',
   },
   dispatcher: {
     label: 'Dispatcher',
@@ -255,7 +255,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
               setShowAdd((v) => !v);
               setIssuedPassword(null);
             }}
-            className="min-h-11 px-4 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer"
+            className="min-h-11 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer"
           >
             {showAdd ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
             {showAdd ? 'Cancel' : 'Add staff'}
@@ -317,7 +317,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
           className="rounded-xl border border-slate-200 bg-white p-4 space-y-3.5"
         >
           <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-            <UserPlus className="h-4 w-4 text-violet-600" />
+            <UserPlus className="h-4 w-4 text-red-600" />
             New staff account
           </div>
 
@@ -330,7 +330,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 required
-                className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-violet-400"
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-400"
                 placeholder="Kwesi Boateng"
               />
             </label>
@@ -344,7 +344,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 required
-                className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-violet-400"
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-400"
                 placeholder="kwesi@waypoint.com"
               />
             </label>
@@ -362,7 +362,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                   onClick={() => setNewRole(role)}
                   className={`text-left px-3 py-2.5 rounded-lg border transition-all cursor-pointer ${
                     newRole === role
-                      ? 'border-violet-400 bg-violet-500/5'
+                      ? 'border-red-400 bg-red-500/5'
                       : 'border-slate-200 bg-slate-50 hover:border-slate-300'
                   }`}
                 >
@@ -386,7 +386,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 minLength={MIN_PASSWORD_LENGTH}
-                className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-mono text-slate-900 outline-none focus:border-violet-400"
+                className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-mono text-slate-900 outline-none focus:border-red-400"
                 placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
               />
               <button
@@ -402,7 +402,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
           <button
             type="submit"
             disabled={creating}
-            className="w-full sm:w-auto min-h-11 px-5 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto min-h-11 px-5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             {creating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Create account
@@ -437,7 +437,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                   <div>
                     <span className="text-base font-bold text-slate-900">{member.name}</span>
                     {isSelf && (
-                      <span className="ml-2 text-xs font-bold uppercase tracking-wider text-violet-600">
+                      <span className="ml-2 text-xs font-bold uppercase tracking-wider text-red-600">
                         you
                       </span>
                     )}
@@ -473,7 +473,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                     <button
                       onClick={() => handleResetPassword(member)}
                       disabled={busy}
-                      className="min-h-11 px-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:border-violet-400 transition-colors cursor-pointer disabled:opacity-50"
+                      className="min-h-11 px-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:border-red-400 transition-colors cursor-pointer disabled:opacity-50"
                     >
                       <KeyRound className="h-4 w-4" />
                       New password
@@ -569,7 +569,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="text-sm font-bold text-slate-900">{member.name}</span>
                         {isSelf && (
-                          <span className="ml-2 text-xs font-mono uppercase tracking-wider text-violet-600 font-bold">
+                          <span className="ml-2 text-xs font-mono uppercase tracking-wider text-red-600 font-bold">
                             you
                           </span>
                         )}
@@ -610,7 +610,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                           <button
                             onClick={() => handleResetPassword(member)}
                             disabled={busy}
-                            className="h-11 w-11 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:text-slate-900 hover:border-violet-400 transition-all cursor-pointer disabled:opacity-50"
+                            className="h-11 w-11 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:text-slate-900 hover:border-red-400 transition-all cursor-pointer disabled:opacity-50"
                             title="Issue a new password — also signs them out everywhere"
                           >
                             <KeyRound className="h-3.5 w-3.5" />

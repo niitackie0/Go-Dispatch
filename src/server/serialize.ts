@@ -37,6 +37,7 @@ export function serializeOrder(row: OrderWithRider): Order {
     recipientPhone: row.recipientPhone,
     dropoffAddress: row.dropoffAddress,
     dropoffNotes: row.dropoffNotes ?? undefined,
+    destinationTown: row.destinationTown ?? undefined,
     packageSize: row.packageSize,
     packageWeightKg: row.packageWeightKg.toNumber(),
     packageDescription: row.packageDescription,

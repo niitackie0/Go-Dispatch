@@ -19,7 +19,9 @@ import {
   Copy,
   Check
 } from 'lucide-react';
-import { PricingConfig, PackageSize } from '../types.js';
+import { PricingConfig } from '../types.js';
+import { DESTINATIONS } from '../destinations.js';
+import { quote, formatAmount, DEFAULT_PRICING } from '../pricing.js';
 
 interface BookingFormProps {
   onSuccessBooking: (trackingCode: string) => void;
@@ -27,12 +29,9 @@ interface BookingFormProps {
 
 export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
   // Pricing configuration loaded from API
-  const [pricing, setPricing] = useState<PricingConfig>({
-    small: 2500,
-    medium: 5000,
-    large: 9000,
-    currency: 'GHS',
-  });
+  // Seeded with the published rate so the form can quote before the API
+  // answers. The server prices the booking authoritatively either way.
+  const [pricing, setPricing] = useState<PricingConfig>(DEFAULT_PRICING);
 
   // Loading and feedback states
   const [loadingPricing, setLoadingPricing] = useState(true);
@@ -56,7 +55,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
   const [dropoffAddress, setDropoffAddress] = useState('');
   const [dropoffNotes, setDropoffNotes] = useState('');
 
-  const [packageSize, setPackageSize] = useState<PackageSize>('small');
+  const [destinationTown, setDestinationTown] = useState('');
   const [packageWeight, setPackageWeight] = useState('1');
   const [packageDescription, setPackageDescription] = useState('');
   const [scheduledPickup, setScheduledPickup] = useState('');
@@ -95,9 +94,10 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
     setScheduledPickup(localISOTime);
   }, []);
 
-  const getPrice = () => {
-    return pricing[packageSize] / 100;
-  };
+  // Same function the server prices with, so the quote on screen is the
+  // amount that will be charged.
+  const currentQuote = quote(Number(packageWeight), pricing);
+  const getPrice = () => currentQuote.total / 100;
 
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -111,7 +111,9 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
     if (!pickupAddress.trim()) return 'Pickup Address is required';
     if (!recipientName.trim()) return 'Recipient Name is required';
     if (!recipientPhone.trim()) return 'Recipient Phone number is required';
-    if (!dropoffAddress.trim()) return 'Dropoff Address is required';
+    if (!destinationTown) return 'Choose the town this parcel is going to';
+    if (!dropoffAddress.trim()) return 'Delivery address is required';
+    if (!(Number(packageWeight) > 0)) return 'Parcel weight is required';
     if (!packageDescription.trim()) return 'Please provide a short package description';
     if (!scheduledPickup) return 'Please specify a preferred pickup date and time';
     return '';
@@ -150,8 +152,8 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
         recipientName,
         recipientPhone,
         dropoffAddress,
+        destinationTown,
         dropoffNotes,
-        packageSize,
         packageWeightKg: Number(packageWeight),
         packageDescription,
         scheduledPickupAt: new Date(scheduledPickup).toISOString(),
@@ -188,6 +190,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
       setRecipientName('');
       setRecipientPhone('');
       setDropoffAddress('');
+      setDestinationTown('');
       setDropoffNotes('');
       setPackageDescription('');
     } catch (err: any) {
@@ -241,7 +244,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
               </div>
               <div className="mt-4 sm:mt-0 text-right">
                 <span className="text-xs uppercase tracking-wider font-mono text-slate-500 block">Calculated Price</span>
-                <span className="text-lg font-bold text-violet-600">
+                <span className="text-lg font-bold text-red-600">
                   {pricing.currency} {(successOrder.priceAmount / 100).toFixed(2)}
                 </span>
               </div>
@@ -297,7 +300,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
           {/* Sender Coordinates */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
             <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-violet-600 border border-slate-200">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
                 <MapPin className="h-4 w-4" />
               </div>
               <h2 className="text-lg font-bold text-slate-900">Where we collect</h2>
@@ -315,7 +318,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                     value={senderName}
                     onChange={(e) => setSenderName(e.target.value)}
                     placeholder="e.g. Ama Osei"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
                   />
                 </div>
               </div>
@@ -331,7 +334,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                     value={senderPhone}
                     onChange={(e) => setSenderPhone(e.target.value)}
                     placeholder="e.g. 0244123456"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
                   />
                 </div>
               </div>
@@ -345,7 +348,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                   onChange={(e) => setPickupAddress(e.target.value)}
                   placeholder="e.g. Block C, Airport Residential Area, Accra"
                   rows={2}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all resize-none"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all resize-none"
                 />
               </div>
 
@@ -357,7 +360,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                   value={pickupNotes}
                   onChange={(e) => setPickupNotes(e.target.value)}
                   placeholder="e.g. Opposite the French School, ring gate bell"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
                 />
               </div>
             </div>
@@ -366,7 +369,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
           {/* Recipient Coordinates */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
             <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-violet-600 border border-slate-200">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
                 <MapPin className="h-4 w-4" />
               </div>
               <h2 className="text-lg font-bold text-slate-900">Where it goes</h2>
@@ -384,7 +387,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
                     placeholder="e.g. Kofi Mensah"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
                   />
                 </div>
               </div>
@@ -400,21 +403,43 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                     value={recipientPhone}
                     onChange={(e) => setRecipientPhone(e.target.value)}
                     placeholder="e.g. 0207987654"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
                   />
                 </div>
               </div>
 
+              {/* Town from the served list, then the exact address. A rider
+                  arriving in Tamale cannot find a door with "Tamale" alone. */}
               <div>
-                <label className="block text-sm font-semibold text-slate-500 mb-1">Delivery address *</label>
+                <label htmlFor="input_destination_town" className="block text-sm font-semibold text-slate-500 mb-1">
+                  Destination town *
+                </label>
+                <select
+                  id="input_destination_town"
+                  required
+                  value={destinationTown}
+                  onChange={(e) => setDestinationTown(e.target.value)}
+                  className="w-full min-h-12 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 text-base outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 transition-all"
+                >
+                  <option value="">Choose a town…</option>
+                  {DESTINATIONS.map((town) => (
+                    <option key={town} value={town}>{town}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="input_dropoff_address" className="block text-sm font-semibold text-slate-500 mb-1">
+                  Delivery address in {destinationTown || 'that town'} *
+                </label>
                 <textarea
                   id="input_dropoff_address"
                   required
                   value={dropoffAddress}
                   onChange={(e) => setDropoffAddress(e.target.value)}
-                  placeholder="e.g. House No. 12, Ring Road Central, Kokomlemle, Accra"
+                  placeholder="e.g. Lamashegu, near the Total filling station"
                   rows={2}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all resize-none"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all resize-none"
                 />
               </div>
 
@@ -426,7 +451,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                   value={dropoffNotes}
                   onChange={(e) => setDropoffNotes(e.target.value)}
                   placeholder="e.g. Next to the MTN office"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
                 />
               </div>
             </div>
@@ -436,75 +461,48 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
         {/* Step 3: Package Details & Pricing */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-6">
           <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-violet-600 border border-slate-200">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
               <Package className="h-4 w-4" />
             </div>
             <h2 className="text-lg font-bold text-slate-900">What you are sending</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Size Selector */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-slate-500 mb-2">Parcel size *</label>
-              {/* One full-width row per size on a phone, three cards from sm up.
-                  Side by side at 390px each tier got ~100px and its description
-                  broke across four lines. */}
-              <div
-                className="grid grid-cols-1 sm:grid-cols-3 gap-3"
-                id="package_size_selectors"
-                role="radiogroup"
-                aria-label="Package size"
-              >
-                {([
-                  { key: 'small', label: 'Small', blurb: 'Fits in a courier pouch', price: pricing.small },
-                  { key: 'medium', label: 'Medium', blurb: 'Fits in a motorcycle box', price: pricing.medium },
-                  { key: 'large', label: 'Large', blurb: 'Needs strapping or a van', price: pricing.large },
-                ] as const).map(({ key, label, blurb, price }) => {
-                  const selected = packageSize === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => setPackageSize(key)}
-                      className={`flex sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-3 sm:gap-1 min-h-16 p-4 rounded-xl border-2 text-left transition-colors cursor-pointer ${
-                        selected
-                          ? 'border-violet-500 bg-violet-50'
-                          : 'border-slate-200 bg-slate-50 hover:border-slate-300'
-                      }`}
-                    >
-                      <span className="min-w-0">
-                        <span className={`block text-base font-semibold ${selected ? 'text-violet-700' : 'text-slate-900'}`}>
-                          {label}
-                        </span>
-                        <span className="block text-sm text-slate-500">{blurb}</span>
-                      </span>
-                      <span className={`shrink-0 sm:mt-1 text-lg font-bold tabular-nums ${selected ? 'text-violet-700' : 'text-slate-900'}`}>
-                        {pricing.currency} {(price / 100).toFixed(2)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Estimated weight */}
+          {/* Weight is the only thing that moves the price now, so it gets the
+              room the size tiers used to have, and quotes as you type. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-semibold text-slate-500 mb-2">Rough weight (kg)</label>
+              <label htmlFor="input_package_weight" className="block text-sm font-semibold text-slate-500 mb-2">
+                Parcel weight (kg) *
+              </label>
               <input
                 id="input_package_weight"
                 type="number"
                 min="0.1"
+                max="100"
                 step="0.1"
+                required
                 value={packageWeight}
                 onChange={(e) => setPackageWeight(e.target.value)}
                 placeholder="e.g. 1.5"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-slate-100 focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-base outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
               />
+              <p className="text-sm text-slate-500 mt-2">
+                {formatAmount(pricing.baseAmount, pricing.currency)} covers up to {pricing.includedKg}kg.
+                Each extra kilo is {formatAmount(pricing.perExtraKgAmount, pricing.currency)}.
+              </p>
             </div>
 
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex flex-col justify-center">
+              <span className="text-sm font-semibold text-red-900">This parcel</span>
+              <span className="mt-1 text-3xl font-bold text-red-700 tabular-nums tracking-tight">
+                {formatAmount(currentQuote.total, currentQuote.currency)}
+              </span>
+              <span className="text-sm text-red-900/70 mt-1">
+                {currentQuote.extraKg > 0
+                  ? `${formatAmount(currentQuote.baseAmount, currentQuote.currency)} + ${currentQuote.extraKg}kg over ${pricing.includedKg}kg`
+                  : `Flat rate, any town we serve`}
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -519,7 +517,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                   value={packageDescription}
                   onChange={(e) => setPackageDescription(e.target.value)}
                   placeholder="e.g. Legal documents and keys in manila folder"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 placeholder-slate-400 transition-all"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-all"
                 />
               </div>
             </div>
@@ -535,7 +533,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                   value={scheduledPickup}
                   onChange={(e) => setScheduledPickup(e.target.value)}
                   style={{ colorScheme: 'dark' }}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white focus:ring-1 focus:ring-violet-500 transition-all"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 transition-all"
                 />
               </div>
             </div>
@@ -545,7 +543,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
         {/* Step 4: Payment Methods */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-6">
           <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-violet-600 border border-slate-200">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
               <CreditCard className="h-4 w-4" />
             </div>
             <h2 className="text-lg font-bold text-slate-900">How you want to pay</h2>
@@ -583,12 +581,12 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
               onClick={() => setPaymentProvider('manual')}
               className={`flex items-start p-4 rounded-xl border-2 text-left transition-all cursor-pointer ${
                 paymentProvider === 'manual'
-                  ? 'border-violet-500 bg-violet-50 text-slate-900'
+                  ? 'border-red-500 bg-red-50 text-slate-900'
                   : 'border-slate-200 hover:border-slate-300 bg-slate-50 text-slate-500'
               }`}
             >
               <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-300 mt-0.5 mr-3">
-                {paymentProvider === 'manual' && <div className="h-2.5 w-2.5 rounded-full bg-violet-600" />}
+                {paymentProvider === 'manual' && <div className="h-2.5 w-2.5 rounded-full bg-red-600" />}
               </div>
               <div>
                 <span className="block font-bold text-slate-900">Pay on collection</span>
@@ -603,11 +601,14 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
           <div className="rounded-xl bg-slate-100 border border-slate-200 text-slate-900 p-6 flex flex-col sm:flex-row items-center justify-between shadow-lg">
             <div className="mb-4 sm:mb-0 text-center sm:text-left">
               <span className="text-sm font-semibold text-slate-500">Total</span>
-              <div className="text-3xl font-semibold mt-1 text-violet-600 tabular-nums">
+              <div className="text-3xl font-semibold mt-1 text-red-600 tabular-nums">
                 {pricing.currency} {getPrice().toFixed(2)}
               </div>
               <p className="text-slate-500 text-sm mt-1">
-                Flat rate for a {packageSize} parcel.
+                {destinationTown ? `To ${destinationTown}. ` : ''}
+                {currentQuote.extraKg > 0
+                  ? `Flat rate plus ${currentQuote.extraKg}kg over ${pricing.includedKg}kg.`
+                  : 'One flat rate, any town we serve.'}
               </p>
             </div>
 
@@ -615,7 +616,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
               id="btn_submit_booking"
               type="submit"
               disabled={submitting}
-              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2.5 rounded-xl btn-aurora px-8 py-4 text-sm font-bold text-white shadow-md shadow-violet-500/20 hover:scale-[1.01] transition-all disabled:opacity-50 cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2.5 rounded-xl btn-aurora px-8 py-4 text-sm font-bold text-white shadow-md shadow-red-500/20 hover:scale-[1.01] transition-all disabled:opacity-50 cursor-pointer"
             >
               {submitting ? (
                 <>
@@ -665,7 +666,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                     value={momoPhoneNumber}
                     onChange={(e) => setMomoPhoneNumber(e.target.value)}
                     placeholder="e.g. 0244123456"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 px-4 py-3 text-sm outline-none font-mono focus:border-violet-500 placeholder-slate-400"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 px-4 py-3 text-sm outline-none font-mono focus:border-red-500 placeholder-slate-400"
                   />
                 </div>
                 <button
@@ -684,7 +685,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                 <div>
                   <h4 className="font-bold text-slate-900">Processing USSD Push</h4>
                   <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">
-                    Sending a Request-to-Pay alert of <strong className="text-violet-600">{pricing.currency} {getPrice().toFixed(2)}</strong> to {momoPhoneNumber}. Approve prompt on your handset now.
+                    Sending a Request-to-Pay alert of <strong className="text-red-600">{pricing.currency} {getPrice().toFixed(2)}</strong> to {momoPhoneNumber}. Approve prompt on your handset now.
                   </p>
                 </div>
                 <div className="bg-black/60 p-3 rounded-lg text-left text-xs font-mono text-slate-500 border border-slate-200/85 max-w-xs mx-auto">

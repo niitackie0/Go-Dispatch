@@ -8,22 +8,30 @@
 }
 
 /* ============================================================
-   Waypoint — "Meridian x Aurora" design system
-   Clean light SaaS base, lifted with an aurora violet→cyan
-   gradient and frosted-glass hero surfaces.
+   GO DISPATCH — brand system
+   Red and white, taken from the printed flyer. The deep maroon
+   is the heading colour there; the bright red is the action
+   colour. Neutral greys stay cool so red is the only hue that
+   ever competes for attention.
    ============================================================ */
 :root {
-  --wp-bg: #F5F8FE;          /* cool light canvas            */
+  --wp-bg: #FBF7F7;          /* warm off-white canvas        */
   --wp-surface: #FFFFFF;     /* cards / panels               */
-  --wp-ink: #0F172A;         /* primary text (slate-900)     */
-  --wp-ink-2: #334155;       /* strong secondary (slate-700) */
-  --wp-muted: #64748B;       /* muted (slate-500)            */
-  --wp-faint: #94A3B8;       /* faint (slate-400)            */
-  --wp-border: #E6EBF4;      /* hairline border              */
-  --wp-border-strong: #D6DEEC;
-  --wp-violet: #6D5EF7;
-  --wp-cyan: #22C7E0;
-  --wp-grad: linear-gradient(115deg, #7C6BFF 0%, #5D7BF4 48%, #22C7E0 100%);
+  --wp-ink: #1A1113;         /* primary text                 */
+  --wp-ink-2: #4A3A3D;       /* strong secondary             */
+  --wp-muted: #6B5C5F;       /* muted                        */
+  --wp-faint: #9C8D90;       /* faint                        */
+  --wp-border: #EDE3E4;      /* hairline border              */
+  --wp-border-strong: #DFD0D2;
+
+  /* Brand. --wp-red is the flyer's action red; --wp-maroon is its
+     heading colour, dark enough for body text on white. */
+  --wp-red: #D81E24;
+  --wp-red-dark: #A8141A;
+  --wp-maroon: #5C0A0E;
+  --wp-red-tint: #FDECEC;    /* selected rows, soft fills    */
+
+  --wp-grad: linear-gradient(115deg, #E8262C 0%, #D81E24 52%, #A8141A 100%);
 }
 
 html { scroll-behavior: smooth; }
@@ -45,16 +53,16 @@ body {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(42% 40% at 10% 6%, rgba(124, 107, 255, 0.22), transparent 62%),
-    radial-gradient(38% 36% at 92% 10%, rgba(34, 199, 224, 0.18), transparent 62%),
-    radial-gradient(52% 48% at 74% 108%, rgba(214, 110, 255, 0.14), transparent 60%);
+    radial-gradient(42% 40% at 10% 6%, rgba(216, 30, 36, 0.16), transparent 62%),
+    radial-gradient(38% 36% at 92% 10%, rgba(232, 38, 44, 0.12), transparent 62%),
+    radial-gradient(52% 48% at 74% 108%, rgba(92, 10, 14, 0.10), transparent 60%);
 }
 
 /* Fine grid, used subtly behind heroes */
 .wp-grid {
   background-image:
-    linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+    linear-gradient(to right, rgba(26, 17, 19, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(26, 17, 19, 0.04) 1px, transparent 1px);
   background-size: 46px 46px;
   -webkit-mask-image: radial-gradient(70% 60% at 50% 0%, #000 40%, transparent 100%);
   mask-image: radial-gradient(70% 60% at 50% 0%, #000 40%, transparent 100%);
@@ -71,18 +79,18 @@ body {
 .btn-aurora {
   background: var(--wp-grad);
   color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(93, 91, 244, 0.55);
+  box-shadow: 0 10px 24px -10px rgba(168, 20, 26, 0.45);
   transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
-.btn-aurora:hover { filter: saturate(1.08) brightness(1.04); box-shadow: 0 14px 30px -10px rgba(93, 91, 244, 0.6); }
+.btn-aurora:hover { filter: saturate(1.08) brightness(1.04); box-shadow: 0 14px 30px -10px rgba(168, 20, 26, 0.5); }
 
-/* Frosted glass surface (reads over the aurora backdrop) */
+/* Frosted glass surface (reads over the brand wash) */
 .glass {
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   border: 1px solid rgba(255, 255, 255, 0.75);
-  box-shadow: 0 24px 60px -28px rgba(31, 41, 90, 0.30);
+  box-shadow: 0 24px 60px -28px rgba(92, 10, 14, 0.22);
 }
 
 /* Gradient hairline ring for feature cards */
