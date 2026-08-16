@@ -208,7 +208,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
             onChange={(e) => setCurrentPassword(e.target.value)}
             required
             autoComplete="current-password"
-            className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-violet-400"
+            className="mt-1 w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-violet-400"
           />
         </label>
 
@@ -224,7 +224,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
               required
               minLength={MIN_PASSWORD_LENGTH}
               autoComplete="new-password"
-              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-violet-400"
+              className="mt-1 w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-violet-400"
             />
           </label>
 
@@ -239,7 +239,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
               required
               minLength={MIN_PASSWORD_LENGTH}
               autoComplete="new-password"
-              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-violet-400"
+              className="mt-1 w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-violet-400"
             />
           </label>
         </div>
@@ -253,7 +253,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
         <button
           type="submit"
           disabled={saving}
-          className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+          className="w-full sm:w-auto min-h-11 px-5 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
         >
           {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           Update password
@@ -326,7 +326,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
                     <button
                       onClick={() => revokeOne(session.id)}
                       disabled={busySessionId === session.id}
-                      className="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:text-rose-600 hover:border-rose-300 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                      className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-rose-600 hover:border-rose-300 text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50 shrink-0"
                     >
                       {busySessionId === session.id ? '…' : 'Revoke'}
                     </button>

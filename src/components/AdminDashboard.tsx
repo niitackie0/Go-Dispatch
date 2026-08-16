@@ -1049,18 +1049,18 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
                   placeholder="Tracking code, sender name, phone..."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 pl-10 pr-4 py-2 text-xs outline-none focus:border-violet-500 focus:bg-white transition-all"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-500 mb-1">Workflow Status</label>
+              <label className="block text-sm font-semibold text-slate-500 mb-1">Status</label>
               <select
                 id="filter_status"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 px-3 py-2 text-xs outline-none focus:border-violet-500 focus:bg-white transition-all"
+                className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 px-3 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white transition-all"
               >
                 <option value="">All Pipeline States</option>
                 {STATUS_ORDER.map(s => (
@@ -1078,7 +1078,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   type="date"
                   value={startDateFilter}
                   onChange={(e) => setStartDateFilter(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 pl-9 pr-3 py-1.5 text-xs outline-none focus:border-violet-500 focus:bg-white transition-all"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 pl-9 pr-3 py-3 text-sm outline-none focus:border-violet-500 focus:bg-white transition-all"
                 />
               </div>
             </div>
@@ -1090,7 +1090,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 setStartDateFilter('');
                 setEndDateFilter('');
               }}
-              className="w-full text-center rounded-xl border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-100 font-semibold py-2 text-xs transition-colors cursor-pointer"
+              className="w-full min-h-11 text-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold text-sm transition-colors cursor-pointer"
             >
               Clear Filters
             </button>
@@ -1311,7 +1311,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             </div>
             <button
               onClick={handleExportPaymentsCSV}
-              className="inline-flex items-center justify-center space-x-1.5 rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 shadow-sm transition-colors self-start cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white min-h-11 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 shadow-sm transition-colors self-start cursor-pointer"
             >
               <Download className="h-4.5 w-4.5" />
               <span>Export Accounting CSV</span>
@@ -1467,7 +1467,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             
             <div className="pb-4 border-b border-slate-200">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-1.5">
-                <Settings className="h-5 w-5 text-violet-600" /> Parcel Size Pricing Controller
+                <Settings className="h-5 w-5 text-violet-600" /> Pricing
               </h2>
               <p className="text-sm text-slate-500 mt-1">
                 Configure the flat rates stored in the system database for different package weight categories. New custom quotes automatically calculate from this config.
@@ -1499,7 +1499,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         required
                         value={smallPriceInput}
                         onChange={(e) => setSmallPriceInput(e.target.value)}
-                        className="w-full font-bold font-mono text-slate-900 border-b border-slate-200 bg-transparent text-lg outline-none focus:border-violet-500"
+                        className="w-full min-h-11 py-2 font-bold font-mono text-slate-900 border-b border-slate-200 bg-transparent text-lg outline-none focus:border-violet-500"
                       />
                     </div>
                   </div>
@@ -1516,7 +1516,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         required
                         value={mediumPriceInput}
                         onChange={(e) => setMediumPriceInput(e.target.value)}
-                        className="w-full font-bold font-mono text-slate-900 border-b border-slate-200 bg-transparent text-lg outline-none focus:border-violet-500"
+                        className="w-full min-h-11 py-2 font-bold font-mono text-slate-900 border-b border-slate-200 bg-transparent text-lg outline-none focus:border-violet-500"
                       />
                     </div>
                   </div>
@@ -1533,7 +1533,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         required
                         value={largePriceInput}
                         onChange={(e) => setLargePriceInput(e.target.value)}
-                        className="w-full font-bold font-mono text-slate-900 border-b border-slate-200 bg-transparent text-lg outline-none focus:border-violet-500"
+                        className="w-full min-h-11 py-2 font-bold font-mono text-slate-900 border-b border-slate-200 bg-transparent text-lg outline-none focus:border-violet-500"
                       />
                     </div>
                   </div>
@@ -1545,16 +1545,16 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     id="btn_save_pricing"
                     type="submit"
                     disabled={submittingPricing}
-                    className="rounded-xl btn-aurora text-white text-xs font-bold py-3 px-6 shadow-lg shadow-violet-500/25 transition-all flex items-center space-x-2 cursor-pointer"
+                    className="w-full sm:w-auto min-h-12 rounded-xl btn-aurora text-white text-base font-bold px-6 shadow-lg shadow-violet-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {submittingPricing ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Updating Pricing Configuration...</span>
+                        <span>Saving…</span>
                       </>
                     ) : (
                       <>
-                        <span>Save Pricing Configuration</span>
+                        <span>Save pricing</span>
                       </>
                     )}
                   </button>
@@ -1584,21 +1584,21 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/65 backdrop-blur-xs transition-opacity" onClick={() => setSelectedOrderId(null)}></div>
           
-          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
             <div className="w-screen max-w-lg bg-white border-l border-slate-200 shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300">
               
               {/* Drawer Header */}
               <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
                 <div>
-                  <span className="text-xs text-slate-500 uppercase tracking-widest font-mono block">Inspection Mode</span>
+                  <span className="text-sm text-slate-500 block">Order</span>
                   <h2 className="text-lg font-bold text-slate-900 flex items-center gap-1.5 mt-0.5">
-                    Order Details Drawer
+                    {selectedOrderDetails?.order.trackingCode ?? ''}
                   </h2>
                 </div>
                 <button
                   id="btn_close_inspector"
                   onClick={() => setSelectedOrderId(null)}
-                  className="p-1 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+                  className="h-11 w-11 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1613,22 +1613,18 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <>
                     {/* General Specs Ticket Card */}
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-4">
-                      <div className="flex items-center justify-between pb-3 border-b border-dashed border-slate-200">
-                        <div>
-                          <span className="text-xs text-slate-500 font-bold font-mono tracking-wider block">TRACKING CODE</span>
-                          <span className="text-lg font-semibold font-mono text-slate-900">{selectedOrderDetails.order.trackingCode}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-xs text-slate-500 font-bold block">QUOTE CHARGE</span>
-                          <span className="text-base font-semibold text-slate-900 tabular-nums">
-                            {selectedOrderDetails.order.currency} {(selectedOrderDetails.order.priceAmount / 100).toFixed(2)}
-                          </span>
-                        </div>
+                      {/* The tracking code is in the drawer header, so this row
+                          carries the price alone rather than repeating it. */}
+                      <div className="pb-3 border-b border-dashed border-slate-200">
+                        <span className="text-sm text-slate-500 block">Price</span>
+                        <span className="text-xl font-semibold text-slate-900 tabular-nums">
+                          {selectedOrderDetails.order.currency} {(selectedOrderDetails.order.priceAmount / 100).toFixed(2)}
+                        </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <span className="text-slate-500 font-medium block">Workflow Status</span>
+                          <span className="text-slate-500 block">Status</span>
                           <span className={`inline-block font-bold capitalize mt-0.5 rounded px-2 py-0.5 text-xs tracking-wider ${
                             STATUS_ORDER.find(s => s.key === selectedOrderDetails.order.status)?.bg || 'bg-slate-100'
                           } ${
@@ -1639,7 +1635,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         </div>
 
                         <div>
-                          <span className="text-slate-500 font-medium block">Payment Status</span>
+                          <span className="text-slate-500 block">Payment</span>
                           <span className={`inline-block font-bold uppercase mt-0.5 rounded border px-2 py-0.5 text-xs tracking-wider ${
                             selectedOrderDetails.order.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
                             'bg-amber-500/10 border-amber-500/20 text-amber-600'
@@ -1667,7 +1663,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                 setCopiedRiderLink(true);
                                 setTimeout(() => setCopiedRiderLink(false), 2000);
                               }}
-                              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-100 transition-colors cursor-pointer"
+                              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 min-h-11 px-3 text-sm font-bold text-violet-700 hover:bg-violet-100 transition-colors cursor-pointer"
                               title="Copy the courier's self-service update link"
                             >
                               {copiedRiderLink ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
@@ -1684,14 +1680,14 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                     {/* Coordinates & Customer info */}
                     <div className="space-y-4">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Customer Coordinates</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Sender and recipient</h3>
                       
                       <div className="space-y-3.5 bg-white rounded-xl border border-slate-200 p-4 text-xs text-slate-700">
                         {/* Sender */}
                         <div className="flex gap-2.5 pb-3 border-b border-slate-200">
                           <User className="h-4.5 w-4.5 text-slate-500 shrink-0" />
                           <div>
-                            <span className="text-slate-500 block font-semibold text-xs uppercase">Sender Client</span>
+                            <span className="text-slate-500 block font-semibold text-xs uppercase">Sender</span>
                             <span className="font-bold text-slate-900 block mt-0.5">{selectedOrderDetails.order.senderName}</span>
                             <span className="text-slate-500 font-mono text-xs block mt-0.5">{selectedOrderDetails.order.senderPhone}</span>
                             <span className="text-slate-700 block mt-1"><strong className="text-slate-500">Pickup:</strong> {selectedOrderDetails.order.pickupAddress}</span>
@@ -1705,7 +1701,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         <div className="flex gap-2.5">
                           <User className="h-4.5 w-4.5 text-slate-500 shrink-0" />
                           <div>
-                            <span className="text-slate-500 block font-semibold text-xs uppercase">Recipient Client</span>
+                            <span className="text-slate-500 block font-semibold text-xs uppercase">Recipient</span>
                             <span className="font-bold text-slate-900 block mt-0.5">{selectedOrderDetails.order.recipientName}</span>
                             <span className="text-slate-500 font-mono text-xs block mt-0.5">{selectedOrderDetails.order.recipientPhone}</span>
                             <span className="text-slate-700 block mt-1"><strong className="text-slate-500">Dropoff:</strong> {selectedOrderDetails.order.dropoffAddress}</span>
@@ -1721,10 +1717,10 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     <div className="space-y-3">
                       <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Parcel specs</h3>
                       <div className="bg-white rounded-xl border border-slate-200 p-4 text-xs text-slate-700 space-y-2">
-                        <p><strong className="text-slate-500">Size category:</strong> <span className="capitalize font-bold text-slate-900">{selectedOrderDetails.order.packageSize}</span></p>
-                        <p><strong className="text-slate-500">Weight profile:</strong> <span className="font-bold text-slate-900">{selectedOrderDetails.order.packageWeightKg} kg</span></p>
+                        <p><strong className="text-slate-500">Size:</strong> <span className="capitalize font-bold text-slate-900">{selectedOrderDetails.order.packageSize}</span></p>
+                        <p><strong className="text-slate-500">Weight:</strong> <span className="font-bold text-slate-900">{selectedOrderDetails.order.packageWeightKg} kg</span></p>
                         <p><strong className="text-slate-500">Description:</strong> <span className="text-slate-700">{selectedOrderDetails.order.packageDescription}</span></p>
-                        <p><strong className="text-slate-500">Scheduled pickup time:</strong> <span className="text-slate-700">{new Date(selectedOrderDetails.order.scheduledPickupAt).toLocaleString()}</span></p>
+                        <p><strong className="text-slate-500">Pickup:</strong> <span className="text-slate-700">{new Date(selectedOrderDetails.order.scheduledPickupAt).toLocaleString()}</span></p>
                       </div>
                     </div>
 
@@ -1744,7 +1740,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               id="btn_trigger_next_status"
                               onClick={() => handleUpdateStatus(getNextStatusAction(selectedOrderDetails.order.status)!)}
                               disabled={submittingStatus}
-                              className="w-full text-center py-2.5 px-4 rounded-xl btn-aurora text-white font-bold text-xs shadow-md shadow-violet-500/20 transition-colors flex items-center justify-center space-x-1 cursor-pointer"
+                              className="w-full text-center min-h-12 px-4 rounded-xl btn-aurora text-white font-bold text-base shadow-md shadow-violet-500/20 transition-colors flex items-center justify-center space-x-1 cursor-pointer"
                             >
                               <span>Move to "{getStatusLabel(getNextStatusAction(selectedOrderDetails.order.status)!)}"</span>
                               <ArrowRight className="h-4 w-4" />
@@ -1759,7 +1755,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               key={s.key}
                               disabled={selectedOrderDetails.order.status === s.key || submittingStatus}
                               onClick={() => handleUpdateStatus(s.key)}
-                              className={`py-2 px-3 rounded-lg border text-center transition-colors font-semibold ${
+                              className={`min-h-11 px-3 rounded-lg border text-center transition-colors font-semibold ${
                                 selectedOrderDetails.order.status === s.key
                                   ? 'bg-slate-100 border-slate-200 text-violet-600 cursor-not-allowed'
                                   : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer'
@@ -1779,7 +1775,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                             value={statusNote}
                             onChange={(e) => setStatusNote(e.target.value)}
                             placeholder="e.g. Courier Kwesi assigned; package verified intact"
-                            className="w-full text-xs rounded-lg border border-slate-200 bg-slate-50 text-slate-900 px-3 py-2 outline-none focus:border-violet-500"
+                            className="w-full min-h-11 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-900 px-3 py-2.5 outline-none focus:border-violet-500"
                           />
                         </div>
                       </div>
@@ -1808,7 +1804,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                 required
                                 value={paymentAmount}
                                 onChange={(e) => setPaymentAmount(e.target.value)}
-                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 outline-none text-slate-900 font-bold focus:border-violet-500"
+                                className="w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 outline-none text-slate-900 font-bold focus:border-violet-500"
                               />
                             </div>
                             <div>
@@ -1819,7 +1815,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                 value={paymentRef}
                                 onChange={(e) => setPaymentRef(e.target.value)}
                                 placeholder="e.g. TX-882012"
-                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 outline-none font-mono text-xs text-slate-900 focus:border-violet-500"
+                                className="w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 outline-none font-mono text-sm text-slate-900 focus:border-violet-500"
                               />
                             </div>
                           </div>
@@ -1833,7 +1829,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               value={paymentNote}
                               onChange={(e) => setPaymentNote(e.target.value)}
                               placeholder="e.g. Verified momo screenshot on dispatch WhatsApp"
-                              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs outline-none text-slate-900 focus:border-violet-500"
+                              className="w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none text-slate-900 focus:border-violet-500"
                             />
                           </div>
 
@@ -1841,7 +1837,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                             id="btn_confirm_reconcile"
                             type="submit"
                             disabled={submittingPayment}
-                            className="w-full text-center py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 font-bold text-xs shadow-lg shadow-emerald-600/10 transition-colors flex items-center justify-center space-x-1 cursor-pointer"
+                            className="w-full text-center min-h-12 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 font-bold text-base shadow-lg shadow-emerald-600/10 transition-colors flex items-center justify-center space-x-1 cursor-pointer"
                           >
                             {submittingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <span>Record Ledger Payment & Clear pending</span>}
                           </button>
