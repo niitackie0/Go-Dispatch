@@ -235,7 +235,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-slate-900 tracking-tight">Staff Accounts</h2>
-          <p className="text-xs text-slate-500 mt-1 max-w-xl">
+          <p className="text-sm text-slate-500 mt-1 max-w-xl">
             Who can sign in to this console, and what each of them is allowed to do.
             Permissions are enforced by the server — hiding a control is a convenience,
             not the protection.
@@ -284,7 +284,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
             <KeyRound className="h-4 w-4" />
             Password shown once — copy it now
           </div>
-          <p className="text-[11px] text-amber-700/80">
+          <p className="text-sm text-amber-700/80">
             Only a hash is stored, so this cannot be recovered later. Send it to them
             over something private, and have them change it.
           </p>
@@ -323,7 +323,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
 
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">
+              <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
                 Full name
               </span>
               <input
@@ -336,7 +336,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
             </label>
 
             <label className="block">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">
+              <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
                 Email
               </span>
               <input
@@ -351,7 +351,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
           </div>
 
           <div>
-            <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">
+            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
               Role
             </span>
             <div className="mt-1.5 grid sm:grid-cols-2 gap-2">
@@ -369,7 +369,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                   <span className="text-xs font-bold text-slate-900 block">
                     {ROLE_INFO[role].label}
                   </span>
-                  <span className="text-[11px] text-slate-500 block mt-0.5">
+                  <span className="text-xs text-slate-500 block mt-0.5">
                     {ROLE_INFO[role].blurb}
                   </span>
                 </button>
@@ -378,7 +378,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
           </div>
 
           <label className="block">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">
+            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
               Password — leave blank to generate one
             </span>
             <div className="mt-1 flex gap-2">
@@ -419,7 +419,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                 {['Name', 'Email', 'Role', 'Added', ''].map((h, i) => (
                   <th
                     key={i}
-                    className="px-4 py-2.5 text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold whitespace-nowrap"
+                    className="px-4 py-2.5 text-xs font-mono uppercase tracking-widest text-slate-500 font-bold whitespace-nowrap"
                   >
                     {h}
                   </th>
@@ -457,7 +457,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="text-sm font-bold text-slate-900">{member.name}</span>
                         {isSelf && (
-                          <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-violet-600 font-bold">
+                          <span className="ml-2 text-xs font-mono uppercase tracking-wider text-violet-600 font-bold">
                             you
                           </span>
                         )}
@@ -477,7 +477,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                               ? 'The last owner cannot be demoted — someone must be able to manage staff and pricing.'
                               : undefined
                           }
-                          className={`text-[11px] font-bold rounded-md px-2 py-1 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${ROLE_INFO[member.role].chip}`}
+                          className={`text-xs font-bold rounded-md px-2 py-1 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${ROLE_INFO[member.role].chip}`}
                         >
                           {ADMIN_ROLES.map((role) => (
                             <option key={role} value={role}>
@@ -520,13 +520,13 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                               <button
                                 onClick={() => handleDelete(member)}
                                 disabled={busy}
-                                className="px-2 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition-all cursor-pointer"
+                                className="px-2 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all cursor-pointer"
                               >
                                 Confirm
                               </button>
                               <button
                                 onClick={() => setConfirmDeleteId(null)}
-                                className="px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 text-[11px] font-bold transition-all cursor-pointer"
+                                className="px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 text-xs font-bold transition-all cursor-pointer"
                               >
                                 No
                               </button>
@@ -559,7 +559,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
         {/* ---------- Pagination ---------- */}
         {!loading && staff.length > PAGE_SIZE && (
           <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-200 bg-slate-50">
-            <span className="text-[11px] text-slate-500 font-mono">
+            <span className="text-xs text-slate-500 font-mono">
               {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, staff.length)} of{' '}
               {staff.length}
             </span>
@@ -567,14 +567,14 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-500 text-[11px] font-bold disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-500 text-xs font-bold disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
               >
                 Prev
               </button>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-500 text-[11px] font-bold disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-500 text-xs font-bold disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
               >
                 Next
               </button>

@@ -169,7 +169,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
     <div className="p-4 sm:p-6 max-w-3xl space-y-5">
       <div>
         <h2 className="text-base font-bold text-slate-900 tracking-tight">My Account</h2>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-sm text-slate-500 mt-1">
           Signed in as{' '}
           <span className="font-mono text-slate-700">{user?.email}</span>
         </p>
@@ -199,7 +199,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
         </div>
 
         <label className="block">
-          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">
+          <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
             Current password
           </span>
           <input
@@ -214,7 +214,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
 
         <div className="grid sm:grid-cols-2 gap-3">
           <label className="block">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">
+            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
               New password
             </span>
             <input
@@ -229,7 +229,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
           </label>
 
           <label className="block">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">
+            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
               Confirm new password
             </span>
             <input
@@ -244,7 +244,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
           </label>
         </div>
 
-        <p className="text-[11px] text-slate-500">
+        <p className="text-sm text-slate-500">
           At least {MIN_PASSWORD_LENGTH} characters. Changing it signs you out of every
           other device — if someone else knew the old one, leaving their session open
           would defeat the point.
@@ -271,7 +271,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
             <button
               onClick={revokeOthers}
               disabled={busySessionId === 'all'}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:text-rose-600 hover:border-rose-300 text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:text-rose-600 hover:border-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               {busySessionId === 'all' ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -310,12 +310,12 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
                           {label}
                         </span>
                         {session.current && (
-                          <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-600 font-bold shrink-0">
+                          <span className="text-xs font-mono uppercase tracking-wider text-emerald-600 font-bold shrink-0">
                             this device
                           </span>
                         )}
                       </div>
-                      <span className="text-[11px] text-slate-500 font-mono">
+                      <span className="text-xs text-slate-500 font-mono">
                         {session.ipAddress ?? 'unknown IP'} · active{' '}
                         {relativeTime(session.lastSeenAt)}
                       </span>
@@ -326,7 +326,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
                     <button
                       onClick={() => revokeOne(session.id)}
                       disabled={busySessionId === session.id}
-                      className="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:text-rose-600 hover:border-rose-300 text-[11px] font-bold transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                      className="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:text-rose-600 hover:border-rose-300 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 shrink-0"
                     >
                       {busySessionId === session.id ? '…' : 'Revoke'}
                     </button>

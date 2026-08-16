@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Layers,
   Search, 
@@ -34,8 +34,10 @@ import {
   Copy,
   Check,
   Users,
-  ShieldCheck
+  ShieldCheck,
+  ChevronDown
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import {
   Order,
   Payment,
@@ -48,18 +50,9 @@ import {
   AdminUser
 } from '../types.js';
 import { can } from '../capabilities.js';
+import type { Capability } from '../capabilities.js';
 import StaffManagement from './StaffManagement.js';
 import AccountSecurity from './AccountSecurity.js';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer
-} from 'recharts';
 import { Link } from '../router.js';
 
 interface AdminDashboardProps {
@@ -81,6 +74,30 @@ const STATUS_ORDER: { key: OrderStatus; label: string; bg: string; text: string;
   { key: 'cancelled', label: 'Cancelled', bg: 'bg-rose-500/10 border border-rose-500/20', text: 'text-rose-600', dot: 'bg-rose-500' },
 ];
 
+type SubTab = 'overview' | 'pipeline' | 'payments' | 'pricing' | 'staff' | 'account';
+
+/**
+ * The console's sections, in sidebar order.
+ *
+ * One list drives all three places a section is named — the desktop sidebar,
+ * the mobile section menu, and the page heading — so they cannot drift apart.
+ * `capability` gates visibility; a section without one is open to every role.
+ */
+const NAV_ITEMS: {
+  key: SubTab;
+  label: string;
+  title: string;
+  icon: LucideIcon;
+  capability?: Capability;
+}[] = [
+  { key: 'overview', label: 'Overview', title: 'Overview', icon: TrendingUp },
+  { key: 'pipeline', label: 'Dispatch board', title: 'Dispatch board', icon: Layers },
+  { key: 'payments', label: 'Payments', title: 'Payments ledger', icon: CreditCard, capability: 'payments:read' },
+  { key: 'pricing', label: 'Pricing', title: 'Pricing', icon: Settings, capability: 'pricing:write' },
+  { key: 'staff', label: 'Staff accounts', title: 'Staff accounts', icon: Users, capability: 'staff:manage' },
+  { key: 'account', label: 'My account', title: 'My account', icon: ShieldCheck },
+];
+
 export default function AdminDashboard({ token, user, onLogout }: AdminDashboardProps) {
   const userInitials = (user?.name || 'A')
     .split(' ')
@@ -89,8 +106,10 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     .slice(0, 2)
     .toUpperCase();
 
-  // Navigation tabs within dashboard
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'pipeline' | 'payments' | 'pricing' | 'staff' | 'account'>('overview');
+  // Which section of the console is open
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>('overview');
+  // Mobile only: the section menu that replaces the sidebar below lg
+  const [sectionMenuOpen, setSectionMenuOpen] = useState(false);
 
   // Which controls this role may see. The server enforces the same table; this
   // only stops the console offering buttons that would come back 403.
@@ -102,12 +121,33 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   const canSetPricing = can(user?.role, 'pricing:write');
   const canManageStaff = can(user?.role, 'staff:manage');
 
-  // A role that loses access to the tab it is standing on gets moved off it.
+  // The sections this role may open, in sidebar order. Memoised on the role so
+  // the guard effect below runs on a role change, not on every render.
+  const visibleNavItems = useMemo(
+    () => NAV_ITEMS.filter((item) => !item.capability || can(user?.role, item.capability)),
+    [user?.role]
+  );
+
+  const activeNavItem =
+    visibleNavItems.find((item) => item.key === activeSubTab) ?? visibleNavItems[0];
+
+  /**
+   * Switch section. Closes the mobile menu and clears the status filter when
+   * entering the dispatch board, so arriving from a status tile on the overview
+   * does not leave a stale filter applied.
+   */
+  const goToSection = (key: SubTab) => {
+    setActiveSubTab(key);
+    setSectionMenuOpen(false);
+    if (key === 'pipeline') setStatusFilter('');
+  };
+
+  // A role that loses access to the section it is standing on gets moved off it.
   useEffect(() => {
-    if (activeSubTab === 'payments' && !canSeePayments) setActiveSubTab('overview');
-    if (activeSubTab === 'pricing' && !canSetPricing) setActiveSubTab('overview');
-    if (activeSubTab === 'staff' && !canManageStaff) setActiveSubTab('overview');
-  }, [activeSubTab, canSeePayments, canSetPricing, canManageStaff]);
+    if (!visibleNavItems.some((item) => item.key === activeSubTab)) {
+      setActiveSubTab('overview');
+    }
+  }, [activeSubTab, visibleNavItems]);
 
   // Loading indicator states
   const [loadingStats, setLoadingStats] = useState(true);
@@ -152,13 +192,6 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   const [largePriceInput, setLargePriceInput] = useState('');
   const [submittingPricing, setSubmittingPricing] = useState(false);
   const [pricingSuccessMsg, setPricingSuccessMsg] = useState('');
-
-  // Error banners
-  const [dashError, setDashError] = useState('');
-  const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [secondsToRefresh, setSecondsToRefresh] = useState(30);
 
   // Pagination (10 per page) for the pipeline table and payments ledger
   const PAGE_SIZE = 10;
@@ -277,23 +310,17 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     }
   }, [activeSubTab, searchFilter, statusFilter, startDateFilter, endDateFilter]);
 
-  // Auto-refresh countdown & fetch every 30 seconds
+  // Silent background refresh. Ticks every 30s rather than every second — the
+  // old version re-rendered the whole console once a second to decrement a
+  // countdown that is no longer shown.
   useEffect(() => {
-    setSecondsToRefresh(30); // reset countdown on filter/tab changes
     const interval = setInterval(() => {
-      setSecondsToRefresh((prev) => {
-        if (prev <= 1) {
-          // Trigger a silent sync of active resources
-          fetchStats();
-          fetchOrders();
-          if (activeSubTab === 'payments') {
-            fetchPayments();
-          }
-          return 30;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+      fetchStats();
+      fetchOrders();
+      if (activeSubTab === 'payments') {
+        fetchPayments();
+      }
+    }, 30_000);
 
     return () => clearInterval(interval);
   }, [activeSubTab, searchFilter, statusFilter, startDateFilter, endDateFilter]);
@@ -629,155 +656,60 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   return (
     <div className="w-full min-h-screen bg-[#F5F8FE] relative text-[#e4e4e7]" id="admin_dashboard_container">
       
-      {/* Premium Dashboard Layout Wrapper */}
-      <div className="flex flex-col lg:flex-row min-h-screen">
-        
-        {/* Modern Sidebar for Administration */}
-        <aside className={`${
-          sidebarOpen 
-            ? 'w-full lg:w-72 p-5 border-b lg:border-b-0 lg:border-r border-slate-200 opacity-100' 
-            : 'w-0 h-0 lg:h-0 p-0 overflow-hidden opacity-0 border-b-0 lg:border-r-0'
-        } shrink-0 bg-white lg:sticky lg:top-0 lg:h-[100dvh] flex flex-col justify-between overflow-y-auto transition-all duration-300`}>
+      {/* Sidebar on desktop, section menu on mobile */}
+      <div className="flex min-h-screen">
+
+        {/* Desktop sidebar. Hidden below lg — phones use the header menu instead
+            of a full-width nav block stacked above the content. */}
+        <aside className="hidden lg:flex w-72 shrink-0 p-5 border-r border-slate-200 bg-white sticky top-0 h-[100dvh] flex-col justify-between overflow-y-auto">
           {/* Top Section */}
           <div className="space-y-6">
-            
+
             {/* Branding / Identity Area */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200">
-              <div className="flex items-center space-x-2.5">
-                <div className="h-9 w-9 rounded-xl bg-violet-50 border border-violet-200 flex items-center justify-center text-violet-600 shadow-sm">
-                  <Truck className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900 tracking-tight leading-none">Waypoint Hub</h2>
-                  <span className="text-[9px] font-mono font-bold text-slate-500 mt-1 block">RIDER OPERATIONS</span>
-                </div>
+            <div className="flex items-center gap-3 pb-4 border-b border-slate-200">
+              <div className="h-10 w-10 rounded-xl bg-violet-50 border border-violet-200 flex items-center justify-center text-violet-600 shadow-sm shrink-0">
+                <Truck className="h-5 w-5" />
               </div>
-              {/* Close Button to Hide Sidebar */}
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-1 rounded bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 transition-all cursor-pointer"
-                title="Hide Sidebar"
-              >
-                <X className="h-3 w-3" />
-              </button>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 tracking-tight leading-none">Waypoint</h2>
+                <span className="text-xs font-medium text-slate-500 mt-1 block">Operations console</span>
+              </div>
             </div>
 
-            {/* Navigation Menus & Accordions */}
-            <div className="space-y-2">
-              
-              {/* Category label */}
-              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold block px-2 mb-1">
-                Management Console
-              </span>
+            {/* Section navigation */}
+            <nav className="space-y-1">
 
-              {/* Tab 1: Overview & Stats */}
-              <button
-                onClick={() => setActiveSubTab('overview')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeSubTab === 'overview'
-                    ? 'bg-slate-100 text-slate-900 shadow-md border border-slate-200'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center space-x-2.5">
-                  <TrendingUp className={`h-4.5 w-4.5 ${activeSubTab === 'overview' ? 'text-violet-600' : 'text-slate-500'}`} />
-                  <span>Overview & Analytics</span>
-                </div>
-              </button>
-
-              {/* Tab 2: Dispatch Board */}
-              <button
-                onClick={() => {
-                  setActiveSubTab('pipeline');
-                  setStatusFilter('');
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeSubTab === 'pipeline'
-                    ? 'bg-slate-100 text-slate-900 shadow-md border border-slate-200'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center space-x-2.5">
-                  <Layers className={`h-4.5 w-4.5 ${activeSubTab === 'pipeline' ? 'text-violet-600' : 'text-slate-500'}`} />
-                  <span>Dispatch Board</span>
-                </div>
-                <span className="text-[10px] bg-slate-50 border border-slate-200 text-slate-500 px-2 py-0.5 rounded-md font-mono font-bold">
-                  {allOrdersForStats.length}
-                </span>
-              </button>
-
-              {/* Tab 3: Payments Ledger */}
-              {canSeePayments && (
-              <button
-                onClick={() => setActiveSubTab('payments')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeSubTab === 'payments'
-                    ? 'bg-slate-100 text-slate-900 shadow-md border border-slate-200'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center space-x-2.5">
-                  <CreditCard className={`h-4.5 w-4.5 ${activeSubTab === 'payments' ? 'text-violet-600' : 'text-slate-500'}`} />
-                  <span>Payments Ledger</span>
-                </div>
-              </button>
-              )}
-
-              {/* Tab 4: Pricing Controller */}
-              {canSetPricing && (
-              <button
-                onClick={() => setActiveSubTab('pricing')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeSubTab === 'pricing'
-                    ? 'bg-slate-100 text-slate-900 shadow-md border border-slate-200'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center space-x-2.5">
-                  <Settings className={`h-4.5 w-4.5 ${activeSubTab === 'pricing' ? 'text-violet-600' : 'text-slate-500'}`} />
-                  <span>Pricing Configuration</span>
-                </div>
-              </button>
-              )}
-
-              {/* Tab 5: Staff Accounts — owners only */}
-              {canManageStaff && (
-                <button
-                  onClick={() => setActiveSubTab('staff')}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeSubTab === 'staff'
-                      ? 'bg-slate-100 text-slate-900 shadow-md border border-slate-200'
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2.5">
-                    <Users className={`h-4.5 w-4.5 ${activeSubTab === 'staff' ? 'text-violet-600' : 'text-slate-500'}`} />
-                    <span>Staff Accounts</span>
-                  </div>
-                </button>
-              )}
-
-              {/* Tab 6: My Account — every role has one */}
-              <button
-                onClick={() => setActiveSubTab('account')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeSubTab === 'account'
-                    ? 'bg-slate-100 text-slate-900 shadow-md border border-slate-200'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center space-x-2.5">
-                  <ShieldCheck className={`h-4.5 w-4.5 ${activeSubTab === 'account' ? 'text-violet-600' : 'text-slate-500'}`} />
-                  <span>My Account</span>
-                </div>
-              </button>
-
-            </div>
+              {visibleNavItems.map(({ key, label, icon: Icon }) => {
+                const active = activeSubTab === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => goToSection(key)}
+                    aria-current={active ? 'page' : undefined}
+                    className={`w-full min-h-11 flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
+                      active
+                        ? 'bg-violet-50 text-violet-700 border border-violet-200'
+                        : 'text-slate-600 border border-transparent hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-violet-600' : 'text-slate-400'}`} />
+                      <span>{label}</span>
+                    </span>
+                    {key === 'pipeline' && allOrdersForStats.length > 0 && (
+                      <span className="text-xs tabular-nums bg-slate-100 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md font-semibold">
+                        {allOrdersForStats.length}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
           </div>
 
           {/* Sidebar Footer */}
-          <div className="pt-4 border-t border-slate-200 text-[10px] text-slate-400 font-mono">
-            Waypoint Operations Console
+          <div className="pt-4 border-t border-slate-200 text-xs text-slate-400">
+            Waypoint Courier Services
           </div>
         </aside>
 
@@ -785,83 +717,120 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
         <div className="flex-1 min-w-0 flex flex-col">
           
           {/* Top Panel Bar */}
-          <header className="border-b border-slate-200 bg-white/95 backdrop-blur-sm px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-30">
-            <div className="flex items-center space-x-3.5">
-              {/* Sidebar toggle button (Menu icon) */}
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:text-slate-900 transition-all cursor-pointer flex items-center justify-center hover:border-violet-400 hover:bg-slate-100"
-                title={sidebarOpen ? "Hide Sidebar Menu" : "Reveal Sidebar Menu"}
-              >
-                <Menu className="h-4.5 w-4.5" />
-              </button>
-              <div>
-                <span className="text-[10px] text-violet-600 uppercase tracking-widest font-mono font-semibold block">Waypoint Console</span>
-                <h1 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2 mt-0.5">
-                  <span>{
-                    activeSubTab === 'overview' ? 'Operational Overview & Stats' :
-                    activeSubTab === 'pipeline' ? `Dispatch Pipeline Board ${statusFilter ? `[${getStatusLabel(statusFilter as OrderStatus)}]` : ''}` :
-                    activeSubTab === 'payments' ? 'Manual Payments Ledger & Audit Logs' :
-                    activeSubTab === 'staff' ? 'Staff Accounts & Permissions' :
-                    activeSubTab === 'account' ? 'My Account & Security' :
-                    'Pricing Configuration Rate Panel'
-                  }</span>
+          <header className="border-b border-slate-200 bg-white/95 backdrop-blur-sm px-4 sm:px-6 py-3 sticky top-0 z-30">
+            <div className="flex items-center justify-between gap-3">
+              {/* Below lg the section name is the menu button; at lg the sidebar
+                  owns navigation and this is a plain heading. */}
+              <div className="min-w-0 flex-1">
+                <button
+                  onClick={() => setSectionMenuOpen((open) => !open)}
+                  aria-expanded={sectionMenuOpen}
+                  aria-haspopup="menu"
+                  className="lg:hidden w-full min-h-11 flex items-center gap-2 -ml-2 px-2 py-1.5 rounded-xl text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-xs text-slate-500">Waypoint</span>
+                    <span className="block text-lg font-bold text-slate-900 tracking-tight truncate">
+                      {activeNavItem?.title}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${sectionMenuOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                <h1 className="hidden lg:block text-xl font-bold text-slate-900 tracking-tight truncate">
+                  {activeNavItem?.title}
+                  {activeSubTab === 'pipeline' && statusFilter && (
+                    <span className="ml-2 text-base font-semibold text-violet-600">
+                      {getStatusLabel(statusFilter as OrderStatus)}
+                    </span>
+                  )}
                 </h1>
               </div>
-            </div>
 
-            {/* Quick actions + account */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              <button
-                onClick={() => {
-                  fetchStats();
-                  fetchOrders();
-                  fetchPayments();
-                  setSecondsToRefresh(30);
-                }}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-slate-900 text-xs font-bold font-mono transition-all flex items-center gap-1.5 cursor-pointer"
-                title="Refresh data"
-              >
-                <Clock className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Refresh</span>
-              </button>
+              {/* Quick actions + account */}
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    fetchStats();
+                    fetchOrders();
+                    fetchPayments();
+                  }}
+                  className="min-h-11 min-w-11 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  title="Refresh data"
+                >
+                  <Clock className="h-4 w-4" />
+                  <span className="hidden sm:inline">Refresh</span>
+                </button>
 
-              <div className="h-6 w-px bg-slate-100 hidden sm:block" />
+                {/* View live customer site */}
+                <Link
+                  to="/"
+                  className="hidden md:flex min-h-11 items-center gap-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-semibold transition-colors cursor-pointer"
+                  title="Open the live customer site"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  <span>View site</span>
+                </Link>
 
-              {/* View live customer site */}
-              <Link
-                to="/"
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-slate-900 text-xs font-semibold transition-all cursor-pointer"
-                title="Open the live customer site"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                <span>View site</span>
-              </Link>
-
-              {/* Signed-in user identity */}
-              <div className="flex items-center gap-2 pl-1">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 border border-violet-300 text-violet-600 text-xs font-bold">
-                  {userInitials}
+                {/* Signed-in user identity */}
+                <div className="flex items-center gap-2 pl-1">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 border border-violet-200 text-violet-700 text-sm font-bold shrink-0">
+                    {userInitials}
+                  </div>
+                  <div className="hidden xl:block leading-tight">
+                    <span className="block text-sm font-semibold text-slate-900 max-w-[160px] truncate">{user?.name || 'Administrator'}</span>
+                    <span className="block text-xs text-slate-500 max-w-[160px] truncate">{user?.email}</span>
+                  </div>
                 </div>
-                <div className="hidden lg:block leading-tight">
-                  <span className="block text-xs font-semibold text-slate-900 max-w-[140px] truncate">{user?.name || 'Administrator'}</span>
-                  <span className="block text-[10px] text-slate-500 max-w-[140px] truncate">{user?.email}</span>
-                </div>
+
+                {/* Logout */}
+                <button
+                  onClick={onLogout}
+                  title="Sign out"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+                >
+                  <LogOut className="h-5 w-5" />
+                </button>
               </div>
-
-              {/* Logout */}
-              <button
-                onClick={onLogout}
-                title="Sign out"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-red-500/10 hover:text-red-600 transition-colors cursor-pointer"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
             </div>
+
+            {/* Mobile section menu — the dropdown that replaces the stacked
+                sidebar. Only rendered below lg. */}
+            {sectionMenuOpen && (
+              <nav className="lg:hidden mt-2 pb-1 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                {visibleNavItems.map(({ key, label, icon: Icon }) => {
+                  const active = activeSubTab === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => goToSection(key)}
+                      aria-current={active ? 'page' : undefined}
+                      className={`w-full min-h-12 flex items-center justify-between gap-3 px-3 rounded-xl text-base font-semibold transition-colors cursor-pointer ${
+                        active
+                          ? 'bg-violet-50 text-violet-700 border border-violet-200'
+                          : 'text-slate-700 border border-transparent hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="flex items-center gap-3">
+                        <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-violet-600' : 'text-slate-400'}`} />
+                        <span>{label}</span>
+                      </span>
+                      {key === 'pipeline' && allOrdersForStats.length > 0 && (
+                        <span className="text-sm tabular-nums bg-slate-100 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md font-semibold">
+                          {allOrdersForStats.length}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            )}
           </header>
 
           {/* Core scrollable canvas workspace */}
-          <div className="p-4 sm:p-8 space-y-8 flex-1">
+          <div className="p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 flex-1">
 
       {/* ----------------- SUB TAB: OVERVIEW STATS ----------------- */}
       {activeSubTab === 'overview' && (
@@ -870,7 +839,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             <div className="flex py-12 justify-center"><Loader2 className="h-8 w-8 text-violet-600 animate-spin" /></div>
           ) : (
             <>
-              {/* Revenue cards — omitted entirely for roles without revenue:read.
+              {/* Revenue cards — omitted entirely for roles without revenue:read.
                   The server does not send the figures to them, so rendering the
                   cards would show GHS 0.00, which reads as "you earned nothing"
                   rather than "this is not yours to see". */}
@@ -882,11 +851,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full pointer-events-none" />
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] uppercase tracking-widest font-mono text-slate-500 font-bold block">Today's Revenue</span>
+                      <span className="text-xs uppercase tracking-widest font-mono text-slate-500 font-bold block">Today's Revenue</span>
                       <span className="text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
                         GHS {((stats?.revenue?.today || 0) / 100).toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-emerald-600 font-semibold mt-1.5 flex items-center gap-1">
+                      <span className="text-xs text-emerald-600 font-semibold mt-1.5 flex items-center gap-1">
                         <TrendingUp className="h-3 w-3" /> Settled Mobile Money / Cash
                       </span>
                     </div>
@@ -898,11 +867,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full pointer-events-none" />
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] uppercase tracking-widest font-mono text-slate-500 font-bold block">Weekly Revenue</span>
+                      <span className="text-xs uppercase tracking-widest font-mono text-slate-500 font-bold block">Weekly Revenue</span>
                       <span className="text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
                         GHS {((stats?.revenue?.week || 0) / 100).toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-slate-500 font-medium mt-1.5 block">
+                      <span className="text-xs text-slate-500 font-medium mt-1.5 block">
                         Past 7 trailing calendar days
                       </span>
                     </div>
@@ -914,11 +883,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full pointer-events-none" />
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] uppercase tracking-widest font-mono text-slate-500 font-bold block">Monthly Revenue</span>
+                      <span className="text-xs uppercase tracking-widest font-mono text-slate-500 font-bold block">Monthly Revenue</span>
                       <span className="text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
                         GHS {((stats?.revenue?.month || 0) / 100).toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-slate-500 font-medium mt-1.5 block">
+                      <span className="text-xs text-slate-500 font-medium mt-1.5 block">
                         Past 30 calendar days
                       </span>
                     </div>
@@ -930,11 +899,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full pointer-events-none" />
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] uppercase tracking-widest font-mono text-slate-500 font-bold block">All Time Collected</span>
+                      <span className="text-xs uppercase tracking-widest font-mono text-slate-500 font-bold block">All Time Collected</span>
                       <span className="text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
                         GHS {((stats?.revenue?.allTime || 0) / 100).toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-slate-500 font-medium mt-1.5 block">
+                      <span className="text-xs text-slate-500 font-medium mt-1.5 block">
                         Entire operational database sum
                       </span>
                     </div>
@@ -944,7 +913,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               </div>
               )}
 
-              {/* Dispatch pipeline — one card: distribution bar + clickable status segments */}
+              {/* Dispatch pipeline — one card: distribution bar + clickable status segments */}
               {(() => {
                 const rows = STATUS_ORDER.map((s) => ({ ...s, count: stats?.counts[s.key] || 0 }));
                 const total = rows.reduce((sum, s) => sum + s.count, 0);
@@ -1007,7 +976,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                           >
                             <span className="flex items-center gap-1.5">
                               <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${s.dot}`} />
-                              <span className="text-[11px] font-medium text-slate-500 truncate">{s.label}</span>
+                              <span className="text-xs font-medium text-slate-500 truncate">{s.label}</span>
                             </span>
                             <span className="mt-1 block text-xl font-semibold text-slate-900 tabular-nums group-hover:text-violet-700 transition-colors">
                               {s.count}
@@ -1033,7 +1002,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-md grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
             
             <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Search Keywords</label>
+              <label className="block text-sm font-semibold text-slate-500 mb-1">Search Keywords</label>
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                 <input
@@ -1048,7 +1017,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Workflow Status</label>
+              <label className="block text-sm font-semibold text-slate-500 mb-1">Workflow Status</label>
               <select
                 id="filter_status"
                 value={statusFilter}
@@ -1063,7 +1032,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Created Since</label>
+              <label className="block text-sm font-semibold text-slate-500 mb-1">Created Since</label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-2.5 h-4.5 w-4.5 text-slate-500" />
                 <input
@@ -1096,7 +1065,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-500 bg-white">
               <ClipboardList className="h-10 w-10 text-slate-300 mx-auto mb-3" />
               <p className="text-sm font-semibold text-slate-700">No dispatch orders match criteria</p>
-              <p className="text-xs text-slate-500 mt-1">Try relaxing filters or search queries.</p>
+              <p className="text-sm text-slate-500 mt-1">Try relaxing filters or search queries.</p>
             </div>
           ) : (
             /* Orders table (paginated 10 / page) */
@@ -1106,9 +1075,82 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               const pageOrders = orders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
               return (
                 <div className="space-y-3">
-                  <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
-                    <table className="w-full text-left text-xs text-slate-700">
-                      <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                  {/* Phones: one card per order, so status, price and the
+                      Advance button stay on screen. The table below needs
+                      ~900px of width and put Advance out of reach on a phone. */}
+                  <div className="md:hidden space-y-3">
+                    {pageOrders.map((order) => {
+                      const statusTheme = STATUS_ORDER.find(s => s.key === order.status) || STATUS_ORDER[0];
+                      const next = getNextStatusAction(order.status);
+                      return (
+                        <div
+                          key={order.id}
+                          onClick={() => setSelectedOrderId(order.id)}
+                          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3 cursor-pointer active:bg-slate-50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <span className="font-mono text-base font-bold text-slate-900">{order.trackingCode}</span>
+                              {order.riderName && (
+                                <span className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
+                                  <Truck className="h-4 w-4 text-violet-500 shrink-0" />
+                                  {order.riderName}
+                                </span>
+                              )}
+                            </div>
+                            <span className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold ${statusTheme.bg} ${statusTheme.text}`}>
+                              {statusTheme.label}
+                            </span>
+                          </div>
+
+                          {/* Full addresses — no truncation, this is the screen
+                              a rider or dispatcher actually reads them from. */}
+                          <div className="text-sm space-y-1">
+                            <p className="text-slate-800">{order.pickupAddress}</p>
+                            <p className="text-slate-500">&rarr; {order.dropoffAddress}</p>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="capitalize text-slate-600">{order.packageSize}</span>
+                            <span className="text-slate-300">·</span>
+                            <span className="font-semibold text-slate-900 tabular-nums">
+                              {order.currency} {(order.priceAmount / 100).toFixed(2)}
+                            </span>
+                            <span className={`ml-auto rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
+                              order.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
+                              order.paymentStatus === 'refunded' ? 'bg-violet-50 border-violet-200 text-violet-600' :
+                              'bg-amber-500/10 border-amber-500/20 text-amber-600'
+                            }`}>
+                              {order.paymentStatus}
+                            </span>
+                          </div>
+
+                          {next && canWriteOrders ? (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); advanceOrderStatus(order); }}
+                              disabled={advancingId === order.id}
+                              className="w-full min-h-12 flex items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 text-base font-bold text-violet-700 hover:bg-violet-100 transition-colors disabled:opacity-50 cursor-pointer"
+                            >
+                              {advancingId === order.id
+                                ? <Loader2 className="h-5 w-5 animate-spin" />
+                                : <ArrowRight className="h-5 w-5" />}
+                              Advance to {getStatusLabel(next)}
+                            </button>
+                          ) : order.status === 'awaiting_payment' ? (
+                            <p className="flex items-center gap-2 text-sm font-semibold text-orange-600">
+                              <Clock className="h-4 w-4 shrink-0" />
+                              Confirms automatically on payment
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Tablet and up: the table. */}
+                  <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <table className="w-full text-left text-sm text-slate-700">
+                      <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500 border-b border-slate-200">
                         <tr>
                           <th className="px-4 py-3">Tracking</th>
                           <th className="px-4 py-3">Route</th>
@@ -1132,8 +1174,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               <td className="px-4 py-3 font-mono font-bold text-slate-900 whitespace-nowrap">
                                 {order.trackingCode}
                                 {order.riderName && (
-                                  <span className="mt-0.5 flex items-center gap-1 font-sans text-[10px] font-medium text-slate-500">
-                                    <Truck className="h-3 w-3 text-violet-500" />
+                                  <span className="mt-0.5 flex items-center gap-1 font-sans text-xs font-medium text-slate-500">
+                                    <Truck className="h-3.5 w-3.5 text-violet-500" />
                                     {order.riderName}
                                   </span>
                                 )}
@@ -1144,12 +1186,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               </td>
                               <td className="px-4 py-3 capitalize text-slate-700">{order.packageSize}</td>
                               <td className="px-4 py-3">
-                                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${statusTheme.bg} ${statusTheme.text}`}>
+                                <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold whitespace-nowrap ${statusTheme.bg} ${statusTheme.text}`}>
                                   {statusTheme.label}
                                 </span>
                               </td>
                               <td className="px-4 py-3">
-                                <span className={`inline-block rounded border px-1.5 py-0.5 font-bold uppercase text-[9px] tracking-wider ${
+                                <span className={`inline-block rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
                                   order.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
                                   order.paymentStatus === 'refunded' ? 'bg-violet-50 border-violet-200 text-violet-600' :
                                   'bg-amber-500/10 border-amber-500/20 text-amber-600'
@@ -1165,22 +1207,22 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                   <button
                                     onClick={(e) => { e.stopPropagation(); advanceOrderStatus(order); }}
                                     disabled={advancingId === order.id}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-violet-500/40 bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-600 hover:bg-violet-100 transition-colors disabled:opacity-50 cursor-pointer"
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 transition-colors disabled:opacity-50 cursor-pointer"
                                     title={`Advance to ${getStatusLabel(next)}`}
                                   >
-                                    {advancingId === order.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
+                                    {advancingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                                     {getStatusLabel(next)}
                                   </button>
                                 ) : order.status === 'awaiting_payment' ? (
                                   <span
-                                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-orange-600"
-                                    title="Payment-gated — confirms automatically once payment is received"
+                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-600"
+                                    title="Payment-gated — confirms automatically once payment is received"
                                   >
-                                    <Clock className="h-3 w-3" />
+                                    <Clock className="h-4 w-4" />
                                     Auto on payment
                                   </span>
                                 ) : (
-                                  <span className="text-[10px] text-slate-400 font-mono uppercase">Final</span>
+                                  <span className="text-xs text-slate-400">Final</span>
                                 )}
                               </td>
                             </tr>
@@ -1191,7 +1233,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   </div>
 
                   {/* Pager */}
-                  <div className="flex items-center justify-between px-1 text-xs text-slate-500">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1 text-sm text-slate-500">
                     <span>
                       Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, orders.length)} of {orders.length}
                     </span>
@@ -1199,7 +1241,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <button
                         onClick={() => setPipelinePage((p) => Math.max(1, p - 1))}
                         disabled={page <= 1}
-                        className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                       >
                         &lsaquo; Prev
                       </button>
@@ -1207,7 +1249,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <button
                         onClick={() => setPipelinePage((p) => Math.min(totalPages, p + 1))}
                         disabled={page >= totalPages}
-                        className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                       >
                         Next &rsaquo;
                       </button>
@@ -1227,7 +1269,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Payments Ledger & Audits</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Historical ledger of all completed, pending, or manual reconciliation transactions.</p>
+              <p className="text-sm text-slate-500 mt-0.5">Historical ledger of all completed, pending, or manual reconciliation transactions.</p>
             </div>
             <button
               onClick={handleExportPaymentsCSV}
@@ -1253,43 +1295,86 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               const pagePayments = payments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
               return (
               <div className="space-y-3">
-              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
-              <table className="w-full text-left text-xs text-slate-700 border-collapse">
-                <thead className="bg-slate-50 font-bold uppercase tracking-wider text-slate-500 text-[10px] border-b border-slate-200">
+
+              {/* Phones: a card per transaction. Nine columns cannot be read on
+                  a 390px screen, so the ledger stacks instead. */}
+              <div className="md:hidden space-y-3">
+                {pagePayments.map((p) => (
+                  <div key={p.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <span className="font-mono text-base font-bold text-slate-900 block">{p.trackingCode}</span>
+                        <span className="text-sm text-slate-500">{p.senderName}</span>
+                      </div>
+                      <span className="shrink-0 text-lg font-bold text-slate-900 tabular-nums">
+                        {p.currency} {(p.amount / 100).toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${
+                        p.status === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
+                        p.status === 'failed' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
+                        'bg-amber-500/10 border-amber-500/20 text-amber-600'
+                      }`}>
+                        {p.status}
+                      </span>
+                      <span className={`rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${
+                        p.provider === 'momo' ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-slate-100 border-slate-300 text-slate-700'
+                      }`}>
+                        {p.provider}
+                      </span>
+                      <span className="ml-auto text-sm text-slate-500">
+                        {p.paidAt ? new Date(p.paidAt).toLocaleDateString() : new Date(p.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    {p.note && <p className="text-sm text-slate-500">{p.note}</p>}
+
+                    <p className="text-xs text-slate-400 font-mono break-all">
+                      {p.providerReference ? `Ref ${p.providerReference}` : 'No provider reference'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <table className="w-full text-left text-sm text-slate-700 border-collapse">
+                <thead className="bg-slate-50 font-bold uppercase tracking-wide text-slate-500 text-xs border-b border-slate-200">
                   <tr>
-                    <th className="px-6 py-4">Transaction ID</th>
-                    <th className="px-6 py-4">Order Code</th>
-                    <th className="px-6 py-4">Customer Sender</th>
-                    <th className="px-6 py-4">Amount (GHS)</th>
-                    <th className="px-6 py-4">Provider / Method</th>
-                    <th className="px-6 py-4">Provider Reference</th>
-                    <th className="px-6 py-4">Verification State</th>
-                    <th className="px-6 py-4">Audit Notes / Logs</th>
-                    <th className="px-6 py-4">Settled At</th>
+                    <th className="px-4 py-3">Order</th>
+                    <th className="px-4 py-3">Sender</th>
+                    <th className="px-4 py-3 text-right">Amount</th>
+                    <th className="px-4 py-3">Method</th>
+                    <th className="px-4 py-3">Reference</th>
+                    <th className="px-4 py-3">State</th>
+                    <th className="px-4 py-3">Notes</th>
+                    <th className="px-4 py-3">Settled</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {pagePayments.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="px-6 py-4 font-mono font-semibold text-slate-500">{p.id}</td>
-                      <td className="px-6 py-4 font-mono font-bold text-slate-900">{p.trackingCode}</td>
-                      <td className="px-6 py-4 font-sans">
+                      <td className="px-4 py-3 font-mono font-bold text-slate-900 whitespace-nowrap">{p.trackingCode}</td>
+                      <td className="px-4 py-3">
                         <span className="font-semibold text-slate-900 block">{p.senderName}</span>
-                        <span className="text-[10px] text-slate-500 block font-mono">{p.senderPhone}</span>
+                        <span className="text-xs text-slate-500 block font-mono">{p.senderPhone}</span>
                       </td>
-                      <td className="px-6 py-4 font-semibold text-slate-900 tabular-nums">
+                      <td className="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums whitespace-nowrap">
                         {p.currency} {(p.amount / 100).toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 font-sans capitalize">
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold ${
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${
                           p.provider === 'momo' ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-slate-100 border-slate-300 text-slate-700'
                         }`}>
                           {p.provider}
                         </span>
                       </td>
-                      <td className="px-6 py-4 font-mono text-slate-500">{p.providerReference || 'N/A'}</td>
-                      <td className="px-6 py-4 font-sans font-semibold">
-                        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                      <td className="px-4 py-3 font-mono text-xs text-slate-500 max-w-[140px] truncate" title={p.providerReference || undefined}>
+                        {p.providerReference || '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${
                           p.status === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
                           p.status === 'failed' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
                           'bg-amber-500/10 border-amber-500/20 text-amber-600'
@@ -1297,10 +1382,10 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                           {p.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate" title={p.note}>
-                        {p.note || <span className="text-slate-400 italic">No notes</span>}
+                      <td className="px-4 py-3 text-slate-500 max-w-[200px] truncate" title={p.note}>
+                        {p.note || <span className="text-slate-400">—</span>}
                       </td>
-                      <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                         {p.paidAt ? new Date(p.paidAt).toLocaleDateString() : new Date(p.createdAt).toLocaleDateString()}
                       </td>
                     </tr>
@@ -1308,7 +1393,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </tbody>
               </table>
               </div>
-              <div className="flex items-center justify-between px-1 text-xs text-slate-500">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1 text-sm text-slate-500">
                 <span>
                   Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, payments.length)} of {payments.length}
                 </span>
@@ -1316,7 +1401,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <button
                     onClick={() => setPaymentsPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                   >
                     &lsaquo; Prev
                   </button>
@@ -1324,7 +1409,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <button
                     onClick={() => setPaymentsPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
-                    className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                   >
                     Next &rsaquo;
                   </button>
@@ -1346,7 +1431,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-1.5">
                 <Settings className="h-5 w-5 text-violet-600" /> Parcel Size Pricing Controller
               </h2>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-sm text-slate-500 mt-1">
                 Configure the flat rates stored in the system database for different package weight categories. New custom quotes automatically calculate from this config.
               </p>
             </div>
@@ -1366,7 +1451,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   
                   {/* Small */}
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                    <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">Small (e.g. pouch)</span>
+                    <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider font-mono">Small (e.g. pouch)</span>
                     <div className="flex items-center space-x-1.5 mt-2">
                       <span className="text-sm font-semibold text-slate-500">GHS</span>
                       <input
@@ -1383,7 +1468,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                   {/* Medium */}
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                    <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">Medium (box)</span>
+                    <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider font-mono">Medium (box)</span>
                     <div className="flex items-center space-x-1.5 mt-2">
                       <span className="text-sm font-semibold text-slate-500">GHS</span>
                       <input
@@ -1400,7 +1485,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                   {/* Large */}
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                    <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">Large (strapped)</span>
+                    <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider font-mono">Large (strapped)</span>
                     <div className="flex items-center space-x-1.5 mt-2">
                       <span className="text-sm font-semibold text-slate-500">GHS</span>
                       <input
@@ -1467,7 +1552,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               {/* Drawer Header */}
               <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-slate-500 uppercase tracking-widest font-mono block">Inspection Mode</span>
+                  <span className="text-xs text-slate-500 uppercase tracking-widest font-mono block">Inspection Mode</span>
                   <h2 className="text-lg font-bold text-slate-900 flex items-center gap-1.5 mt-0.5">
                     Order Details Drawer
                   </h2>
@@ -1492,11 +1577,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-4">
                       <div className="flex items-center justify-between pb-3 border-b border-dashed border-slate-200">
                         <div>
-                          <span className="text-[10px] text-slate-500 font-bold font-mono tracking-wider block">TRACKING CODE</span>
+                          <span className="text-xs text-slate-500 font-bold font-mono tracking-wider block">TRACKING CODE</span>
                           <span className="text-lg font-semibold font-mono text-slate-900">{selectedOrderDetails.order.trackingCode}</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-[10px] text-slate-500 font-bold block">QUOTE CHARGE</span>
+                          <span className="text-xs text-slate-500 font-bold block">QUOTE CHARGE</span>
                           <span className="text-base font-semibold text-slate-900 tabular-nums">
                             {selectedOrderDetails.order.currency} {(selectedOrderDetails.order.priceAmount / 100).toFixed(2)}
                           </span>
@@ -1506,7 +1591,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <div className="grid grid-cols-2 gap-4 text-xs">
                         <div>
                           <span className="text-slate-500 font-medium block">Workflow Status</span>
-                          <span className={`inline-block font-bold capitalize mt-0.5 rounded px-2 py-0.5 text-[9px] tracking-wider ${
+                          <span className={`inline-block font-bold capitalize mt-0.5 rounded px-2 py-0.5 text-xs tracking-wider ${
                             STATUS_ORDER.find(s => s.key === selectedOrderDetails.order.status)?.bg || 'bg-slate-100'
                           } ${
                             STATUS_ORDER.find(s => s.key === selectedOrderDetails.order.status)?.text || 'text-slate-700'
@@ -1517,7 +1602,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                         <div>
                           <span className="text-slate-500 font-medium block">Payment Status</span>
-                          <span className={`inline-block font-bold uppercase mt-0.5 rounded border px-2 py-0.5 text-[9px] tracking-wider ${
+                          <span className={`inline-block font-bold uppercase mt-0.5 rounded border px-2 py-0.5 text-xs tracking-wider ${
                             selectedOrderDetails.order.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
                             'bg-amber-500/10 border-amber-500/20 text-amber-600'
                           }`}>
@@ -1544,15 +1629,15 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                 setCopiedRiderLink(true);
                                 setTimeout(() => setCopiedRiderLink(false), 2000);
                               }}
-                              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-[11px] font-bold text-violet-700 hover:bg-violet-100 transition-colors cursor-pointer"
+                              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-100 transition-colors cursor-pointer"
                               title="Copy the courier's self-service update link"
                             >
                               {copiedRiderLink ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                               {copiedRiderLink ? 'Copied' : 'Copy rider link'}
                             </button>
                           </div>
-                          <p className="mt-2 text-[10px] text-slate-400 leading-relaxed">
-                            Send this to the courier — they can mark picked up, in transit and delivered themselves,
+                          <p className="mt-2 text-sm text-slate-400 leading-relaxed">
+                            Send this to the courier — they can mark picked up, in transit and delivered themselves,
                             without a dashboard login.
                           </p>
                         </div>
@@ -1568,12 +1653,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         <div className="flex gap-2.5 pb-3 border-b border-slate-200">
                           <User className="h-4.5 w-4.5 text-slate-500 shrink-0" />
                           <div>
-                            <span className="text-slate-500 block font-semibold text-[10px] uppercase">Sender Client</span>
+                            <span className="text-slate-500 block font-semibold text-xs uppercase">Sender Client</span>
                             <span className="font-bold text-slate-900 block mt-0.5">{selectedOrderDetails.order.senderName}</span>
-                            <span className="text-slate-500 font-mono text-[10px] block mt-0.5">{selectedOrderDetails.order.senderPhone}</span>
+                            <span className="text-slate-500 font-mono text-xs block mt-0.5">{selectedOrderDetails.order.senderPhone}</span>
                             <span className="text-slate-700 block mt-1"><strong className="text-slate-500">Pickup:</strong> {selectedOrderDetails.order.pickupAddress}</span>
                             {selectedOrderDetails.order.pickupNotes && (
-                              <span className="block italic text-[10px] text-slate-500 mt-1">Landmark: {selectedOrderDetails.order.pickupNotes}</span>
+                              <span className="block italic text-xs text-slate-500 mt-1">Landmark: {selectedOrderDetails.order.pickupNotes}</span>
                             )}
                           </div>
                         </div>
@@ -1582,12 +1667,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         <div className="flex gap-2.5">
                           <User className="h-4.5 w-4.5 text-slate-500 shrink-0" />
                           <div>
-                            <span className="text-slate-500 block font-semibold text-[10px] uppercase">Recipient Client</span>
+                            <span className="text-slate-500 block font-semibold text-xs uppercase">Recipient Client</span>
                             <span className="font-bold text-slate-900 block mt-0.5">{selectedOrderDetails.order.recipientName}</span>
-                            <span className="text-slate-500 font-mono text-[10px] block mt-0.5">{selectedOrderDetails.order.recipientPhone}</span>
+                            <span className="text-slate-500 font-mono text-xs block mt-0.5">{selectedOrderDetails.order.recipientPhone}</span>
                             <span className="text-slate-700 block mt-1"><strong className="text-slate-500">Dropoff:</strong> {selectedOrderDetails.order.dropoffAddress}</span>
                             {selectedOrderDetails.order.dropoffNotes && (
-                              <span className="block italic text-[10px] text-slate-500 mt-1">Landmark: {selectedOrderDetails.order.dropoffNotes}</span>
+                              <span className="block italic text-xs text-slate-500 mt-1">Landmark: {selectedOrderDetails.order.dropoffNotes}</span>
                             )}
                           </div>
                         </div>
@@ -1605,7 +1690,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       </div>
                     </div>
 
-                    {/* CONTROL BOX: Transition workflow status — write roles only */}
+                    {/* CONTROL BOX: Transition workflow status — write roles only */}
                     {canWriteOrders && (
                     <div className="space-y-4 border-t border-slate-200 pt-6">
                       <h3 className="text-xs font-bold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
@@ -1616,7 +1701,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         {/* Quick sequential next step trigger */}
                         {getNextStatusAction(selectedOrderDetails.order.status) && (
                           <div className="space-y-2 pb-3 border-b border-slate-200 mb-3">
-                            <span className="text-[10px] text-slate-500 font-semibold block">Fast Next Step:</span>
+                            <span className="text-xs text-slate-500 font-semibold block">Fast Next Step:</span>
                             <button
                               id="btn_trigger_next_status"
                               onClick={() => handleUpdateStatus(getNextStatusAction(selectedOrderDetails.order.status)!)}
@@ -1649,7 +1734,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                         {/* Optional status log notes */}
                         <div className="pt-2">
-                          <label className="block text-[10px] text-slate-500 mb-1 font-semibold">Workflow Log Note (Who, what landmark/action)</label>
+                          <label className="block text-sm text-slate-500 mb-1 font-semibold">Workflow Log Note (Who, what landmark/action)</label>
                           <input
                             id="input_status_note"
                             type="text"
@@ -1663,7 +1748,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     </div>
                     )}
 
-                    {/* CONTROL BOX: Mark payment as paid manually — finance/owner only */}
+                    {/* CONTROL BOX: Mark payment as paid manually — finance/owner only */}
                     {canRecordPayment && selectedOrderDetails.order.paymentStatus !== 'paid' && (
                       <div className="space-y-4 border-t border-slate-200 pt-6">
                         <h3 className="text-xs font-bold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
@@ -1671,13 +1756,13 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         </h3>
 
                         <form onSubmit={handleRecordPayment} className="space-y-3 bg-emerald-950/10 rounded-xl p-4 border border-emerald-800/30">
-                          <span className="text-[10px] text-emerald-600 font-semibold block leading-relaxed">
+                          <span className="text-xs text-emerald-600 font-semibold block leading-relaxed">
                             Log a manually confirmed MTN MoMo transfer, banking deposit, or cash transaction to unlock metrics.
                           </span>
 
                           <div className="grid grid-cols-2 gap-3 text-xs">
                             <div>
-                              <label className="block text-[10px] text-slate-500 mb-1">Received Amount (GHS)</label>
+                              <label className="block text-sm text-slate-500 mb-1">Received Amount (GHS)</label>
                               <input
                                 id="input_reconcile_amount"
                                 type="number"
@@ -1689,20 +1774,20 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               />
                             </div>
                             <div>
-                              <label className="block text-[10px] text-slate-500 mb-1">Provider Reference (Optional)</label>
+                              <label className="block text-sm text-slate-500 mb-1">Provider Reference (Optional)</label>
                               <input
                                 id="input_reconcile_ref"
                                 type="text"
                                 value={paymentRef}
                                 onChange={(e) => setPaymentRef(e.target.value)}
                                 placeholder="e.g. TX-882012"
-                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 outline-none font-mono text-[10px] text-slate-900 focus:border-violet-500"
+                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 outline-none font-mono text-xs text-slate-900 focus:border-violet-500"
                               />
                             </div>
                           </div>
 
                           <div>
-                            <label className="block text-[10px] text-slate-500 mb-1">Internal Audit Ledger Notes</label>
+                            <label className="block text-sm text-slate-500 mb-1">Internal Audit Ledger Notes</label>
                             <input
                               id="input_reconcile_note"
                               type="text"
@@ -1738,11 +1823,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                             <div className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-slate-300 border border-white"></div>
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-slate-900 capitalize">{log.status.replace('_', ' ')}</span>
-                              <span className="text-[10px] text-slate-500 font-mono">{new Date(log.changedAt).toLocaleString()}</span>
+                              <span className="text-xs text-slate-500 font-mono">{new Date(log.changedAt).toLocaleString()}</span>
                             </div>
                             <p className="text-slate-600 leading-relaxed">{log.note}</p>
                             {log.changedByName && (
-                              <span className="block text-[10px] text-slate-500 font-medium">Logged by: {log.changedByName}</span>
+                              <span className="block text-xs text-slate-500 font-medium">Logged by: {log.changedByName}</span>
                             )}
                           </div>
                         ))}

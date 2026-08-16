@@ -64,7 +64,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
             </div>
             <div className="leading-none">
               <span className="block text-lg font-bold font-display">Waypoint</span>
-              <span className="block text-[10px] font-mono uppercase tracking-[0.18em] text-white/70 mt-0.5">Operations Console</span>
+              <span className="block text-xs font-mono uppercase tracking-[0.18em] text-white/70 mt-0.5">Operations Console</span>
             </div>
           </Link>
         </div>
@@ -132,7 +132,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="input_admin_email" className="block text-xs font-semibold text-slate-600 mb-1.5">
+              <label htmlFor="input_admin_email" className="block text-sm font-semibold text-slate-600 mb-1.5">
                 Staff email address
               </label>
               <div className="relative">
@@ -151,7 +151,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
             </div>
 
             <div>
-              <label htmlFor="input_admin_password" className="block text-xs font-semibold text-slate-600 mb-1.5">
+              <label htmlFor="input_admin_password" className="block text-sm font-semibold text-slate-600 mb-1.5">
                 Access password
               </label>
               <div className="relative">
@@ -169,7 +169,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-2.5 text-[11px] font-semibold text-slate-400 hover:text-slate-700 transition-colors"
+                  className="absolute right-3 top-2.5 text-xs font-semibold text-slate-400 hover:text-slate-700 transition-colors"
                 >
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
@@ -197,7 +197,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
               who finds the URL, and a login screen that tells you the password
               is not a login screen. Staff accounts are issued from the console
               by an owner. */}
-          <p className="mt-8 text-[11px] text-slate-500 leading-relaxed">
+          <p className="mt-8 text-sm text-slate-500 leading-relaxed">
             Access is issued by an account owner. If you have been locked out, ask
             an owner to issue you a new password from the staff console.
           </p>
