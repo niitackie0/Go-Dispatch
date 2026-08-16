@@ -267,7 +267,7 @@ async function main() {
             changedAt: at(step.atMs),
             ...(step.byAdmin
               ? { changedByAdminId: admin.id, changedByName: admin.name }
-              : { changedByName: 'Waypoint Automation' }),
+              : { changedByName: 'GO DISPATCH Automation' }),
           },
         });
       }

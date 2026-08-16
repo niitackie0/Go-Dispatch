@@ -1,4 +1,4 @@
-// Waypoint — courier booking, dispatch and tracking.
+// GO DISPATCH — courier booking, dispatch and tracking.
 //
 // Money is stored as an integer number of pesewas (GHS minor units), never a
 // float. 5000 == GHS 50.00. All timestamps are timestamptz.

@@ -5,7 +5,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
 /**
- * Seeds the baseline rows a fresh Waypoint database needs: the price list,
+ * Seeds the baseline rows a fresh GO DISPATCH database needs: the price list,
  * one admin account, and the starting courier pool.
  *
  * Idempotent — every write is an upsert, so running it twice is harmless.
@@ -30,7 +30,7 @@ const RIDERS = [
   { name: 'Abena Nkrumah', phone: '0244777003' },
 ];
 
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@waypoint.com';
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'owner@godispatch.local';
 
 async function main() {
   await prisma.pricingConfig.upsert({
@@ -63,7 +63,7 @@ async function main() {
 
     await prisma.adminUser.create({
       data: {
-        name: 'Waypoint Dispatch Admin',
+        name: 'GO DISPATCH Owner',
         email: ADMIN_EMAIL,
         role: 'owner',
         passwordHash: await hash(password),
