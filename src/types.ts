@@ -47,8 +47,8 @@ export interface RiderJob {
   recipientPhone: string;
   dropoffAddress: string;
   dropoffNotes?: string;
-  /** Town this parcel is going to. Absent on orders predating the routes. */
-  destinationTown?: string;
+  /** Region this parcel is going to. */
+  destinationRegion?: string;
   packageSize: PackageSize;
   packageWeightKg: number;
   packageDescription: string;
@@ -80,8 +80,8 @@ export interface Order {
   recipientPhone: string;
   dropoffAddress: string;
   dropoffNotes?: string;
-  /** Town this parcel is going to. Absent on orders predating the routes. */
-  destinationTown?: string;
+  /** Region this parcel is going to. */
+  destinationRegion?: string;
   packageSize: PackageSize;
   packageWeightKg: number;
   packageDescription: string;

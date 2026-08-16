@@ -110,7 +110,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Enter tracking code (e.g. WP-8293-102) or phone number..."
+              placeholder="Tracking code or phone number"
               className="w-full rounded-xl pl-12 pr-4 py-3 text-base text-slate-900 placeholder-slate-400 outline-none bg-transparent"
             />
           </div>
@@ -125,28 +125,10 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
           </button>
         </form>
 
-        {/* Demo helpers */}
-        <div className="mt-4 flex flex-wrap gap-2 items-center justify-center text-xs text-slate-500">
-          <span className="font-semibold text-slate-700">Quick Seed Examples:</span>
-          <button 
-            onClick={() => { setSearchQuery('WP-8293-102'); handleTrack(undefined, 'WP-8293-102'); }}
-            className="px-2 py-1 rounded bg-slate-100 border border-slate-200 hover:bg-slate-100 text-slate-700 font-mono font-semibold cursor-pointer"
-          >
-            WP-8293-102 (Ama - Delivered)
-          </button>
-          <button 
-            onClick={() => { setSearchQuery('WP-4012-948'); handleTrack(undefined, 'WP-4012-948'); }}
-            className="px-2 py-1 rounded bg-slate-100 border border-slate-200 hover:bg-slate-100 text-slate-700 font-mono font-semibold cursor-pointer"
-          >
-            WP-4012-948 (Ekow - In Transit)
-          </button>
-          <button 
-            onClick={() => { setSearchQuery('0244123456'); handleTrack(undefined, '0244123456'); }}
-            className="px-2 py-1 rounded bg-slate-100 border border-slate-200 hover:bg-slate-100 text-slate-700 font-mono font-semibold cursor-pointer"
-          >
-            Search by Phone: 0244123456
-          </button>
-        </div>
+        <p className="mt-4 text-center text-sm text-slate-500">
+          Your tracking code looks like <span className="font-mono font-semibold text-slate-700">GD-0000-000</span>.
+          You can also search the phone number the parcel was booked with.
+        </p>
       </div>
 
       {/* Error state */}

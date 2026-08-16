@@ -19,8 +19,9 @@ import {
 } from 'lucide-react';
 import { Link } from '../router.js';
 import { PricingConfig } from '../types.js';
-import { DESTINATIONS } from '../destinations.js';
+import { REGIONS, ALL_TOWNS } from '../regions.js';
 import { quote, formatAmount, DEFAULT_PRICING } from '../pricing.js';
+import { CONTACT_PHONE, CONTACT_PHONE_E164 } from '../brand.js';
 
 const PIPELINE = [
   { label: 'Requested', desc: 'Order submitted' },
@@ -34,8 +35,8 @@ const PIPELINE = [
 const FEATURES = [
   {
     icon: Boxes,
-    title: 'Flexible parcel sizing',
-    body: 'Small pouches, medium courier cartons, and large heavy shipments — handled by dedicated motorcycle riders and vans.',
+    title: 'One rate, whatever the distance',
+    body: 'GHS 50 covers any parcel up to 3kg, to any region we serve. Heavier loads are charged by the kilo, published up front.',
   },
   {
     icon: Route,
@@ -50,7 +51,7 @@ const FEATURES = [
   {
     icon: MapPin,
     title: 'Nationwide coverage',
-    body: 'We collect anywhere in Accra and deliver to Kumasi, Tamale, Takoradi, Cape Coast and nine more towns.',
+    body: 'Kumasi, Tamale, Takoradi, Cape Coast and ten more towns across nine regions — collected from anywhere in Accra.',
   },
 ];
 
@@ -80,7 +81,7 @@ export default function Home() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 backdrop-blur px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
                 <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Flat rate to 13 towns nationwide
+                One flat rate · nine regions
               </div>
 
               <h1 className="mt-6 font-display text-4xl sm:text-6xl font-bold tracking-tight text-slate-900 leading-[1.05]">
@@ -90,8 +91,8 @@ export default function Home() {
               </h1>
 
               <p className="mt-6 text-lg text-slate-600 leading-relaxed max-w-lg">
-                GO DISPATCH delivers parcels from Accra to thirteen towns nationwide. Book in minutes, follow
-                each checkpoint with a tracking reference, and pay with Mobile Money or cash.
+                We collect anywhere in Accra and deliver to nine regions across Ghana. One flat rate,
+                whatever the distance. Follow every checkpoint with a tracking code.
               </p>
 
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
@@ -218,7 +219,7 @@ export default function Home() {
           {/* Three steps */}
           <div className="mt-12 grid md:grid-cols-3 gap-5">
             {[
-              { icon: PackageOpen, step: '01', title: 'Book your parcel', body: 'Give us the Accra pickup address, choose the destination town, and tell us the weight.' },
+              { icon: PackageOpen, step: '01', title: 'Book your parcel', body: 'Give us the Accra pickup address, choose the destination region, and tell us the weight.' },
               { icon: Smartphone, step: '02', title: 'We dispatch a rider', body: 'Our team confirms details, assigns a courier, and queues your parcel for pickup.' },
               { icon: Truck, step: '03', title: 'Track to delivery', body: 'Watch every checkpoint update in real time until your parcel is signed and delivered.' },
             ].map((s) => (
@@ -247,7 +248,7 @@ export default function Home() {
                       {i + 1}
                     </div>
                     {i < PIPELINE.length - 1 && (
-                      <div className="hidden sm:block h-px flex-1 w-full mt-0" style={{ background: 'linear-gradient(90deg, rgba(109,94,247,.5), transparent)' }} />
+                      <div className="hidden sm:block h-px flex-1 w-full mt-0" style={{ background: 'linear-gradient(90deg, rgba(216,30,36,.5), transparent)' }} />
                     )}
                   </div>
                   <div className="sm:mt-3">
@@ -259,6 +260,58 @@ export default function Home() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* ---------------- THE ROAD ----------------
+          Roadline's signature move. Thirteen towns in a list is a list; the
+          same towns as stops on one road is a network, and the second reads
+          as a bigger company. The line is drawn, not decorative: each stop is
+          a region we actually serve, in the order you would meet them leaving
+          Accra. */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
+        <div className="max-w-2xl">
+          <span className="text-sm font-semibold uppercase tracking-widest text-red-600">Where we go</span>
+          <h2 className="mt-3 font-display text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight text-balance">
+            One road out of Accra, nine regions along it.
+          </h2>
+          <p className="mt-4 text-slate-600">
+            We collect anywhere in Accra. Everything below is the same flat rate — the
+            distance is our problem, not your bill.
+          </p>
+        </div>
+
+        <ol className="mt-12 relative">
+          {/* The road itself. Sits behind the stops on both axes. */}
+          <span
+            aria-hidden="true"
+            className="absolute left-[11px] top-2 bottom-2 w-px border-l-2 border-dashed border-red-300"
+          />
+
+          <li className="relative pl-10 pb-8">
+            <span aria-hidden="true" className="absolute left-0 top-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 ring-4 ring-[var(--wp-bg)]">
+              <span className="h-2 w-2 rounded-full bg-white" />
+            </span>
+            <span className="block text-lg font-bold text-slate-900">Accra</span>
+            <span className="block text-base text-slate-500">
+              Adabraka, closer to Odorna Clinic — we collect from anywhere in the city
+            </span>
+          </li>
+
+          {REGIONS.map((region) => (
+            <li key={region.name} className="relative pl-10 pb-8 last:pb-0">
+              <span
+                aria-hidden="true"
+                className="absolute left-[5px] top-2 h-3.5 w-3.5 rounded-full border-2 border-red-500 bg-[var(--wp-bg)]"
+              />
+              <span className="block text-lg font-semibold text-slate-900">{region.name}</span>
+              <span className="block text-base text-slate-500">{region.towns.join(' · ')}</span>
+            </li>
+          ))}
+        </ol>
+
+        <p className="mt-8 text-base text-slate-500">
+          Not on the road yet? Call <a href={`tel:${CONTACT_PHONE_E164}`} className="inline-flex items-center min-h-11 font-semibold text-red-700 hover:underline">{CONTACT_PHONE}</a> and ask — we go further than the list.
+        </p>
       </section>
 
       {/* ---------------- PRICING ---------------- */}
@@ -283,7 +336,7 @@ export default function Home() {
               </span>
             </div>
             <p className="mt-3 text-base text-slate-700 font-medium">
-              Any parcel up to {rule.includedKg}kg, to any of our {DESTINATIONS.length} towns
+              Any parcel up to {rule.includedKg}kg, to any of our {REGIONS.length} regions
             </p>
             <p className="mt-2 text-sm text-slate-500">
               Heavier than that? Each extra kilo is {formatAmount(rule.perExtraKgAmount, rule.currency)}.

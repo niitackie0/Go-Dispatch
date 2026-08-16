@@ -9,7 +9,7 @@ import type { OrderStatus, PackageSize, Payer, PaymentTiming } from '../../types
 import { requireAdmin } from '../auth.js';
 import { requirePermission } from '../permissions.js';
 import { canTransition, isTerminal, nextStatuses } from '../../transitions.js';
-import { isDestination, DESTINATIONS } from '../../destinations.js';
+import { isRegion, REGION_NAMES } from '../../regions.js';
 import { quote, sizeForWeight } from '../../pricing.js';
 import { currentRule } from './pricing.js';
 import { runAutomations } from '../automations.js';
@@ -110,7 +110,7 @@ ordersRouter.post('/book', async (req, res) => {
     dropoffNotes,
     packageWeightKg,
     packageDescription,
-    destinationTown,
+    destinationRegion,
     scheduledPickupAt,
     paymentProvider,
     payer,
@@ -128,12 +128,12 @@ ordersRouter.post('/book', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields for parcel booking' });
   }
 
-  // We collect in Accra and deliver to a fixed list of towns. A booking for
+  // We collect in Accra and deliver to a fixed list of regions. A booking for
   // anywhere else is a job we cannot actually do.
-  if (!isDestination(destinationTown)) {
+  if (!isRegion(destinationRegion)) {
     return res.status(400).json({
-      error: 'Choose a destination town we deliver to',
-      allowed: DESTINATIONS,
+      error: 'Choose a region we deliver to',
+      allowed: REGION_NAMES,
     });
   }
 
@@ -189,7 +189,7 @@ ordersRouter.post('/book', async (req, res) => {
           recipientPhone,
           dropoffAddress,
           dropoffNotes: dropoffNotes || null,
-          destinationTown,
+          destinationRegion,
           packageSize: size,
           packageWeightKg: weightKg,
           packageDescription: packageDescription || 'Parcel Delivery',

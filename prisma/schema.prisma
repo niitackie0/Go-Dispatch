@@ -181,11 +181,10 @@ model Order {
   dropoffAddress String
   dropoffNotes   String?
 
-  /// The town this parcel is going to, from the served list in
-  /// src/destinations.ts. Text rather than an enum so a new town is a one-line
-  /// change instead of a migration. Null on orders taken before the
-  /// nationwide routes existed.
-  destinationTown String? @db.VarChar(64)
+  /// The region this parcel is going to, from the served list in
+  /// src/regions.ts. Text rather than an enum so a new region is a one-line
+  /// change instead of a migration.
+  destinationRegion String? @db.VarChar(64)
 
   packageSize        PackageSize
   packageWeightKg    Decimal     @db.Decimal(6, 2)

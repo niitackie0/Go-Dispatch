@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { MapPin, Phone, Truck, Menu, X, ArrowUpRight } from 'lucide-react';
-import { DESTINATIONS } from '../destinations.js';
+import { REGIONS } from '../regions.js';
 import { CONTACT_PHONE, CONTACT_PHONE_E164, OFFICE_ADDRESS, OFFICE_LANDMARK, WHATSAPP_URL } from '../brand.js';
 import { Link, useRouter } from '../router.js';
 
@@ -109,73 +109,116 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       {/* ---------- Page content ---------- */}
       <main className="flex-1">{children}</main>
 
-      {/* ---------- Footer ---------- */}
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg text-white" style={{ background: 'var(--wp-grad)' }}>
-                  <Truck className="h-4.5 w-4.5" />
-                </div>
-                <span className="text-base font-bold font-display text-slate-900">GO DISPATCH</span>
+      {/* ---------- Footer ----------
+          Roadline: the route line that runs the length of the page terminates
+          here. The two things a customer actually wants at the bottom of a
+          courier site are the phone number and where you are, so those are the
+          whole first band — not a link column. */}
+      <footer className="mt-auto">
+        {/* The line arrives, and ends. */}
+        <div className="h-px bg-gradient-to-r from-transparent via-red-500 to-transparent" aria-hidden="true" />
+
+        <div className="bg-slate-900 text-white">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-14">
+
+            {/* Contact band — the reason most people scroll this far. */}
+            <div className="grid gap-8 md:grid-cols-[1.2fr_1fr] md:items-end pb-10 border-b border-white/10">
+              <div>
+                <span className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
+                  End of the line
+                </span>
+                <p className="mt-3 font-display text-2xl sm:text-3xl font-bold tracking-tight text-balance max-w-lg">
+                  Somewhere to be? We collect anywhere in Accra.
+                </p>
               </div>
-              <p className="mt-2 text-sm font-semibold text-red-700">We deliver trust</p>
-              <p className="mt-3 text-sm text-slate-500 leading-relaxed max-w-xs">
-                Doorstep delivery from Accra to thirteen towns nationwide. One rate,
-                many places — we go the distance for you.
-              </p>
-              <a
-                href={`tel:${CONTACT_PHONE_E164}`}
-                className="mt-4 inline-flex items-center gap-2 min-h-11 text-base font-bold text-slate-900 hover:text-red-700 transition-colors"
-              >
-                <Phone className="h-4 w-4 text-red-600" />
-                {CONTACT_PHONE}
-              </a>
+
+              <div className="flex flex-col sm:flex-row md:flex-col gap-3">
+                <a
+                  href={`tel:${CONTACT_PHONE_E164}`}
+                  className="group flex items-center justify-between gap-4 min-h-14 rounded-xl bg-red-600 hover:bg-red-500 px-5 transition-colors"
+                >
+                  <span className="flex items-center gap-3">
+                    <Phone className="h-5 w-5" />
+                    <span className="text-lg font-bold tabular-nums">{CONTACT_PHONE}</span>
+                  </span>
+                  <ArrowUpRight className="h-5 w-5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                </a>
+                <a
+                  href={WHATSAPP_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between gap-4 min-h-14 rounded-xl border border-white/20 hover:border-white/40 hover:bg-white/5 px-5 transition-colors"
+                >
+                  <span className="text-base font-semibold">Message us on WhatsApp</span>
+                  <ArrowUpRight className="h-5 w-5 opacity-70" />
+                </a>
+              </div>
             </div>
 
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Services</h4>
-              <ul className="space-y-2 text-sm text-slate-500">
-                <li><Link to="/book" className="inline-flex items-center min-h-11 hover:text-red-700 transition-colors">Book a delivery</Link></li>
-                <li><Link to="/track" className="inline-flex items-center min-h-11 hover:text-red-700 transition-colors">Track a shipment</Link></li>
-                <li><Link to="/#pricing" className="inline-flex items-center min-h-11 hover:text-red-700 transition-colors">Our rate</Link></li>
-              </ul>
+            {/* Coverage, stated as regions with the towns underneath, because
+                the towns are what the flyer advertises and what people search. */}
+            <div className="grid gap-8 md:grid-cols-[1.2fr_1fr] py-10 border-b border-white/10">
+              <div>
+                <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-white/40 mb-4">
+                  Nine regions, thirteen towns
+                </h4>
+                <ul className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
+                  {REGIONS.map((region) => (
+                    <li key={region.name}>
+                      <span className="block text-base font-semibold">{region.name}</span>
+                      <span className="block text-sm text-white/50">{region.towns.join(', ')}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-1 gap-8">
+                <div>
+                  <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-white/40 mb-3">Find us</h4>
+                  <p className="flex items-start gap-2 text-base text-white/80">
+                    <MapPin className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+                    <span>{OFFICE_ADDRESS}<br /><span className="text-white/50">{OFFICE_LANDMARK}</span></span>
+                  </p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-white/40 mb-3">Site</h4>
+                  <ul className="space-y-1">
+                    {[
+                      { to: '/book', label: 'Book a delivery' },
+                      { to: '/track', label: 'Track a parcel' },
+                      { to: '/policy', label: 'Terms & policy' },
+                    ].map((l) => (
+                      <li key={l.to}>
+                        <Link
+                          to={l.to}
+                          className="inline-flex items-center min-h-11 text-base text-white/70 hover:text-white transition-colors"
+                        >
+                          {l.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">We deliver to</h4>
-              <ul className="space-y-1 text-sm text-slate-500 columns-2 md:columns-1">
-                {DESTINATIONS.map((town) => (
-                  <li key={town}>{town}</li>
-                ))}
-              </ul>
+            <div className="pt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-600">
+                  <Truck className="h-5 w-5" />
+                </div>
+                <div className="leading-tight">
+                  <span className="block text-base font-bold">GO DISPATCH</span>
+                  <span className="block text-sm text-white/40">We deliver trust</span>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/40">
+                <span>Safe</span><span aria-hidden="true">·</span>
+                <span>Fast</span><span aria-hidden="true">·</span>
+                <span>Reliable</span>
+                <span className="w-full sm:w-auto sm:ml-4">&copy; 2026 GO DISPATCH</span>
+              </div>
             </div>
-
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Find us</h4>
-              <ul className="space-y-2 text-sm text-slate-500">
-                <li className="flex items-start gap-2">
-                  <MapPin className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-                  <span>{OFFICE_ADDRESS}<br />{OFFICE_LANDMARK}</span>
-                </li>
-                <li>
-                  <a
-                    href={WHATSAPP_URL}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center min-h-11 hover:text-red-700 transition-colors"
-                  >
-                    Call or WhatsApp us
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="mt-10 pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
-            <span className="font-medium text-slate-500">GO DISPATCH &copy; 2026. All rights reserved.</span>
-            <span>Safe · Fast · Reliable</span>
           </div>
         </div>
       </footer>

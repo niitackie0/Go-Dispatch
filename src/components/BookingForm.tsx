@@ -20,7 +20,7 @@ import {
   Check
 } from 'lucide-react';
 import { PricingConfig } from '../types.js';
-import { DESTINATIONS } from '../destinations.js';
+import RegionPicker from './RegionPicker.js';
 import { quote, formatAmount, DEFAULT_PRICING } from '../pricing.js';
 
 interface BookingFormProps {
@@ -55,7 +55,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
   const [dropoffAddress, setDropoffAddress] = useState('');
   const [dropoffNotes, setDropoffNotes] = useState('');
 
-  const [destinationTown, setDestinationTown] = useState('');
+  const [destinationRegion, setDestinationRegion] = useState('');
   const [packageWeight, setPackageWeight] = useState('1');
   const [packageDescription, setPackageDescription] = useState('');
   const [scheduledPickup, setScheduledPickup] = useState('');
@@ -111,7 +111,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
     if (!pickupAddress.trim()) return 'Pickup Address is required';
     if (!recipientName.trim()) return 'Recipient Name is required';
     if (!recipientPhone.trim()) return 'Recipient Phone number is required';
-    if (!destinationTown) return 'Choose the town this parcel is going to';
+    if (!destinationRegion) return 'Choose the region this parcel is going to';
     if (!dropoffAddress.trim()) return 'Delivery address is required';
     if (!(Number(packageWeight) > 0)) return 'Parcel weight is required';
     if (!packageDescription.trim()) return 'Please provide a short package description';
@@ -152,7 +152,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
         recipientName,
         recipientPhone,
         dropoffAddress,
-        destinationTown,
+        destinationRegion,
         dropoffNotes,
         packageWeightKg: Number(packageWeight),
         packageDescription,
@@ -190,7 +190,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
       setRecipientName('');
       setRecipientPhone('');
       setDropoffAddress('');
-      setDestinationTown('');
+      setDestinationRegion('');
       setDropoffNotes('');
       setPackageDescription('');
     } catch (err: any) {
@@ -408,29 +408,23 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                 </div>
               </div>
 
-              {/* Town from the served list, then the exact address. A rider
-                  arriving in Tamale cannot find a door with "Tamale" alone. */}
+              {/* Region from the served list, then the exact address. Three of
+                  the advertised towns share Central Region, so the region alone
+                  never locates a door. */}
               <div>
-                <label htmlFor="input_destination_town" className="block text-sm font-semibold text-slate-500 mb-1">
-                  Destination town *
+                <label htmlFor="input_destination_region" className="block text-sm font-semibold text-slate-500 mb-1">
+                  Destination region *
                 </label>
-                <select
-                  id="input_destination_town"
-                  required
-                  value={destinationTown}
-                  onChange={(e) => setDestinationTown(e.target.value)}
-                  className="w-full min-h-12 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 text-base outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 transition-all"
-                >
-                  <option value="">Choose a town…</option>
-                  {DESTINATIONS.map((town) => (
-                    <option key={town} value={town}>{town}</option>
-                  ))}
-                </select>
+                <RegionPicker
+                  id="input_destination_region"
+                  value={destinationRegion}
+                  onChange={setDestinationRegion}
+                />
               </div>
 
               <div>
                 <label htmlFor="input_dropoff_address" className="block text-sm font-semibold text-slate-500 mb-1">
-                  Delivery address in {destinationTown || 'that town'} *
+                  Exact delivery address *
                 </label>
                 <textarea
                   id="input_dropoff_address"
@@ -500,7 +494,7 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
               <span className="text-sm text-red-900/70 mt-1">
                 {currentQuote.extraKg > 0
                   ? `${formatAmount(currentQuote.baseAmount, currentQuote.currency)} + ${currentQuote.extraKg}kg over ${pricing.includedKg}kg`
-                  : `Flat rate, any town we serve`}
+                  : `Flat rate, any region we serve`}
               </span>
             </div>
           </div>
@@ -605,10 +599,10 @@ export default function BookingForm({ onSuccessBooking }: BookingFormProps) {
                 {pricing.currency} {getPrice().toFixed(2)}
               </div>
               <p className="text-slate-500 text-sm mt-1">
-                {destinationTown ? `To ${destinationTown}. ` : ''}
+                {destinationRegion ? `To ${destinationRegion} Region. ` : ''}
                 {currentQuote.extraKg > 0
                   ? `Flat rate plus ${currentQuote.extraKg}kg over ${pricing.includedKg}kg.`
-                  : 'One flat rate, any town we serve.'}
+                  : 'One flat rate, any region we serve.'}
               </p>
             </div>
 
