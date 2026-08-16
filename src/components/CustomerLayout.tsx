@@ -417,7 +417,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             <div className="flex items-center gap-2.5">
               <a
                 href={`tel:${CONTACT_PHONE_E164}`}
-                className="inline-flex items-center gap-2 min-h-11 rounded-full bg-red-600 hover:bg-red-500 px-5 text-[15px] font-medium tabular-nums transition-colors"
+                className="inline-flex items-center gap-2 min-h-11 shrink-0 whitespace-nowrap rounded-full bg-red-600 hover:bg-red-500 px-5 text-[15px] font-medium tabular-nums transition-colors"
               >
                 <Phone className="h-4 w-4" />
                 {CONTACT_PHONE}

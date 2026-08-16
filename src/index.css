@@ -343,3 +343,35 @@ body {
    lands the copy where the original started, so the loop is
    seamless rather than snapping back.
    ============================================================ */
+
+/* ---------------------------------------------------------------------------
+   Ticker.
+   Two identical copies of the list sit side by side and the track slides
+   exactly half its width, so the seam never lands where anyone can see it.
+   Every item carries its own trailing padding rather than the track carrying
+   a flex gap — a gap would make the second copy one gap wider than the first
+   and the loop would drift by that much on each pass.
+   --------------------------------------------------------------------------- */
+@keyframes wp-marquee { to { transform: translate3d(-50%, 0, 0); } }
+
+.marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+}
+.marquee-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  gap: 0;
+  animation: wp-marquee 64s linear infinite;
+}
+/* Stop when somebody is trying to read it. */
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track { animation-play-state: paused; }
+
+/* Nothing moves; it becomes a row you push along yourself. */
+@media (prefers-reduced-motion: reduce) {
+  .marquee { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
+  .marquee-track { animation: none; }
+}

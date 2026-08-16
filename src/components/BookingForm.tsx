@@ -224,6 +224,10 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
 
   /* ---------------- confirmation ---------------- */
   if (result) {
+    const single = result.parcels.length === 1;
+    /** The code we put in front of them, and the one the copy button copies. */
+    const headline = single ? result.parcels[0].trackingCode : result.reference;
+
     return (
       <div className="mx-auto max-w-2xl px-4 py-8" id="booking_success_container">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
@@ -239,14 +243,30 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             the office, and each recipient pays for theirs when it arrives.
           </p>
 
-          <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 flex items-center justify-between gap-3">
+          {/* One parcel needs one code, and it is the tracking code. Leading
+              with a booking reference here handed people two numbers where one
+              would do, and only one of them is the one they will be asked for.
+              Several parcels genuinely travel apart — different riders,
+              different days, different doors — so each keeps its own code and
+              the reference is the thing that holds the set together. Either
+              one works in the tracking box. */}
+          <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 flex items-start justify-between gap-3">
             <span className="min-w-0">
-              <span className="block text-sm text-slate-500">Your booking reference</span>
-              <span className="block font-mono text-xl font-semibold text-slate-900">{result.reference}</span>
+              <span className="block text-sm text-slate-500">
+                {single ? 'Your tracking code' : 'Your booking reference'}
+              </span>
+              <span className="block font-mono text-xl font-semibold text-slate-900">
+                {headline}
+              </span>
+              <span className="mt-1.5 block text-sm text-slate-500">
+                {single
+                  ? 'Track with this, or with the phone number you gave us.'
+                  : `Follows all ${result.parcels.length} parcels at once. Each has its own code as well.`}
+              </span>
             </span>
             <button
-              onClick={() => copyReference(result.reference)}
-              aria-label="Copy booking reference"
+              onClick={() => copyReference(headline)}
+              aria-label={single ? 'Copy tracking code' : 'Copy booking reference'}
               className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shrink-0"
             >
               {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
@@ -257,8 +277,20 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             {result.parcels.map((p) => (
               <li key={p.trackingCode} className="py-3 flex items-center justify-between gap-3">
                 <span className="min-w-0">
-                  <span className="block font-mono text-[15px] font-medium text-slate-900">{p.trackingCode}</span>
-                  <span className="block text-sm text-slate-500 truncate">
+                  {/* Repeating the code a single-parcel booking already leads
+                      with would just be the same number twice. */}
+                  {!single && (
+                    <span className="block font-mono text-[15px] font-medium text-slate-900">
+                      {p.trackingCode}
+                    </span>
+                  )}
+                  <span
+                    className={
+                      single
+                        ? 'block text-[15px] text-slate-700 truncate'
+                        : 'block text-sm text-slate-500 truncate'
+                    }
+                  >
                     {p.destinationRegion} · {p.recipientName}
                   </span>
                 </span>

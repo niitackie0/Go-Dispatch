@@ -126,7 +126,9 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
         </form>
 
         <p className="mt-4 text-center text-sm text-slate-500">
-          Your tracking code looks like <span className="font-mono font-medium text-slate-700">GD-0000-000</span>.
+          A tracking code looks like <span className="font-mono font-medium text-slate-700">GD-0000-000</span>,
+          a booking reference like <span className="font-mono font-medium text-slate-700">GDB-0000-000</span>.
+          Either works here, as does the phone number you booked with.
           You can also search the phone number the parcel was booked with.
         </p>
       </div>

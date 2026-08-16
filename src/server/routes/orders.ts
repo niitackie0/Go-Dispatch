@@ -53,10 +53,17 @@ ordersRouter.get('/track', async (req, res) => {
   // Phone matching is an EXACT comparison. It used to be a substring match,
   // which meant searching "0" returned nearly every order in the system.
   const phones = phoneCandidates(query);
+  const code = query.trim().toUpperCase();
+
   const orders = await prisma.order.findMany({
     where: {
       OR: [
-        { trackingCode: query.trim().toUpperCase() },
+        { trackingCode: code },
+        // A sender's booking reference finds every parcel booked with it. It
+        // was handed out at booking but matched nothing here, so anyone who
+        // pasted the reference they were given was told their parcel did not
+        // exist. One box, and it takes whichever code the customer has.
+        { booking: { reference: code } },
         { senderPhone: { in: phones } },
         { recipientPhone: { in: phones } },
       ],
@@ -65,9 +72,9 @@ ordersRouter.get('/track', async (req, res) => {
   });
 
   if (orders.length === 0) {
-    return res
-      .status(404)
-      .json({ error: 'No orders found matching tracking code or phone number' });
+    return res.status(404).json({
+      error: 'Nothing found for that tracking code, booking reference or phone number',
+    });
   }
 
   // Trimmed to what a customer needs to see — no pricing, payment provider,

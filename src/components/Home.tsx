@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, Phone, Search, PackageCheck } from 'lucide-react';
+import { ArrowRight, Phone, Search, PackageCheck, Minus, Plus } from 'lucide-react';
 import { Link, useRouter } from '../router.js';
 import { PricingConfig } from '../types.js';
 import { REGIONS, ALL_TOWNS } from '../regions.js';
@@ -45,6 +45,11 @@ function Num({ children, dark = false }: { children: React.ReactNode; dark?: boo
     </span>
   );
 }
+
+/** What the rate calculator steps between. Past the top of this range the
+    job stops being a parcel and starts being a conversation. */
+const MIN_KG = 1;
+const MAX_KG = 50;
 
 /** The status flow a parcel moves through, in customer words. */
 const FLOW = ['Booked', 'Rider collects', 'Weighed', 'On the road', 'Delivered'];
@@ -184,10 +189,13 @@ export default function Home() {
   const { navigate } = useRouter();
   const [pricing, setPricing] = useState<PricingConfig | null>(null);
   const [code, setCode] = useState('');
+  /** The weight being tried in the rate calculator, in whole kilos. */
+  const [kg, setKg] = useState(5);
 
   // Falls back to the published rate so the page prices correctly before the
   // API answers, and still reads correctly if it never does.
   const rule = pricing ?? DEFAULT_PRICING;
+  const priced = quote(kg, rule);
 
   useEffect(() => {
     fetch('/api/pricing')
@@ -289,14 +297,15 @@ export default function Home() {
       </section>
 
       {/* ---------------- WHAT WE WON'T CARRY ----------------
-          Was a marquee. A moving row is the wrong container for a list
-          somebody has to check their own parcel against: you cannot scan it,
-          you cannot find one item in it, and at 46 seconds a loop the thing
-          you came to look for may be forty seconds away. It is a grid now,
-          all of it visible at once, in the order the terms list it.
+          A ticker. The list runs on its own rather than sitting still, which
+          is what makes anyone read a strip they would otherwise skip — and
+          because the negation now lives in its own badge instead of a stripe
+          across the drawing, each sign still reads at a glance while moving.
 
-          Two groups, because there are two rules — and the shorter group is
-          the one people get caught by, so it is stated rather than buried. */}
+          It pauses on hover and on keyboard focus, so it can be stopped on
+          the item you want, and under prefers-reduced-motion it stops being
+          an animation at all and becomes a row you push along yourself. The
+          full list, in full, is one tap away in the terms. */}
       <section className="border-b border-slate-200 bg-white py-12 sm:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Reveal>
@@ -322,30 +331,40 @@ export default function Home() {
               </Link>
             </div>
           </Reveal>
+        </div>
 
-          {/* Hairlines rather than twelve separate cards: one list, not ten
-              objects. The gap-px trick draws them at every breakpoint, and 2
-              and 5 both divide ten, so no row is ever left half-empty. */}
-          <Reveal delay={80}>
-            <ul className="mt-8 grid grid-cols-2 md:grid-cols-5 gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200">
-              {NEVER.map((item) => (
+        {/* Full width, outside the container: a ticker that stops short of the
+            page edge looks like it is stuck rather than running past. */}
+        <div
+          className="mt-9 marquee border-y border-slate-200 bg-[var(--wp-bg)] py-5"
+          aria-label="Items we cannot carry"
+        >
+          <ul className="marquee-track">
+            {/* Drawn twice. The second copy is what the loop lands on, and it is
+                hidden from assistive tech so the list is not announced doubled. */}
+            {[0, 1].map((copy) =>
+              NEVER.map((item) => (
                 <li
-                  key={item.label}
-                  className="flex flex-col items-center gap-3 bg-white px-3 py-7 text-center"
+                  key={`${copy}-${item.label}`}
+                  aria-hidden={copy === 1 ? true : undefined}
+                  className="flex shrink-0 items-center gap-3 pr-10 sm:pr-14"
                 >
                   <Sign>{item.icon}</Sign>
-                  <span className="text-[15px] text-slate-700 leading-snug text-balance">
+                  <span className="whitespace-nowrap text-base sm:text-lg text-slate-800">
                     {item.label}
                   </span>
                 </li>
-              ))}
-            </ul>
-          </Reveal>
+              ))
+            )}
+          </ul>
+        </div>
 
-          {/* Different rule, different shape. No ring and no bar on these two
-              — they are allowed, and a slash would say otherwise. */}
-          <Reveal delay={120}>
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-[var(--wp-bg)] p-5 sm:p-6">
+        {/* Different rule, so it stays still and keeps its own shape. No badge
+            on these two — they are allowed, and marking them as though they
+            were not would be a lie told in symbols. */}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <Reveal delay={80}>
+            <div className="mt-9 rounded-2xl border border-slate-200 bg-[var(--wp-bg)] p-5 sm:p-6">
               <h3 className="text-sm font-medium uppercase tracking-widest text-slate-500">
                 These two are fine — just tell us first
               </h3>
@@ -382,7 +401,7 @@ export default function Home() {
                   id="home_track"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="GD-0000-000 or your phone number"
+                  placeholder="Tracking code, booking reference or phone number"
                   className="w-full min-h-14 rounded-xl border border-slate-200 bg-white pl-12 pr-4 text-base text-slate-900 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-colors"
                 />
               </div>
@@ -397,56 +416,178 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ---------------- RATE ---------------- */}
+      {/* ---------------- RATE ----------------
+          Was a paragraph beside a five-row table. The table published the rate
+          but answered nobody's actual question, which is not "what does 10kg
+          cost" but "what does MINE cost" — and a parcel is rarely one of five
+          round numbers.
+
+          So the table became a calculator. It publishes strictly more than the
+          table did — every weight, not five — and it shows the shape of the
+          rate: the bar splits the flat part from the per-kilo part, so you can
+          see where the money goes rather than take a total on trust. It runs
+          on the same quote() the server prices with, so the two cannot drift
+          apart. */}
       <section id="pricing" className="border-y border-slate-200 bg-white scroll-mt-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-start">
+          <div className="grid lg:grid-cols-[1fr_minmax(0,25rem)] gap-10 lg:gap-16 items-start">
             <Reveal>
               <div>
                 <span className="text-sm font-medium uppercase tracking-widest text-red-600">What it costs</span>
                 <h2 className="mt-3 font-display text-3xl sm:text-4xl font-semibold text-slate-900 tracking-tight text-balance">
-                  Published in full, so you can check it.
+                  One rate, and you can work it out yourself.
                 </h2>
                 <p className="mt-4 text-lg text-slate-600 max-w-lg leading-relaxed">
                   <Num>{formatAmount(rule.baseAmount, rule.currency)}</Num> covers any parcel
-                  up to <Num>{rule.includedKg}kg</Num>. Above that, each extra kilo is{' '}
+                  up to <Num>{rule.includedKg}kg</Num>, to any region we reach. Above that,
+                  each extra kilo adds{' '}
                   <Num>{formatAmount(rule.perExtraKgAmount, rule.currency)}</Num>, and part
-                  kilos round up to the next whole kilo. No distance charge, no surcharge,
+                  kilos round up to the next whole one. No distance charge, no surcharge,
                   no asterisk.
                 </p>
-                <Link
-                  to="/book"
-                  className="mt-7 inline-flex items-center gap-2 min-h-12 text-base font-semibold text-red-700 hover:underline"
-                >
-                  Get a price for your parcel
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+
+                {/* The three things people ring up to ask once they have seen
+                    the number. Rules rather than cards: it is a list of facts,
+                    not a set of features. */}
+                <dl className="mt-8 max-w-lg border-t border-slate-200">
+                  {[
+                    {
+                      t: 'The same to every region',
+                      d: 'Ho or Bolgatanga, the figure does not move. How far it has to go is our problem, not yours.',
+                    },
+                    {
+                      t: 'Weighed on our scale',
+                      d: 'A rider brings your parcel in and it goes on the scale. That weight sets the price — everything before it, here and in the booking form, is an estimate.',
+                    },
+                    {
+                      t: 'The recipient pays',
+                      d: 'Each parcel is settled at the door it arrives at. Send three to three regions and you hand over nothing.',
+                    },
+                  ].map((f) => (
+                    <div key={f.t} className="border-b border-slate-200 py-4">
+                      <dt className="text-[15px] font-medium text-slate-900">{f.t}</dt>
+                      <dd className="mt-1 text-[15px] text-slate-600 leading-relaxed">{f.d}</dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
             </Reveal>
 
             <Reveal delay={90}>
-              <div className="rounded-2xl border border-slate-200 bg-[var(--wp-bg)] overflow-hidden">
-                <table className="w-full text-left">
-                  <caption className="sr-only">Delivery price by parcel weight</caption>
-                  <thead>
-                    <tr className="border-b border-slate-200">
-                      <th scope="col" className="px-5 py-3 text-sm font-medium text-slate-500">Weight</th>
-                      <th scope="col" className="px-5 py-3 text-sm font-medium text-slate-500 text-right">Charge</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {[rule.includedKg, 4, 5, 10, 20].map((kg) => (
-                      <tr key={kg}>
-                        <td className="px-5 py-3.5 text-base text-slate-700">
-                          {kg <= rule.includedKg ? `Up to ${rule.includedKg}kg` : `${kg}kg`}
-                        </td>
-                        <td className="px-5 py-3.5 text-base font-medium text-slate-900 text-right tabular-nums">
-                          {formatAmount(quote(kg, rule).total, rule.currency)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="rounded-2xl border border-slate-200 bg-[var(--wp-bg)] p-5 sm:p-6">
+                <span className="text-sm font-medium uppercase tracking-widest text-slate-500">
+                  Work out a price
+                </span>
+
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setKg((k) => Math.max(MIN_KG, k - 1))}
+                    disabled={kg <= MIN_KG}
+                    aria-label="One kilo less"
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <Minus className="h-5 w-5" />
+                  </button>
+                  <span className="font-display text-4xl font-semibold tabular-nums text-slate-900">
+                    {kg}
+                    <span className="ml-0.5 text-2xl font-normal text-slate-500">kg</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setKg((k) => Math.min(MAX_KG, k + 1))}
+                    disabled={kg >= MAX_KG}
+                    aria-label="One kilo more"
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <Plus className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* A grid, not a wrap: five equal columns fit the panel at
+                    390px, where flex-wrap stranded 20kg on a line of its own. */}
+                <div className="mt-4 grid grid-cols-5 gap-2">
+                  {[...new Set([1, rule.includedKg, 5, 10, 20])].map((w) => (
+                    <button
+                      key={w}
+                      type="button"
+                      onClick={() => setKg(w)}
+                      aria-pressed={kg === w}
+                      className={`min-h-11 rounded-full border px-1 text-sm tabular-nums transition-colors cursor-pointer ${
+                        kg === w
+                          ? 'border-red-500 bg-red-50 text-red-700'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      {w}kg
+                    </button>
+                  ))}
+                </div>
+
+                {/* The figure, announced when it changes so it is not a silent
+                    update for anyone using a screen reader. */}
+                <div
+                  className="mt-5 rounded-xl border border-slate-200 bg-white p-5 text-center"
+                  aria-live="polite"
+                >
+                  <span className="block text-sm text-slate-500">The recipient pays</span>
+                  <span className="mt-1 block font-display text-4xl font-semibold tabular-nums text-slate-900">
+                    {formatAmount(priced.total, priced.currency)}
+                  </span>
+
+                  {/* Where it comes from: the flat part, then the per-kilo part. */}
+                  <div className="mt-5 flex h-2.5 overflow-hidden rounded-full bg-slate-200">
+                    <span
+                      className="bg-red-600"
+                      style={{ width: `${(priced.baseAmount / priced.total) * 100}%` }}
+                    />
+                    {priced.extraAmount > 0 && (
+                      <span
+                        className="bg-red-300"
+                        style={{ width: `${(priced.extraAmount / priced.total) * 100}%` }}
+                      />
+                    )}
+                  </div>
+
+                  {/* The amounts are shrink-0 and never wrap: at 390px the
+                      second row was breaking "GHS 20.00" across two lines. */}
+                  <dl className="mt-3 space-y-1.5 text-left">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <dt className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-600" aria-hidden="true" />
+                        First {rule.includedKg}kg
+                      </dt>
+                      <dd className="shrink-0 whitespace-nowrap text-sm tabular-nums text-slate-900">
+                        {formatAmount(priced.baseAmount, priced.currency)}
+                      </dd>
+                    </div>
+                    {priced.extraKg > 0 && (
+                      <div className="flex items-baseline justify-between gap-3">
+                        <dt className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-300" aria-hidden="true" />
+                          {priced.extraKg} extra {priced.extraKg === 1 ? 'kilo' : 'kilos'} ×{' '}
+                          {formatAmount(rule.perExtraKgAmount, rule.currency)}
+                        </dt>
+                        <dd className="shrink-0 whitespace-nowrap text-sm tabular-nums text-slate-900">
+                          {formatAmount(priced.extraAmount, priced.currency)}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+
+                <Link
+                  to="/book"
+                  className="mt-5 flex items-center justify-center gap-2 min-h-12 rounded-xl bg-red-600 px-4 text-[15px] font-medium text-white transition-colors hover:bg-red-700"
+                >
+                  Book a parcel
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <p className="mt-3 text-sm text-slate-500">
+                  {kg >= MAX_KG
+                    ? `Heavier than ${MAX_KG}kg? Ring ${CONTACT_PHONE} and we will sort it out.`
+                    : 'An estimate until your parcel is on our scale.'}
+                </p>
               </div>
             </Reveal>
           </div>
