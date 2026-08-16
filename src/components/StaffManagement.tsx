@@ -234,7 +234,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
       {/* ---------- Header ---------- */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-slate-900 tracking-tight">Staff Accounts</h2>
+          <h2 className="text-base font-semibold text-slate-900 tracking-tight">Staff Accounts</h2>
           <p className="text-sm text-slate-500 mt-1 max-w-xl">
             Who can sign in to this console, and what each of them is allowed to do.
             Permissions are enforced by the server — hiding a control is a convenience,
@@ -245,7 +245,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
         <div className="flex items-center gap-2">
           <button
             onClick={load}
-            className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer"
+            className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
@@ -255,7 +255,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
               setShowAdd((v) => !v);
               setIssuedPassword(null);
             }}
-            className="min-h-11 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer"
+            className="min-h-11 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer"
           >
             {showAdd ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
             {showAdd ? 'Cancel' : 'Add staff'}
@@ -265,13 +265,13 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
 
       {/* ---------- Messages ---------- */}
       {error && (
-        <div className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3.5 py-2.5 text-xs text-rose-600 font-semibold">
+        <div className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3.5 py-2.5 text-xs text-rose-600 font-medium">
           <AlertCircle className="h-4 w-4 shrink-0 mt-px" />
           <span>{error}</span>
         </div>
       )}
       {notice && !error && (
-        <div className="flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3.5 py-2.5 text-xs text-emerald-600 font-semibold">
+        <div className="flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3.5 py-2.5 text-xs text-emerald-600 font-medium">
           <Check className="h-4 w-4 shrink-0 mt-px" />
           <span>{notice}</span>
         </div>
@@ -280,7 +280,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
       {/* ---------- One-time password reveal ---------- */}
       {issuedPassword && (
         <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3.5 py-3 space-y-2">
-          <div className="flex items-center gap-2 text-xs font-bold text-amber-700">
+          <div className="flex items-center gap-2 text-xs font-semibold text-amber-700">
             <KeyRound className="h-4 w-4" />
             Password shown once — copy it now
           </div>
@@ -294,7 +294,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
             </code>
             <button
               onClick={() => copyPassword(issuedPassword.value)}
-              className="px-3 py-2 rounded-lg border border-amber-500/25 bg-white text-amber-700 hover:bg-amber-50 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="px-3 py-2 rounded-lg border border-amber-500/25 bg-white text-amber-700 hover:bg-amber-50 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
             >
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               {copied ? 'Copied' : 'Copy'}
@@ -316,14 +316,14 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
           onSubmit={handleCreate}
           className="rounded-xl border border-slate-200 bg-white p-4 space-y-3.5"
         >
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-900">
             <UserPlus className="h-4 w-4 text-red-600" />
             New staff account
           </div>
 
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
+              <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-semibold">
                 Full name
               </span>
               <input
@@ -336,7 +336,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
             </label>
 
             <label className="block">
-              <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
+              <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-semibold">
                 Email
               </span>
               <input
@@ -351,7 +351,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
           </div>
 
           <div>
-            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
+            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-semibold">
               Role
             </span>
             <div className="mt-1.5 grid sm:grid-cols-2 gap-2">
@@ -366,7 +366,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                       : 'border-slate-200 bg-slate-50 hover:border-slate-300'
                   }`}
                 >
-                  <span className="text-xs font-bold text-slate-900 block">
+                  <span className="text-xs font-semibold text-slate-900 block">
                     {ROLE_INFO[role].label}
                   </span>
                   <span className="text-xs text-slate-500 block mt-0.5">
@@ -378,7 +378,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
           </div>
 
           <label className="block">
-            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
+            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-semibold">
               Password — leave blank to generate one
             </span>
             <div className="mt-1 flex gap-2">
@@ -392,7 +392,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
               <button
                 type="button"
                 onClick={() => setNewPassword(generatePassword())}
-                className="px-3 py-2 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:text-slate-900 text-xs font-bold transition-all cursor-pointer shrink-0"
+                className="px-3 py-2 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:text-slate-900 text-xs font-semibold transition-all cursor-pointer shrink-0"
               >
                 Generate
               </button>
@@ -402,7 +402,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
           <button
             type="submit"
             disabled={creating}
-            className="w-full sm:w-auto min-h-11 px-5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto min-h-11 px-5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             {creating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Create account
@@ -435,9 +435,9 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
               return (
                 <div key={member.id} className="p-4 space-y-3">
                   <div>
-                    <span className="text-base font-bold text-slate-900">{member.name}</span>
+                    <span className="text-base font-semibold text-slate-900">{member.name}</span>
                     {isSelf && (
-                      <span className="ml-2 text-xs font-bold uppercase tracking-wider text-red-600">
+                      <span className="ml-2 text-xs font-semibold uppercase tracking-wider text-red-600">
                         you
                       </span>
                     )}
@@ -456,7 +456,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                         ? 'The last owner cannot be demoted — someone must be able to manage staff and pricing.'
                         : undefined
                     }
-                    className={`w-full text-sm font-bold rounded-lg min-h-11 px-3 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${ROLE_INFO[member.role].chip}`}
+                    className={`w-full text-sm font-semibold rounded-lg min-h-11 px-3 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${ROLE_INFO[member.role].chip}`}
                   >
                     {ADMIN_ROLES.map((role) => (
                       <option key={role} value={role}>
@@ -473,7 +473,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                     <button
                       onClick={() => handleResetPassword(member)}
                       disabled={busy}
-                      className="min-h-11 px-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:border-red-400 transition-colors cursor-pointer disabled:opacity-50"
+                      className="min-h-11 px-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:border-red-400 transition-colors cursor-pointer disabled:opacity-50"
                     >
                       <KeyRound className="h-4 w-4" />
                       New password
@@ -483,7 +483,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                       <button
                         onClick={() => handleSignOutEverywhere(member)}
                         disabled={busy}
-                        className="min-h-11 px-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:text-amber-600 hover:border-amber-400 transition-colors cursor-pointer disabled:opacity-50"
+                        className="min-h-11 px-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:text-amber-600 hover:border-amber-400 transition-colors cursor-pointer disabled:opacity-50"
                       >
                         <LogOut className="h-4 w-4" />
                         Sign out
@@ -496,13 +496,13 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                           <button
                             onClick={() => handleDelete(member)}
                             disabled={busy}
-                            className="min-h-11 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold transition-colors cursor-pointer"
+                            className="min-h-11 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium transition-colors cursor-pointer"
                           >
                             Confirm remove
                           </button>
                           <button
                             onClick={() => setConfirmDeleteId(null)}
-                            className="min-h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-colors cursor-pointer"
+                            className="min-h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 transition-colors cursor-pointer"
                           >
                             Cancel
                           </button>
@@ -511,7 +511,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                         <button
                           onClick={() => setConfirmDeleteId(member.id)}
                           disabled={busy}
-                          className="min-h-11 px-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:text-rose-600 hover:border-rose-300 transition-colors cursor-pointer disabled:opacity-50"
+                          className="min-h-11 px-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:text-rose-600 hover:border-rose-300 transition-colors cursor-pointer disabled:opacity-50"
                         >
                           <Trash2 className="h-4 w-4" />
                           Remove
@@ -531,7 +531,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                 {['Name', 'Email', 'Role', 'Added', ''].map((h, i) => (
                   <th
                     key={i}
-                    className="px-4 py-2.5 text-xs font-mono uppercase tracking-widest text-slate-500 font-bold whitespace-nowrap"
+                    className="px-4 py-2.5 text-xs font-mono uppercase tracking-widest text-slate-500 font-semibold whitespace-nowrap"
                   >
                     {h}
                   </th>
@@ -567,9 +567,9 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                       className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60 transition-colors"
                     >
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="text-sm font-bold text-slate-900">{member.name}</span>
+                        <span className="text-sm font-semibold text-slate-900">{member.name}</span>
                         {isSelf && (
-                          <span className="ml-2 text-xs font-mono uppercase tracking-wider text-red-600 font-bold">
+                          <span className="ml-2 text-xs font-mono uppercase tracking-wider text-red-600 font-semibold">
                             you
                           </span>
                         )}
@@ -589,7 +589,7 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                               ? 'The last owner cannot be demoted — someone must be able to manage staff and pricing.'
                               : undefined
                           }
-                          className={`text-sm font-bold rounded-lg min-h-11 px-3 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${ROLE_INFO[member.role].chip}`}
+                          className={`text-sm font-semibold rounded-lg min-h-11 px-3 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${ROLE_INFO[member.role].chip}`}
                         >
                           {ADMIN_ROLES.map((role) => (
                             <option key={role} value={role}>
@@ -632,13 +632,13 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                               <button
                                 onClick={() => handleDelete(member)}
                                 disabled={busy}
-                                className="px-2 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all cursor-pointer"
+                                className="px-2 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-all cursor-pointer"
                               >
                                 Confirm
                               </button>
                               <button
                                 onClick={() => setConfirmDeleteId(null)}
-                                className="px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 text-xs font-bold transition-all cursor-pointer"
+                                className="px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 text-xs font-semibold transition-all cursor-pointer"
                               >
                                 No
                               </button>
@@ -679,14 +679,14 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-500 text-xs font-bold disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-500 text-xs font-semibold disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
               >
                 Prev
               </button>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-500 text-xs font-bold disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-500 text-xs font-semibold disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
               >
                 Next
               </button>

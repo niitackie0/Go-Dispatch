@@ -52,6 +52,64 @@ function SocialIcon({ name }: { name: string }) {
   }
 }
 
+/**
+ * The faint pattern behind the footer.
+ *
+ * One <defs> of the four shapes this business moves, tiled through a <pattern>
+ * so the browser draws them once. Kept at very low opacity: at anything higher
+ * it competes with the phone number, which is the only thing down there that
+ * matters.
+ */
+function FooterPattern() {
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <defs>
+        <g id="gd-glyphs" fill="none" stroke="#FF5057" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {/* parcel */}
+          <g transform="translate(8 12)">
+            <path d="M2 8 14 2l12 6v14l-12 6-12-6z" />
+            <path d="M2 8l12 6 12-6M14 14v14" />
+          </g>
+          {/* delivery van */}
+          <g transform="translate(70 20)">
+            <path d="M2 6h20v16H2zM22 11h7l5 5v6h-12z" />
+            <circle cx="9" cy="24" r="3" />
+            <circle cx="27" cy="24" r="3" />
+          </g>
+          {/* rider on a motorcycle */}
+          <g transform="translate(140 16)">
+            <circle cx="7" cy="26" r="5" />
+            <circle cx="29" cy="26" r="5" />
+            <path d="M7 26l7-9h9l6 9M18 5a3 3 0 1 0 0 .1M16 12l5-4 5 3" />
+          </g>
+          {/* box truck */}
+          <g transform="translate(8 78)">
+            <path d="M2 4h22v18H2zM24 10h8l5 5v7h-13z" />
+            <circle cx="10" cy="24" r="3" />
+            <circle cx="30" cy="24" r="3" />
+          </g>
+          {/* stacked parcels */}
+          <g transform="translate(84 84)">
+            <rect x="0" y="8" width="14" height="13" rx="1" />
+            <rect x="16" y="2" width="14" height="19" rx="1" />
+            <path d="M7 8v13M23 2v19" />
+          </g>
+        </g>
+
+        <pattern id="gd-footer-pattern" width="190" height="130" patternUnits="userSpaceOnUse">
+          <use href="#gd-glyphs" opacity="0.16" />
+        </pattern>
+      </defs>
+
+      <rect width="100%" height="100%" fill="url(#gd-footer-pattern)" />
+    </svg>
+  );
+}
+
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   const { path } = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -101,28 +159,29 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
           parked ? '-translate-y-full' : 'translate-y-0'
         } ${scrolled ? 'border-b border-slate-200 shadow-sm' : 'border-b border-transparent'}`}
       >
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          {/* Brand */}
-          <Link to="/" className="flex items-center gap-2.5 group" aria-label="GO DISPATCH home">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-lg shadow-red-500/25 transition-transform group-hover:scale-105" style={{ background: 'var(--wp-grad)' }}>
-              <Truck className="h-5 w-5" />
-            </div>
-            <div className="leading-none">
-              <span className="block text-lg font-bold font-display tracking-tight text-slate-900">GO DISPATCH</span>
-              <span className="block text-xs font-mono uppercase tracking-[0.18em] text-slate-400 mt-0.5">We deliver trust</span>
-            </div>
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          {/* Brand. The strapline is gone from the bar — it is in the footer,
+              and repeating it here cost vertical space on every page. */}
+          <Link to="/" className="flex items-center gap-2.5 shrink-0 min-h-11 -ml-1 px-1" aria-label="GO DISPATCH home">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white">
+              <Truck className="h-4 w-4" />
+            </span>
+            <span className="text-[15px] font-semibold tracking-tight text-slate-900">GO DISPATCH</span>
           </Link>
 
-          {/* Desktop nav */}
+          {/* Desktop nav. The active item is marked with a rule under it rather
+              than a filled pill — five filled pills in a row read as five
+              buttons, none of which is the primary action. */}
           <nav className="hidden md:flex items-center gap-1">
             {NAV_LINKS.map((l) => (
               <Link
                 key={l.to}
                 to={l.to}
-                className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
+                aria-current={isActive(l.to) ? 'page' : undefined}
+                className={`relative inline-flex items-center min-h-11 px-3 text-[15px] transition-colors ${
                   isActive(l.to)
-                    ? 'text-red-700 bg-red-50'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/70'
+                    ? 'text-slate-900 after:absolute after:inset-x-3 after:bottom-1 after:h-0.5 after:rounded-full after:bg-red-600'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 {l.label}
@@ -130,53 +189,70 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             ))}
           </nav>
 
-          {/* Desktop actions */}
-          <div className="hidden md:flex items-center gap-2">
+          {/* The one action, and the number beside it — a real share of
+              customers would rather call than book. */}
+          <div className="hidden md:flex items-center gap-3 shrink-0">
+            <a
+              href={`tel:${CONTACT_PHONE_E164}`}
+              className="inline-flex items-center min-h-11 gap-2 text-[15px] font-medium text-slate-700 hover:text-red-700 transition-colors"
+            >
+              <Phone className="h-4 w-4 text-red-600" />
+              {CONTACT_PHONE}
+            </a>
             <Link
               to="/book"
-              className="btn-aurora inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold"
+              className="inline-flex items-center min-h-11 gap-1.5 rounded-lg bg-red-600 hover:bg-red-700 px-4 text-[15px] font-medium text-white transition-colors"
             >
-              Book Now
-              <ArrowUpRight className="h-4 w-4" />
+              Book
             </Link>
           </div>
 
-          {/* Mobile toggle */}
-          <button
-            onClick={() => setMobileOpen((v) => !v)}
-            className="md:hidden flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 transition-colors"
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={mobileOpen}
-          >
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+          {/* Phone: call button always visible, menu beside it. Making someone
+              open a menu to find the number is the wrong trade for a courier. */}
+          <div className="flex md:hidden items-center gap-2">
+            <a
+              href={`tel:${CONTACT_PHONE_E164}`}
+              aria-label={`Call ${CONTACT_PHONE}`}
+              className="flex h-11 w-11 items-center justify-center rounded-lg bg-red-600 text-white"
+            >
+              <Phone className="h-4 w-4" />
+            </a>
+            <button
+              onClick={() => setMobileOpen((v) => !v)}
+              className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 transition-colors"
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileOpen}
+            >
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile drawer */}
         {mobileOpen && (
           <div className="md:hidden border-t border-slate-200 bg-white animate-in slide-in-from-top-2 duration-200">
-            <nav className="mx-auto max-w-7xl px-4 py-4 space-y-1">
+            <nav className="mx-auto max-w-7xl px-4 py-3">
               {NAV_LINKS.map((l) => (
                 <Link
                   key={l.to}
                   to={l.to}
                   onClick={() => setMobileOpen(false)}
-                  className={`block rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
-                    isActive(l.to) ? 'text-red-700 bg-red-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  aria-current={isActive(l.to) ? 'page' : undefined}
+                  className={`flex items-center justify-between min-h-12 rounded-lg px-3 text-base transition-colors ${
+                    isActive(l.to) ? 'text-red-700 font-medium' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   {l.label}
+                  {isActive(l.to) && <span className="h-1.5 w-1.5 rounded-full bg-red-600" aria-hidden="true" />}
                 </Link>
               ))}
-              <div className="pt-2">
-                <Link
-                  to="/book"
-                  onClick={() => setMobileOpen(false)}
-                  className="btn-aurora block text-center rounded-xl px-4 py-3 text-sm font-semibold"
-                >
-                  Book Now
-                </Link>
-              </div>
+              <Link
+                to="/book"
+                onClick={() => setMobileOpen(false)}
+                className="mt-2 flex items-center justify-center min-h-12 rounded-lg bg-red-600 text-white text-base font-medium"
+              >
+                Book a delivery
+              </Link>
             </nav>
           </div>
         )}
@@ -195,62 +271,75 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
           links. A closing statement rather than a directory — everything that
           was in the old link columns is either in the nav or on the contact
           page, so repeating it here earned nothing. */}
-      <footer className="mt-auto border-t border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 text-center">
+      {/* ---------- Footer ----------
+          Cut to roughly half its height: one line of identity, the number, the
+          icons and the links, and nothing else. Everything that used to be
+          repeated here lives in the nav or on the contact page.
 
-          <p className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 text-balance">
-            One rate.
-            <span className="block text-red-600">Many places.</span>
-          </p>
+          The background is a black gradient carrying a faint red pattern of
+          the things this business actually moves — parcels, a rider, a van, a
+          truck. Drawn once and tiled, at low opacity so it reads as texture
+          rather than decoration, and marked aria-hidden because it says
+          nothing a screen reader needs. */}
+      <footer className="mt-auto relative overflow-hidden bg-gradient-to-b from-slate-950 to-black text-white">
+        <FooterPattern />
 
-          <a
-            href={`tel:${CONTACT_PHONE_E164}`}
-            className="mt-5 inline-flex items-center gap-2.5 min-h-12 rounded-full bg-red-600 hover:bg-red-700 px-6 text-white text-base font-bold tabular-nums shadow-[0_12px_18px_-14px_rgba(216,30,36,0.9)] transition-colors"
-          >
-            <Phone className="h-5 w-5" />
-            {CONTACT_PHONE}
-          </a>
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-9">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
 
-          {/* Only profiles with a URL are rendered — see SOCIAL in brand.ts. */}
-          <ul className="mt-5 flex items-center justify-center gap-2.5">
-            {SOCIAL.filter((s) => s.url).map((s) => (
-              <li key={s.name}>
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 shrink-0">
+                <Truck className="h-5 w-5" />
+              </span>
+              <span className="leading-tight">
+                <span className="block text-[15px] font-medium">GO DISPATCH</span>
+                <span className="block text-sm text-white/45">We deliver trust</span>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <a
+                href={`tel:${CONTACT_PHONE_E164}`}
+                className="inline-flex items-center gap-2 min-h-11 rounded-full bg-red-600 hover:bg-red-500 px-5 text-[15px] font-medium tabular-nums transition-colors"
+              >
+                <Phone className="h-4 w-4" />
+                {CONTACT_PHONE}
+              </a>
+              {SOCIAL.filter((s) => s.url).map((s) => (
                 <a
+                  key={s.name}
                   href={s.url}
                   target="_blank"
                   rel="noreferrer"
                   aria-label={`GO DISPATCH on ${s.name}`}
-                  title={s.name}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition-colors"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/5 transition-colors"
                 >
                   <SocialIcon name={s.name} />
                 </a>
-              </li>
-            ))}
-          </ul>
+              ))}
+            </div>
+          </div>
 
-          <nav aria-label="Footer" className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-base text-slate-600">
-            {[
-              { to: '/book', label: 'Book' },
-              { to: '/track', label: 'Track' },
-              { to: '/contact', label: 'Contact' },
-              { to: '/policy', label: 'Terms & policy' },
-            ].map((l, i) => (
-              <React.Fragment key={l.to}>
-                {i > 0 && <span className="text-slate-300" aria-hidden="true">·</span>}
-                <Link to={l.to} className="inline-flex items-center min-h-11 px-1 hover:text-red-700 transition-colors">
-                  {l.label}
-                </Link>
-              </React.Fragment>
-            ))}
-          </nav>
-
-          <p className="mt-5 text-sm text-slate-500">
-            {OFFICE_ADDRESS} — {OFFICE_LANDMARK}
-          </p>
-          <p className="mt-2 text-sm text-slate-400">
-            &copy; 2026 GO DISPATCH · We deliver trust · Safe · Fast · Reliable
-          </p>
+          <div className="relative mt-7 pt-5 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-1 gap-y-0 text-sm text-white/55">
+              {[
+                { to: '/book', label: 'Book' },
+                { to: '/track', label: 'Track' },
+                { to: '/contact', label: 'Contact' },
+                { to: '/policy', label: 'Terms' },
+              ].map((l, i) => (
+                <React.Fragment key={l.to}>
+                  {i > 0 && <span className="text-white/20" aria-hidden="true">·</span>}
+                  <Link to={l.to} className="inline-flex items-center min-h-11 px-2 hover:text-white transition-colors">
+                    {l.label}
+                  </Link>
+                </React.Fragment>
+              ))}
+            </nav>
+            <p className="text-sm text-white/35">
+              {OFFICE_ADDRESS} · &copy; 2026
+            </p>
+          </div>
         </div>
       </footer>
     </div>

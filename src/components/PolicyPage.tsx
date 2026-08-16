@@ -51,11 +51,11 @@ function Clause({
         <div className="grid gap-x-8 gap-y-3 sm:grid-cols-[3rem_1fr]">
           {/* Clauses are numbered because people cite them by number when
               something goes wrong. */}
-          <span className="font-mono text-2xl font-bold text-red-600 tabular-nums leading-none">
+          <span className="font-mono text-2xl font-semibold text-red-600 tabular-nums leading-none">
             {String(n).padStart(2, '0')}
           </span>
           <div>
-            <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight text-balance">
+            <h2 className="font-display text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight text-balance">
               {title}
             </h2>
             <div className="mt-5 space-y-4 text-lg text-slate-700 leading-relaxed max-w-[62ch]">
@@ -71,7 +71,7 @@ function Clause({
 /** A term the business still has to set. Visible on purpose. */
 function ToConfirm({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-baseline gap-1.5 rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-900">
+    <span className="inline-flex items-baseline gap-1.5 rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-900">
       {children}
     </span>
   );
@@ -85,12 +85,12 @@ export default function PolicyPage() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
           <Reveal>
-            <span className="text-sm font-bold uppercase tracking-widest text-red-600">
+            <span className="text-sm font-semibold uppercase tracking-widest text-red-600">
               Terms &amp; policy
             </span>
           </Reveal>
           <Reveal delay={80}>
-            <h1 className="mt-4 font-display text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight text-balance max-w-3xl leading-tight">
+            <h1 className="mt-4 font-display text-3xl sm:text-4xl font-semibold text-slate-900 tracking-tight text-balance max-w-3xl leading-tight">
               What you can expect from us, and what we expect from you.
             </h1>
           </Reveal>
@@ -106,7 +106,7 @@ export default function PolicyPage() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 grid lg:grid-cols-[220px_1fr] gap-10">
         {/* On this page */}
         <nav aria-label="On this page" className="lg:sticky lg:top-24 lg:self-start">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">
             Clauses
           </h2>
           <ul className="space-y-1">
@@ -144,7 +144,7 @@ export default function PolicyPage() {
             <p>
               Booking a delivery on this site is a request. It becomes a contract when we
               confirm it — you will get a tracking code beginning{' '}
-              <span className="font-mono font-semibold">GD-</span> at that point. We may
+              <span className="font-mono font-medium">GD-</span> at that point. We may
               decline a booking, and if we do before collection you pay nothing.
             </p>
           </Clause>
@@ -254,11 +254,11 @@ export default function PolicyPage() {
           <Clause id="contact" n={8} title="Complaints">
             <p>
               Call or message us first — most problems are a phone call. Have your{' '}
-              <span className="font-mono font-semibold">GD-</span> tracking code ready.
+              <span className="font-mono font-medium">GD-</span> tracking code ready.
             </p>
             <a
               href={`tel:${CONTACT_PHONE_E164}`}
-              className="inline-flex items-center gap-3 min-h-14 rounded-xl bg-red-600 hover:bg-red-500 text-white px-5 font-bold text-lg tabular-nums transition-colors"
+              className="inline-flex items-center gap-3 min-h-14 rounded-xl bg-red-600 hover:bg-red-500 text-white px-5 font-semibold text-lg tabular-nums transition-colors"
             >
               <Phone className="h-5 w-5" />
               {CONTACT_PHONE}

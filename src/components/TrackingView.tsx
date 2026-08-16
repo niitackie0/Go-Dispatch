@@ -118,7 +118,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
             id="btn_tracking_search"
             type="submit"
             disabled={searching}
-            className="rounded-xl btn-aurora text-white font-semibold px-6 py-3 shadow-md shadow-red-500/20 transition-colors disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer"
+            className="rounded-xl btn-aurora text-white font-medium px-6 py-3 shadow-md shadow-red-500/20 transition-colors disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer"
           >
             <span>{searching ? 'Locating...' : 'Search'}</span>
             <ArrowRight className="h-4 w-4" />
@@ -126,7 +126,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
         </form>
 
         <p className="mt-4 text-center text-sm text-slate-500">
-          Your tracking code looks like <span className="font-mono font-semibold text-slate-700">GD-0000-000</span>.
+          Your tracking code looks like <span className="font-mono font-medium text-slate-700">GD-0000-000</span>.
           You can also search the phone number the parcel was booked with.
         </p>
       </div>
@@ -150,8 +150,8 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-slate-200 gap-4">
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-2xl font-semibold font-mono text-slate-900 tracking-tight">{order.trackingCode}</span>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
+                  <span className="text-2xl font-medium font-mono text-slate-900 tracking-tight">{order.trackingCode}</span>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border ${
                     order.status === 'delivered' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
                     order.status === 'cancelled' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
                     order.status === 'in_transit' ? 'bg-sky-500/10 border-sky-500/20 text-sky-600' :
@@ -167,8 +167,8 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                 </div>
               </div>
               <div className="text-left sm:text-right">
-                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Est. Delivery Target</span>
-                <span className="text-sm font-semibold text-slate-900">
+                <span className="text-xs text-slate-500 font-medium uppercase tracking-wider block">Est. Delivery Target</span>
+                <span className="text-sm font-medium text-slate-900">
                   {new Date(order.scheduledPickupAt).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
@@ -179,13 +179,13 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
               <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-start space-x-3">
                 <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold">This booking has been cancelled</h4>
+                  <h4 className="font-semibold">This booking has been cancelled</h4>
                   <p className="text-sm text-red-600 mt-1">Our dispatch managers marked this order as cancelled. Please contact our support team if this is an error.</p>
                 </div>
               </div>
             ) : (
               <div className="space-y-6">
-                <h3 className="text-sm font-bold text-slate-900">Shipment Timeline Stepper</h3>
+                <h3 className="text-sm font-semibold text-slate-900">Shipment Timeline Stepper</h3>
                 
                 {/* Horizontal / Vertical Stepper visual */}
                 <div className="relative">
@@ -214,7 +214,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                           
                           {/* Labels */}
                           <div className="mt-3">
-                            <span className={`block text-xs font-bold ${isCurrent ? 'text-red-600' : isCompleted ? 'text-slate-800' : 'text-slate-500'}`}>
+                            <span className={`block text-xs font-semibold ${isCurrent ? 'text-red-600' : isCompleted ? 'text-slate-800' : 'text-slate-500'}`}>
                               {step.label}
                             </span>
                             <span className="block text-xs text-slate-500 mt-1 max-w-[120px] mx-auto leading-relaxed">
@@ -232,25 +232,25 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
             {/* Coordinates Brief */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-200 text-sm text-slate-700">
               <div className="space-y-2">
-                <div className="flex items-center space-x-1.5 text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                <div className="flex items-center space-x-1.5 text-xs text-slate-500 uppercase tracking-wider font-medium">
                   <MapPin className="h-3.5 w-3.5 text-red-600" />
                   <span>Pickup Coordinates</span>
                 </div>
-                <p className="font-semibold text-slate-900">{order.pickupAddress}</p>
+                <p className="font-medium text-slate-900">{order.pickupAddress}</p>
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center space-x-1.5 text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                <div className="flex items-center space-x-1.5 text-xs text-slate-500 uppercase tracking-wider font-medium">
                   <MapPin className="h-3.5 w-3.5 text-red-600" />
                   <span>Dropoff Destination</span>
                 </div>
-                <p className="font-semibold text-slate-900">{order.dropoffAddress}</p>
+                <p className="font-medium text-slate-900">{order.dropoffAddress}</p>
               </div>
             </div>
 
             {/* Audit History Logs (Sanitized, only shows timestamps) */}
             <div className="space-y-3 pt-6 border-t border-slate-200">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center">
                 <Clock className="h-3.5 w-3.5 mr-1.5 text-red-600" />
                 <span>Verification Logs & Events</span>
               </h4>

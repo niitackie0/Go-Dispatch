@@ -31,13 +31,13 @@ export default function ContactPage() {
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
           <Reveal>
-            <span className="text-sm font-bold uppercase tracking-widest text-red-600">
+            <span className="text-sm font-semibold uppercase tracking-widest text-red-600">
               Talk to us
             </span>
           </Reveal>
 
           <Reveal delay={80}>
-            <h1 className="mt-4 font-display text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 text-balance max-w-3xl leading-tight">
+            <h1 className="mt-4 font-display text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900 text-balance max-w-3xl leading-tight">
               Call us. A real person picks up.
             </h1>
           </Reveal>
@@ -50,7 +50,7 @@ export default function ContactPage() {
               >
                 <span className="flex items-center gap-3">
                   <Phone className="h-6 w-6" />
-                  <span className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight">
+                  <span className="text-xl sm:text-2xl font-semibold tabular-nums tracking-tight">
                     {CONTACT_PHONE}
                   </span>
                 </span>
@@ -59,7 +59,7 @@ export default function ContactPage() {
                 href={WHATSAPP_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-center gap-3 min-h-16 rounded-2xl border border-slate-200 bg-white px-6 text-lg font-semibold text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                className="flex items-center justify-center gap-3 min-h-16 rounded-2xl border border-slate-200 bg-white px-6 text-lg font-medium text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-colors"
               >
                 <MessageCircle className="h-5 w-5" />
                 WhatsApp
@@ -121,13 +121,13 @@ export default function ContactPage() {
             <Reveal key={item.title} delay={i * 90}>
               <div className="h-full rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm flex flex-col">
                 <item.icon className="h-6 w-6 text-red-600" />
-                <h2 className="mt-4 text-xl font-bold text-slate-900">{item.title}</h2>
+                <h2 className="mt-4 text-xl font-semibold text-slate-900">{item.title}</h2>
                 <p className="mt-2 text-lg text-slate-700 leading-snug">{item.body}</p>
                 <p className="mt-auto pt-6 text-base text-slate-500">{item.foot}</p>
                 {item.to && (
                   <Link
                     to={item.to}
-                    className="mt-4 inline-flex items-center min-h-11 text-base font-bold text-red-700 hover:underline"
+                    className="mt-4 inline-flex items-center min-h-11 text-base font-semibold text-red-700 hover:underline"
                   >
                     Track a parcel →
                   </Link>
@@ -143,7 +143,7 @@ export default function ContactPage() {
       <section className="border-t border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
           <Reveal>
-            <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 max-w-2xl text-balance">
+            <h2 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 max-w-2xl text-balance">
               Before you call — this is everywhere we go.
             </h2>
           </Reveal>
@@ -152,7 +152,7 @@ export default function ContactPage() {
             {REGIONS.map((region, i) => (
               <Reveal key={region.name} delay={i * 40}>
                 <div className="border-t border-slate-200 pt-3">
-                  <span className="block text-lg font-semibold text-slate-900">{region.name}</span>
+                  <span className="block text-lg font-medium text-slate-900">{region.name}</span>
                   <span className="block text-base text-slate-500">{region.towns.join(', ')}</span>
                 </div>
               </Reveal>

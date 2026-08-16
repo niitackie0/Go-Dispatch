@@ -30,13 +30,13 @@ export default function BookPage() {
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
           <div className="flex items-baseline gap-3">
-            <span className="text-sm font-semibold uppercase tracking-widest text-red-600">
+            <span className="text-sm font-medium uppercase tracking-widest text-red-600">
               Book a delivery
             </span>
             <span className="text-sm text-slate-500">Takes about two minutes</span>
           </div>
           <p className="text-[15px] text-slate-600">
-            <strong className="font-semibold text-slate-900">{formatAmount(rule.baseAmount, rule.currency)}</strong>
+            <strong className="font-medium text-slate-900">{formatAmount(rule.baseAmount, rule.currency)}</strong>
             {' '}up to {rule.includedKg}kg · {formatAmount(rule.perExtraKgAmount, rule.currency)} per extra kilo
           </p>
         </div>

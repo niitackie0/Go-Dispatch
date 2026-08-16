@@ -273,7 +273,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             <CheckCircle className="h-10 w-10" />
           </div>
 
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Booking Confirmed!</h2>
+          <h2 className="text-2xl font-semibold text-slate-900 mb-2">Booking Confirmed!</h2>
           <p className="text-slate-500 mb-6">
             Your parcel delivery request has been registered. Our dispatch team will review details and reach out shortly.
           </p>
@@ -284,7 +284,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               <div>
                 <span className="text-xs uppercase tracking-wider font-mono text-slate-500">Tracking Code</span>
                 <div className="flex items-center space-x-2 mt-1">
-                  <span className="text-xl font-semibold font-mono text-slate-900">{successOrder.trackingCode}</span>
+                  <span className="text-xl font-medium font-mono text-slate-900">{successOrder.trackingCode}</span>
                   <button
                     onClick={() => handleCopyCode(successOrder.trackingCode)}
                     className="p-1 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-sm cursor-pointer"
@@ -296,7 +296,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               </div>
               <div className="mt-4 sm:mt-0 text-right">
                 <span className="text-xs uppercase tracking-wider font-mono text-slate-500 block">Calculated Price</span>
-                <span className="text-lg font-bold text-red-600">
+                <span className="text-lg font-semibold text-red-600">
                   {pricing.currency} {(successOrder.priceAmount / 100).toFixed(2)}
                 </span>
               </div>
@@ -317,14 +317,14 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               onClick={() => onSuccessBooking(successOrder.trackingCode)}
-              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 rounded-xl btn-aurora px-6 py-3.5 text-sm font-semibold text-white shadow-md hover:scale-[1.01] transition-all cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 rounded-xl btn-aurora px-6 py-3.5 text-sm font-medium text-white shadow-md hover:scale-[1.01] transition-all cursor-pointer"
             >
               <span>Track this Parcel</span>
               <ArrowRight className="h-4 w-4" />
             </button>
             <button
               onClick={() => setSuccessOrder(null)}
-              className="w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-6 py-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-6 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
             >
               Book Another Parcel
             </button>
@@ -365,7 +365,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             ))}
           </div>
           <div className="mt-4 flex items-baseline justify-between gap-3">
-            <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight text-balance">
+            <h2 className="font-display text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight text-balance">
               {STEP_TITLES[step - 1]}
             </h2>
             <span className="text-sm text-slate-500 shrink-0 tabular-nums">
@@ -382,12 +382,12 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
                 <MapPin className="h-4 w-4" />
               </div>
-              <h2 className="text-lg font-bold text-slate-900">Where we collect</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Where we collect</h2>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-semibold text-slate-500 mb-1">Your name *</label>
+                <label className="block text-sm font-medium text-slate-500 mb-1">Your name *</label>
                 <div className="relative">
                   <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                   <input
@@ -403,7 +403,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-500 mb-1">Your phone number *</label>
+                <label className="block text-sm font-medium text-slate-500 mb-1">Your phone number *</label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                   <input
@@ -419,7 +419,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-500 mb-1">Pickup address *</label>
+                <label className="block text-sm font-medium text-slate-500 mb-1">Pickup address *</label>
                 <textarea
                   id="input_pickup_address"
                   required
@@ -432,7 +432,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-500 mb-1">Pickup Notes / Landmarks (Optional)</label>
+                <label className="block text-sm font-medium text-slate-500 mb-1">Pickup Notes / Landmarks (Optional)</label>
                 <input
                   id="input_pickup_notes"
                   type="text"
@@ -454,12 +454,12 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
                 <MapPin className="h-4 w-4" />
               </div>
-              <h2 className="text-lg font-bold text-slate-900">Where it goes</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Where it goes</h2>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-semibold text-slate-500 mb-1">Recipient's name *</label>
+                <label className="block text-sm font-medium text-slate-500 mb-1">Recipient's name *</label>
                 <div className="relative">
                   <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                   <input
@@ -475,7 +475,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-500 mb-1">Recipient's phone number *</label>
+                <label className="block text-sm font-medium text-slate-500 mb-1">Recipient's phone number *</label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                   <input
@@ -494,7 +494,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
                   the advertised towns share Central Region, so the region alone
                   never locates a door. */}
               <div>
-                <label htmlFor="input_destination_region" className="block text-sm font-semibold text-slate-500 mb-1">
+                <label htmlFor="input_destination_region" className="block text-sm font-medium text-slate-500 mb-1">
                   Destination region *
                 </label>
                 <RegionPicker
@@ -505,7 +505,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               </div>
 
               <div>
-                <label htmlFor="input_dropoff_address" className="block text-sm font-semibold text-slate-500 mb-1">
+                <label htmlFor="input_dropoff_address" className="block text-sm font-medium text-slate-500 mb-1">
                   Exact delivery address *
                 </label>
                 <textarea
@@ -520,7 +520,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-500 mb-1">Dropoff Notes / Landmarks (Optional)</label>
+                <label className="block text-sm font-medium text-slate-500 mb-1">Dropoff Notes / Landmarks (Optional)</label>
                 <input
                   id="input_dropoff_notes"
                   type="text"
@@ -540,14 +540,14 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
               <Package className="h-4 w-4" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">What you are sending</h2>
+            <h2 className="text-lg font-semibold text-slate-900">What you are sending</h2>
           </div>
 
           {/* Weight is the only thing that moves the price now, so it gets the
               room the size tiers used to have, and quotes as you type. */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label htmlFor="input_package_weight" className="block text-sm font-semibold text-slate-500 mb-2">
+              <label htmlFor="input_package_weight" className="block text-sm font-medium text-slate-500 mb-2">
                 Parcel weight (kg) *
               </label>
               <input
@@ -569,8 +569,8 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             </div>
 
             <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex flex-col justify-center">
-              <span className="text-sm font-semibold text-red-900">This parcel</span>
-              <span className="mt-1 text-3xl font-bold text-red-700 tabular-nums tracking-tight">
+              <span className="text-sm font-medium text-red-900">This parcel</span>
+              <span className="mt-1 text-3xl font-semibold text-red-700 tabular-nums tracking-tight">
                 {formatAmount(currentQuote.total, currentQuote.currency)}
               </span>
               <span className="text-sm text-red-900/70 mt-1">
@@ -583,7 +583,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-semibold text-slate-500 mb-1">What is in the parcel? *</label>
+              <label className="block text-sm font-medium text-slate-500 mb-1">What is in the parcel? *</label>
               <div className="relative">
                 <FileText className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                 <input
@@ -599,7 +599,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-500 mb-1">When should we collect? *</label>
+              <label className="block text-sm font-medium text-slate-500 mb-1">When should we collect? *</label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                 <input
@@ -625,7 +625,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-red-600 border border-slate-200">
               <CreditCard className="h-4 w-4" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">How you want to pay</h2>
+            <h2 className="text-lg font-semibold text-slate-900">How you want to pay</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -644,11 +644,11 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
                 {paymentProvider === 'momo' && <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />}
               </div>
               <div>
-                <span className="block font-bold text-slate-900">MTN Mobile Money (MoMo)</span>
+                <span className="block font-semibold text-slate-900">MTN Mobile Money (MoMo)</span>
                 <span className="block text-xs text-slate-500 mt-1">
                   Trigger instant Request-to-Pay USSD prompt to approve on your mobile handset immediately.
                 </span>
-                <span className="inline-block mt-2 rounded bg-amber-500/15 border border-amber-500/20 text-amber-600 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider">
+                <span className="inline-block mt-2 rounded bg-amber-500/15 border border-amber-500/20 text-amber-600 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wider">
                   Highly Recommended
                 </span>
               </div>
@@ -668,7 +668,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
                 {paymentProvider === 'manual' && <div className="h-2.5 w-2.5 rounded-full bg-red-600" />}
               </div>
               <div>
-                <span className="block font-bold text-slate-900">Pay on collection</span>
+                <span className="block font-semibold text-slate-900">Pay on collection</span>
                 <span className="block text-xs text-slate-500 mt-1">
                   Confirm booking first. You can coordinate cash on pickup, bank transfer, or offline MoMo. Your payment is logged once received.
                 </span>
@@ -679,8 +679,8 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           {/* Pricing Total Summary Box */}
           <div className="rounded-xl bg-slate-100 border border-slate-200 text-slate-900 p-6 flex flex-col sm:flex-row items-center justify-between shadow-lg">
             <div className="mb-4 sm:mb-0 text-center sm:text-left">
-              <span className="text-sm font-semibold text-slate-500">Total</span>
-              <div className="text-3xl font-semibold mt-1 text-red-600 tabular-nums">
+              <span className="text-sm font-medium text-slate-500">Total</span>
+              <div className="text-3xl font-medium mt-1 text-red-600 tabular-nums">
                 {pricing.currency} {getPrice().toFixed(2)}
               </div>
               <p className="text-slate-500 text-sm mt-1">
@@ -695,7 +695,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               id="btn_submit_booking"
               type="submit"
               disabled={submitting}
-              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2.5 rounded-xl btn-aurora px-8 py-4 text-sm font-bold text-white shadow-md shadow-red-500/20 hover:scale-[1.01] transition-all disabled:opacity-50 cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2.5 rounded-xl btn-aurora px-8 py-4 text-sm font-semibold text-white shadow-md shadow-red-500/20 hover:scale-[1.01] transition-all disabled:opacity-50 cursor-pointer"
             >
               {submitting ? (
                 <>
@@ -720,7 +720,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             <button
               type="button"
               onClick={goBack}
-              className="min-h-14 px-6 rounded-xl border border-slate-200 bg-white text-base font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              className="min-h-14 px-6 rounded-xl border border-slate-200 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
             >
               Back
             </button>
@@ -742,7 +742,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           {step > 1 && step < TOTAL_STEPS && (
             <span className="hidden sm:block text-right shrink-0">
               <span className="block text-sm text-slate-500">Total</span>
-              <span className="block text-xl font-bold text-slate-900 tabular-nums">
+              <span className="block text-xl font-semibold text-slate-900 tabular-nums">
                 {formatAmount(currentQuote.total, currentQuote.currency)}
               </span>
             </span>
@@ -756,14 +756,14 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
               <div className="flex items-center space-x-2">
-                <div className="h-6 w-6 rounded-md bg-amber-500 flex items-center justify-center text-black text-xs font-bold">
+                <div className="h-6 w-6 rounded-md bg-amber-500 flex items-center justify-center text-black text-xs font-semibold">
                   M
                 </div>
-                <h3 className="font-bold text-slate-900 text-base">MTN Mobile Money Prompt</h3>
+                <h3 className="font-semibold text-slate-900 text-base">MTN Mobile Money Prompt</h3>
               </div>
               <button
                 onClick={() => setShowMomoModal(false)}
-                className="text-slate-500 hover:text-slate-700 text-sm font-semibold p-1 cursor-pointer"
+                className="text-slate-500 hover:text-slate-700 text-sm font-medium p-1 cursor-pointer"
               >
                 Cancel
               </button>
@@ -775,7 +775,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
                   Provide your MTN phone number. This simulates a real <strong className="text-slate-900">Request-to-Pay (R2P)</strong> API pull.
                 </p>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-500 mb-1">Moneys Wallet Number</label>
+                  <label className="block text-sm font-medium text-slate-500 mb-1">Moneys Wallet Number</label>
                   <input
                     id="input_momo_phone"
                     type="tel"
@@ -788,7 +788,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
                 <button
                   id="btn_confirm_sim_momo"
                   onClick={handleMomoPaymentConfirm}
-                  className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 min-h-12 text-base font-bold text-black shadow-md transition-colors cursor-pointer"
+                  className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 min-h-12 text-base font-semibold text-black shadow-md transition-colors cursor-pointer"
                 >
                   Send USSD Request Prompt
                 </button>
@@ -799,13 +799,13 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               <div className="text-center py-6 space-y-4">
                 <Loader2 className="h-10 w-10 text-amber-500 animate-spin mx-auto" />
                 <div>
-                  <h4 className="font-bold text-slate-900">Processing USSD Push</h4>
+                  <h4 className="font-semibold text-slate-900">Processing USSD Push</h4>
                   <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">
                     Sending a Request-to-Pay alert of <strong className="text-red-600">{pricing.currency} {getPrice().toFixed(2)}</strong> to {momoPhoneNumber}. Approve prompt on your handset now.
                   </p>
                 </div>
                 <div className="bg-black/60 p-3 rounded-lg text-left text-xs font-mono text-slate-500 border border-slate-200/85 max-w-xs mx-auto">
-                  <span className="text-slate-500 uppercase tracking-widest text-xs font-semibold block mb-1">Simulation logs</span>
+                  <span className="text-slate-500 uppercase tracking-widest text-xs font-medium block mb-1">Simulation logs</span>
                   &gt; curl R2P push status... PENDING<br/>
                   &gt; waiting for MTN provider hook...
                 </div>
@@ -818,7 +818,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
                   <CheckCircle className="h-7 w-7" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900">Payment Approved!</h4>
+                  <h4 className="font-semibold text-slate-900">Payment Approved!</h4>
                   <p className="text-sm text-slate-500 mt-1">
                     Received MTN verification reference. Finalizing your order dispatch booking...
                   </p>

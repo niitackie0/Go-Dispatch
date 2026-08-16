@@ -168,7 +168,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
   return (
     <div className="p-4 sm:p-6 max-w-3xl space-y-5">
       <div>
-        <h2 className="text-base font-bold text-slate-900 tracking-tight">My Account</h2>
+        <h2 className="text-base font-semibold text-slate-900 tracking-tight">My Account</h2>
         <p className="text-sm text-slate-500 mt-1">
           Signed in as{' '}
           <span className="font-mono text-slate-700">{user?.email}</span>
@@ -176,13 +176,13 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3.5 py-2.5 text-xs text-rose-600 font-semibold">
+        <div className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3.5 py-2.5 text-xs text-rose-600 font-medium">
           <AlertCircle className="h-4 w-4 shrink-0 mt-px" />
           <span>{error}</span>
         </div>
       )}
       {notice && !error && (
-        <div className="flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3.5 py-2.5 text-xs text-emerald-600 font-semibold">
+        <div className="flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3.5 py-2.5 text-xs text-emerald-600 font-medium">
           <Check className="h-4 w-4 shrink-0 mt-px" />
           <span>{notice}</span>
         </div>
@@ -193,13 +193,13 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
         onSubmit={handleChangePassword}
         className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 space-y-3.5"
       >
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-900">
           <ShieldCheck className="h-4 w-4 text-red-600" />
           Change password
         </div>
 
         <label className="block">
-          <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
+          <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-semibold">
             Current password
           </span>
           <input
@@ -214,7 +214,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
 
         <div className="grid sm:grid-cols-2 gap-3">
           <label className="block">
-            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
+            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-semibold">
               New password
             </span>
             <input
@@ -229,7 +229,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
           </label>
 
           <label className="block">
-            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-bold">
+            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-semibold">
               Confirm new password
             </span>
             <input
@@ -253,7 +253,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
         <button
           type="submit"
           disabled={saving}
-          className="w-full sm:w-auto min-h-11 px-5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full sm:w-auto min-h-11 px-5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
         >
           {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           Update password
@@ -263,7 +263,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
       {/* ---------- Sessions ---------- */}
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-900">
             <Monitor className="h-4 w-4 text-red-600" />
             Where you are signed in
           </div>
@@ -271,7 +271,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
             <button
               onClick={revokeOthers}
               disabled={busySessionId === 'all'}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:text-rose-600 hover:border-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:text-rose-600 hover:border-rose-300 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               {busySessionId === 'all' ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -306,11 +306,11 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-900 truncate">
+                        <span className="text-xs font-semibold text-slate-900 truncate">
                           {label}
                         </span>
                         {session.current && (
-                          <span className="text-xs font-mono uppercase tracking-wider text-emerald-600 font-bold shrink-0">
+                          <span className="text-xs font-mono uppercase tracking-wider text-emerald-600 font-semibold shrink-0">
                             this device
                           </span>
                         )}
@@ -326,7 +326,7 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
                     <button
                       onClick={() => revokeOne(session.id)}
                       disabled={busySessionId === session.id}
-                      className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-rose-600 hover:border-rose-300 text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                      className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-rose-600 hover:border-rose-300 text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 shrink-0"
                     >
                       {busySessionId === session.id ? '…' : 'Revoke'}
                     </button>

@@ -105,7 +105,7 @@ export default function RiderView({ token }: { token: string }) {
       <div className="min-h-dvh bg-[var(--wp-bg)] flex items-center justify-center px-5">
         <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
           <AlertCircle className="mx-auto h-9 w-9 text-red-500" />
-          <h1 className="mt-3 text-lg font-semibold text-slate-900">Link not valid</h1>
+          <h1 className="mt-3 text-lg font-medium text-slate-900">Link not valid</h1>
           <p className="mt-2 text-sm text-slate-600">{error}</p>
           <p className="mt-4 text-sm text-slate-400">Ask dispatch to resend your delivery link.</p>
         </div>
@@ -127,9 +127,9 @@ export default function RiderView({ token }: { token: string }) {
           <Truck className="h-4 w-4" />
           <span className="text-xs font-mono uppercase tracking-[0.16em]">GO DISPATCH courier</span>
         </div>
-        <h1 className="mt-3 font-mono text-2xl font-semibold">{job.trackingCode}</h1>
+        <h1 className="mt-3 font-mono text-2xl font-medium">{job.trackingCode}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-white/20 backdrop-blur px-2.5 py-1 text-xs font-semibold">
+          <span className="rounded-full bg-white/20 backdrop-blur px-2.5 py-1 text-xs font-medium">
             {STATUS_LABEL[job.status] ?? job.status}
           </span>
           {job.riderName && <span className="text-xs text-white/80">Assigned to {job.riderName}</span>}
@@ -142,7 +142,7 @@ export default function RiderView({ token }: { token: string }) {
           <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 flex items-start gap-3">
             <Banknote className="h-5 w-5 shrink-0 text-amber-600" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-900">
+              <p className="text-sm font-medium text-amber-900">
                 Collect {job.currency} {(job.priceAmount / 100).toFixed(2)}
               </p>
               <p className="mt-0.5 text-sm text-amber-800">
@@ -151,7 +151,7 @@ export default function RiderView({ token }: { token: string }) {
               <button
                 onClick={collect}
                 disabled={collecting}
-                className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-amber-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-amber-600 px-4 text-sm font-medium text-white disabled:opacity-50"
               >
                 {collecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 Payment collected
@@ -177,8 +177,8 @@ export default function RiderView({ token }: { token: string }) {
         {/* Pickup */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-3">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-100 text-xs font-bold text-red-700">P</span>
-            <h2 className="text-sm font-semibold text-slate-900">Pickup</h2>
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-100 text-xs font-semibold text-red-700">P</span>
+            <h2 className="text-sm font-medium text-slate-900">Pickup</h2>
           </div>
           <p className="text-sm font-medium text-slate-900">{job.senderName}</p>
           <p className="mt-1 flex items-start gap-1.5 text-sm text-slate-600">
@@ -188,7 +188,7 @@ export default function RiderView({ token }: { token: string }) {
           {job.pickupNotes && <p className="mt-1 pl-5.5 text-sm italic text-slate-500">{job.pickupNotes}</p>}
           <a
             href={`tel:${job.senderPhone}`}
-            className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700"
+            className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700"
           >
             <Phone className="h-4 w-4 text-red-600" />
             {job.senderPhone}
@@ -198,8 +198,8 @@ export default function RiderView({ token }: { token: string }) {
         {/* Dropoff */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-3">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-100 text-xs font-bold text-sky-700">D</span>
-            <h2 className="text-sm font-semibold text-slate-900">Dropoff</h2>
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-100 text-xs font-semibold text-sky-700">D</span>
+            <h2 className="text-sm font-medium text-slate-900">Dropoff</h2>
           </div>
           <p className="text-sm font-medium text-slate-900">{job.recipientName}</p>
           <p className="mt-1 flex items-start gap-1.5 text-sm text-slate-600">
@@ -209,7 +209,7 @@ export default function RiderView({ token }: { token: string }) {
           {job.dropoffNotes && <p className="mt-1 pl-5.5 text-sm italic text-slate-500">{job.dropoffNotes}</p>}
           <a
             href={`tel:${job.recipientPhone}`}
-            className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700"
+            className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700"
           >
             <Phone className="h-4 w-4 text-red-600" />
             {job.recipientPhone}
@@ -220,7 +220,7 @@ export default function RiderView({ token }: { token: string }) {
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-3">
             <Package className="h-4 w-4 text-red-600" />
-            <h2 className="text-sm font-semibold text-slate-900">Parcel</h2>
+            <h2 className="text-sm font-medium text-slate-900">Parcel</h2>
           </div>
           <dl className="grid grid-cols-2 gap-y-2 text-sm">
             <dt className="text-slate-500">Size</dt>
@@ -241,19 +241,19 @@ export default function RiderView({ token }: { token: string }) {
         {isDone ? (
           <div className="flex items-center justify-center gap-2 py-2 text-emerald-700">
             <CheckCircle2 className="h-5 w-5" />
-            <span className="font-semibold">Delivered — job complete</span>
+            <span className="font-medium">Delivered — job complete</span>
           </div>
         ) : isCancelled ? (
           <div className="flex items-center justify-center gap-2 py-2 text-red-600">
             <AlertCircle className="h-5 w-5" />
-            <span className="font-semibold">This job was cancelled</span>
+            <span className="font-medium">This job was cancelled</span>
           </div>
         ) : action ? (
           <>
             <button
               onClick={advance}
               disabled={working}
-              className="btn-aurora flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white disabled:opacity-60"
+              className="btn-aurora flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-medium text-white disabled:opacity-60"
             >
               {working ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
               {action.label}

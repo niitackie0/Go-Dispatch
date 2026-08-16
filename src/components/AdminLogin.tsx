@@ -63,14 +63,14 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
               <Truck className="h-5 w-5" />
             </div>
             <div className="leading-none">
-              <span className="block text-lg font-bold font-display">GO DISPATCH</span>
+              <span className="block text-lg font-semibold font-display">GO DISPATCH</span>
               <span className="block text-xs font-mono uppercase tracking-[0.18em] text-white/70 mt-0.5">Operations Console</span>
             </div>
           </Link>
         </div>
 
         <div className="relative max-w-md">
-          <h2 className="font-display text-3xl font-bold tracking-tight leading-tight">
+          <h2 className="font-display text-3xl font-semibold tracking-tight leading-tight">
             Run the whole dispatch operation from one console.
           </h2>
           <p className="mt-4 text-white/80 leading-relaxed">
@@ -112,11 +112,11 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl text-white" style={{ background: 'var(--wp-grad)' }}>
               <Truck className="h-5 w-5" />
             </div>
-            <span className="text-lg font-bold font-display text-slate-900">GO DISPATCH staff</span>
+            <span className="text-lg font-semibold font-display text-slate-900">GO DISPATCH staff</span>
           </div>
 
           <div className="mb-8">
-            <h1 className="font-display text-2xl font-bold text-slate-900 tracking-tight">Sign in to the console</h1>
+            <h1 className="font-display text-2xl font-semibold text-slate-900 tracking-tight">Sign in to the console</h1>
             <p className="mt-2 text-sm text-slate-500">Administrative staff, couriers, and pricing controllers.</p>
           </div>
 
@@ -132,7 +132,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="input_admin_email" className="block text-sm font-semibold text-slate-600 mb-1.5">
+              <label htmlFor="input_admin_email" className="block text-sm font-medium text-slate-600 mb-1.5">
                 Staff email address
               </label>
               <div className="relative">
@@ -151,7 +151,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
             </div>
 
             <div>
-              <label htmlFor="input_admin_password" className="block text-sm font-semibold text-slate-600 mb-1.5">
+              <label htmlFor="input_admin_password" className="block text-sm font-medium text-slate-600 mb-1.5">
                 Access password
               </label>
               <div className="relative">
@@ -169,7 +169,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-2.5 text-xs font-semibold text-slate-400 hover:text-slate-700 transition-colors"
+                  className="absolute right-3 top-2.5 text-xs font-medium text-slate-400 hover:text-slate-700 transition-colors"
                 >
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
@@ -180,7 +180,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
               id="btn_admin_signin"
               type="submit"
               disabled={loading}
-              className="btn-aurora w-full inline-flex items-center justify-center gap-2 rounded-xl text-white font-semibold py-3 text-sm transition-all disabled:opacity-50"
+              className="btn-aurora w-full inline-flex items-center justify-center gap-2 rounded-xl text-white font-medium py-3 text-sm transition-all disabled:opacity-50"
             >
               {loading ? (
                 <>

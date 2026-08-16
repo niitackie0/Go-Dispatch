@@ -604,7 +604,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               </div>
               {!railed && (
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-base font-bold text-slate-900 tracking-tight leading-none truncate">GO DISPATCH</h2>
+                  <h2 className="text-base font-semibold text-slate-900 tracking-tight leading-none truncate">GO DISPATCH</h2>
                   <span className="text-xs font-medium text-slate-500 mt-1 block">Operations console</span>
                 </div>
               )}
@@ -630,7 +630,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     onClick={() => goToSection(key)}
                     aria-current={active ? 'page' : undefined}
                     title={railed ? label : undefined}
-                    className={`w-full min-h-11 flex items-center gap-3 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${railed ? 'justify-center px-0' : 'justify-between px-3'} py-2.5 ${
+                    className={`w-full min-h-11 flex items-center gap-3 rounded-xl text-sm font-medium transition-colors cursor-pointer ${railed ? 'justify-center px-0' : 'justify-between px-3'} py-2.5 ${
                       active
                         ? 'bg-red-50 text-red-700 border border-red-200'
                         : 'text-slate-600 border border-transparent hover:text-slate-900 hover:bg-slate-50'
@@ -641,7 +641,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       {!railed && <span className="truncate">{label}</span>}
                     </span>
                     {!railed && key === 'pipeline' && allOrdersForStats.length > 0 && (
-                      <span className="text-xs tabular-nums bg-slate-100 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md font-semibold">
+                      <span className="text-xs tabular-nums bg-slate-100 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md font-medium">
                         {allOrdersForStats.length}
                       </span>
                     )}
@@ -675,7 +675,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 >
                   <span className="min-w-0">
                     <span className="block text-xs text-slate-500">GO DISPATCH</span>
-                    <span className="block text-lg font-bold text-slate-900 tracking-tight truncate">
+                    <span className="block text-lg font-semibold text-slate-900 tracking-tight truncate">
                       {activeNavItem?.title}
                     </span>
                   </span>
@@ -684,10 +684,10 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   />
                 </button>
 
-                <h1 className="hidden lg:block text-xl font-bold text-slate-900 tracking-tight truncate">
+                <h1 className="hidden lg:block text-xl font-semibold text-slate-900 tracking-tight truncate">
                   {activeNavItem?.title}
                   {activeSubTab === 'pipeline' && statusFilter && (
-                    <span className="ml-2 text-base font-semibold text-red-600">
+                    <span className="ml-2 text-base font-medium text-red-600">
                       {getStatusLabel(statusFilter as OrderStatus)}
                     </span>
                   )}
@@ -702,7 +702,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     fetchOrders();
                     fetchPayments();
                   }}
-                  className="min-h-11 min-w-11 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  className="min-h-11 min-w-11 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
                   title="Refresh data"
                 >
                   <Clock className="h-4 w-4" />
@@ -712,7 +712,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 {/* View live customer site */}
                 <Link
                   to="/"
-                  className="hidden md:flex min-h-11 items-center gap-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-semibold transition-colors cursor-pointer"
+                  className="hidden md:flex min-h-11 items-center gap-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-medium transition-colors cursor-pointer"
                   title="Open the live customer site"
                 >
                   <ExternalLink className="h-4 w-4" />
@@ -721,11 +721,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                 {/* Signed-in user identity */}
                 <div className="flex items-center gap-2 pl-1">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100 border border-red-200 text-red-700 text-sm font-bold shrink-0">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100 border border-red-200 text-red-700 text-sm font-semibold shrink-0">
                     {userInitials}
                   </div>
                   <div className="hidden xl:block leading-tight">
-                    <span className="block text-sm font-semibold text-slate-900 max-w-[160px] truncate">{user?.name || 'Administrator'}</span>
+                    <span className="block text-sm font-medium text-slate-900 max-w-[160px] truncate">{user?.name || 'Administrator'}</span>
                     <span className="block text-xs text-slate-500 max-w-[160px] truncate">{user?.email}</span>
                   </div>
                 </div>
@@ -752,7 +752,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       key={key}
                       onClick={() => goToSection(key)}
                       aria-current={active ? 'page' : undefined}
-                      className={`w-full min-h-12 flex items-center justify-between gap-3 px-3 rounded-xl text-base font-semibold transition-colors cursor-pointer ${
+                      className={`w-full min-h-12 flex items-center justify-between gap-3 px-3 rounded-xl text-base font-medium transition-colors cursor-pointer ${
                         active
                           ? 'bg-red-50 text-red-700 border border-red-200'
                           : 'text-slate-700 border border-transparent hover:bg-slate-50'
@@ -763,7 +763,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         <span>{label}</span>
                       </span>
                       {key === 'pipeline' && allOrdersForStats.length > 0 && (
-                        <span className="text-sm tabular-nums bg-slate-100 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md font-semibold">
+                        <span className="text-sm tabular-nums bg-slate-100 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md font-medium">
                           {allOrdersForStats.length}
                         </span>
                       )}
@@ -789,9 +789,9 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   is a readout; this is a queue. */}
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-200">
-                  <h2 className="text-base font-semibold text-slate-900">Needs attention</h2>
+                  <h2 className="text-base font-medium text-slate-900">Needs attention</h2>
                   {overview.attention.length > 0 && (
-                    <span className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-sm font-bold text-amber-700 tabular-nums">
+                    <span className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-sm font-semibold text-amber-700 tabular-nums">
                       {overview.attention.length}
                     </span>
                   )}
@@ -814,13 +814,13 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                           className="w-full min-h-14 flex items-center justify-between gap-3 px-5 py-3 text-left hover:bg-slate-50 transition-colors cursor-pointer"
                         >
                           <span className="min-w-0">
-                            <span className="font-mono text-sm font-bold text-slate-900 block">
+                            <span className="font-mono text-sm font-semibold text-slate-900 block">
                               {order.trackingCode}
                             </span>
                             <span className="text-sm text-slate-500 truncate block">{reason}</span>
                           </span>
                           <span className="shrink-0 flex items-center gap-2">
-                            <span className="text-sm font-semibold text-amber-700 tabular-nums">
+                            <span className="text-sm font-medium text-amber-700 tabular-nums">
                               {formatAge(order.updatedAt || order.createdAt)}
                             </span>
                             <ChevronRight className="h-4 w-4 text-slate-400" />
@@ -834,7 +834,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 {overview.attention.length > 6 && (
                   <button
                     onClick={() => goToSection('pipeline')}
-                    className="w-full min-h-12 border-t border-slate-200 text-sm font-semibold text-red-700 hover:bg-red-50 transition-colors cursor-pointer rounded-b-2xl"
+                    className="w-full min-h-12 border-t border-slate-200 text-sm font-medium text-red-700 hover:bg-red-50 transition-colors cursor-pointer rounded-b-2xl"
                   >
                     View all {overview.attention.length} on the dispatch board
                   </button>
@@ -846,7 +846,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               <div className={`grid grid-cols-1 gap-4 ${canSeeRevenue ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-sm font-semibold text-slate-500">Today</h3>
+                  <h3 className="text-sm font-medium text-slate-500">Today</h3>
                   <dl className="mt-3 space-y-2">
                     {([
                       ['Booked', overview.today.booked],
@@ -855,7 +855,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     ] as const).map(([label, value]) => (
                       <div key={label} className="flex items-baseline justify-between">
                         <dt className="text-base text-slate-600">{label}</dt>
-                        <dd className="text-xl font-semibold text-slate-900 tabular-nums">{value}</dd>
+                        <dd className="text-xl font-medium text-slate-900 tabular-nums">{value}</dd>
                       </div>
                     ))}
                   </dl>
@@ -863,8 +863,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                 {canSeeRevenue && (
                   <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <h3 className="text-sm font-semibold text-slate-500">Outstanding</h3>
-                    <p className="mt-3 text-3xl font-semibold text-slate-900 tabular-nums tracking-tight">
+                    <h3 className="text-sm font-medium text-slate-500">Outstanding</h3>
+                    <p className="mt-3 text-3xl font-medium text-slate-900 tabular-nums tracking-tight">
                       GHS {(overview.outstanding / 100).toFixed(2)}
                     </p>
                     <p className="mt-1.5 text-sm text-slate-500">
@@ -876,7 +876,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 )}
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-sm font-semibold text-slate-500">On the road</h3>
+                  <h3 className="text-sm font-medium text-slate-500">On the road</h3>
                   {overview.riders.length === 0 ? (
                     <p className="mt-3 text-base text-slate-500">No riders carrying parcels.</p>
                   ) : (
@@ -887,7 +887,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                             <Truck className="h-4 w-4 text-red-500 shrink-0" />
                             <span className="text-base text-slate-700 truncate">{r.name}</span>
                           </span>
-                          <span className="text-base font-semibold text-slate-900 tabular-nums shrink-0">
+                          <span className="text-base font-medium text-slate-900 tabular-nums shrink-0">
                             {r.count}
                           </span>
                         </li>
@@ -908,11 +908,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-semibold text-slate-500 block">Revenue today</span>
-                      <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
+                      <span className="text-sm font-medium text-slate-500 block">Revenue today</span>
+                      <span className="text-xl sm:text-2xl lg:text-3xl font-medium text-slate-900 mt-1 block tracking-tight tabular-nums">
                         GHS {((stats?.revenue?.today || 0) / 100).toFixed(2)}
                       </span>
-                      <span className="text-xs text-emerald-600 font-semibold mt-1.5 flex items-center gap-1">
+                      <span className="text-xs text-emerald-600 font-medium mt-1.5 flex items-center gap-1">
                         Settled today
                       </span>
                     </div>
@@ -923,8 +923,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-semibold text-slate-500 block">Revenue this week</span>
-                      <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
+                      <span className="text-sm font-medium text-slate-500 block">Revenue this week</span>
+                      <span className="text-xl sm:text-2xl lg:text-3xl font-medium text-slate-900 mt-1 block tracking-tight tabular-nums">
                         GHS {((stats?.revenue?.week || 0) / 100).toFixed(2)}
                       </span>
                       <span className="text-xs text-slate-500 font-medium mt-1.5 block">
@@ -938,8 +938,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-semibold text-slate-500 block">Revenue this month</span>
-                      <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
+                      <span className="text-sm font-medium text-slate-500 block">Revenue this month</span>
+                      <span className="text-xl sm:text-2xl lg:text-3xl font-medium text-slate-900 mt-1 block tracking-tight tabular-nums">
                         GHS {((stats?.revenue?.month || 0) / 100).toFixed(2)}
                       </span>
                       <span className="text-xs text-slate-500 font-medium mt-1.5 block">
@@ -953,8 +953,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-semibold text-slate-500 block">Collected all time</span>
-                      <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
+                      <span className="text-sm font-medium text-slate-500 block">Collected all time</span>
+                      <span className="text-xl sm:text-2xl lg:text-3xl font-medium text-slate-900 mt-1 block tracking-tight tabular-nums">
                         GHS {((stats?.revenue?.allTime || 0) / 100).toFixed(2)}
                       </span>
                       <span className="text-xs text-slate-500 font-medium mt-1.5 block">
@@ -980,15 +980,15 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                       <div className="flex items-center gap-2">
                         <Layers className="h-4 w-4 text-red-600" />
-                        <h2 className="text-sm font-semibold text-slate-900">Dispatch pipeline</h2>
+                        <h2 className="text-sm font-medium text-slate-900">Dispatch pipeline</h2>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-slate-500">
                         <span>
-                          <span className="font-semibold text-slate-900 tabular-nums">{active}</span> in flight
+                          <span className="font-medium text-slate-900 tabular-nums">{active}</span> in flight
                         </span>
                         <span className="h-3 w-px bg-slate-200" />
                         <span>
-                          <span className="font-semibold text-slate-900 tabular-nums">{total}</span> total
+                          <span className="font-medium text-slate-900 tabular-nums">{total}</span> total
                         </span>
                       </div>
                     </div>
@@ -1032,7 +1032,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${s.dot}`} />
                               <span className="text-xs font-medium text-slate-500 truncate">{s.label}</span>
                             </span>
-                            <span className="mt-1 block text-xl font-semibold text-slate-900 tabular-nums group-hover:text-red-700 transition-colors">
+                            <span className="mt-1 block text-xl font-medium text-slate-900 tabular-nums group-hover:text-red-700 transition-colors">
                               {s.count}
                             </span>
                           </button>
@@ -1056,7 +1056,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-md grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
             
             <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-slate-500 mb-1">Search Keywords</label>
+              <label className="block text-sm font-medium text-slate-500 mb-1">Search Keywords</label>
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                 <input
@@ -1071,7 +1071,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-500 mb-1">Status</label>
+              <label className="block text-sm font-medium text-slate-500 mb-1">Status</label>
               <select
                 id="filter_status"
                 value={statusFilter}
@@ -1086,7 +1086,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-500 mb-1">Created Since</label>
+              <label className="block text-sm font-medium text-slate-500 mb-1">Created Since</label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-2.5 h-4.5 w-4.5 text-slate-500" />
                 <input
@@ -1106,7 +1106,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 setStartDateFilter('');
                 setEndDateFilter('');
               }}
-              className="w-full min-h-11 text-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold text-sm transition-colors cursor-pointer"
+              className="w-full min-h-11 text-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium text-sm transition-colors cursor-pointer"
             >
               Clear Filters
             </button>
@@ -1118,7 +1118,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           ) : orders.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-500 bg-white">
               <ClipboardList className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-slate-700">No dispatch orders match criteria</p>
+              <p className="text-sm font-medium text-slate-700">No dispatch orders match criteria</p>
               <p className="text-sm text-slate-500 mt-1">Try relaxing filters or search queries.</p>
             </div>
           ) : (
@@ -1144,7 +1144,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <span className="font-mono text-base font-bold text-slate-900">{order.trackingCode}</span>
+                              <span className="font-mono text-base font-semibold text-slate-900">{order.trackingCode}</span>
                               {order.riderName && (
                                 <span className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
                                   <Truck className="h-4 w-4 text-red-500 shrink-0" />
@@ -1152,7 +1152,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                 </span>
                               )}
                             </div>
-                            <span className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold ${statusTheme.bg} ${statusTheme.text}`}>
+                            <span className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-semibold ${statusTheme.bg} ${statusTheme.text}`}>
                               {statusTheme.label}
                             </span>
                           </div>
@@ -1167,10 +1167,10 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                           <div className="flex items-center gap-2 text-sm">
                             <span className="capitalize text-slate-600">{order.packageSize}</span>
                             <span className="text-slate-300">·</span>
-                            <span className="font-semibold text-slate-900 tabular-nums">
+                            <span className="font-medium text-slate-900 tabular-nums">
                               {order.currency} {(order.priceAmount / 100).toFixed(2)}
                             </span>
-                            <span className={`ml-auto rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
+                            <span className={`ml-auto rounded-md border px-2 py-0.5 text-xs font-medium capitalize ${
                               order.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
                               order.paymentStatus === 'refunded' ? 'bg-red-50 border-red-200 text-red-600' :
                               'bg-amber-500/10 border-amber-500/20 text-amber-600'
@@ -1183,7 +1183,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                             <button
                               onClick={(e) => { e.stopPropagation(); advanceOrderStatus(order); }}
                               disabled={advancingId === order.id}
-                              className="w-full min-h-12 flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 text-base font-bold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 cursor-pointer"
+                              className="w-full min-h-12 flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 text-base font-semibold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 cursor-pointer"
                             >
                               {advancingId === order.id
                                 ? <Loader2 className="h-5 w-5 animate-spin" />
@@ -1191,7 +1191,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               Advance to {getStatusLabel(next)}
                             </button>
                           ) : order.status === 'awaiting_payment' ? (
-                            <p className="flex items-center gap-2 text-sm font-semibold text-orange-600">
+                            <p className="flex items-center gap-2 text-sm font-medium text-orange-600">
                               <Clock className="h-4 w-4 shrink-0" />
                               Confirms automatically on payment
                             </p>
@@ -1204,7 +1204,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   {/* Tablet and up: the table. */}
                   <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <table className="w-full text-left text-sm text-slate-700">
-                      <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500 border-b border-slate-200">
+                      <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
                         <tr>
                           <th className="px-4 py-3">Tracking</th>
                           <th className="px-4 py-3">Route</th>
@@ -1225,7 +1225,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               onClick={() => setSelectedOrderId(order.id)}
                               className="hover:bg-slate-50 cursor-pointer transition-colors"
                             >
-                              <td className="px-4 py-3 font-mono font-bold text-slate-900 whitespace-nowrap">
+                              <td className="px-4 py-3 font-mono font-semibold text-slate-900 whitespace-nowrap">
                                 {order.trackingCode}
                                 {order.riderName && (
                                   <span className="mt-0.5 flex items-center gap-1 font-sans text-xs font-medium text-slate-500">
@@ -1240,12 +1240,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               </td>
                               <td className="px-4 py-3 capitalize text-slate-700">{order.packageSize}</td>
                               <td className="px-4 py-3">
-                                <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold whitespace-nowrap ${statusTheme.bg} ${statusTheme.text}`}>
+                                <span className={`inline-block px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${statusTheme.bg} ${statusTheme.text}`}>
                                   {statusTheme.label}
                                 </span>
                               </td>
                               <td className="px-4 py-3">
-                                <span className={`inline-block rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
+                                <span className={`inline-block rounded-md border px-2 py-0.5 text-xs font-medium capitalize ${
                                   order.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
                                   order.paymentStatus === 'refunded' ? 'bg-red-50 border-red-200 text-red-600' :
                                   'bg-amber-500/10 border-amber-500/20 text-amber-600'
@@ -1253,7 +1253,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                   {order.paymentStatus}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 text-right font-semibold text-slate-900 whitespace-nowrap tabular-nums">
+                              <td className="px-4 py-3 text-right font-medium text-slate-900 whitespace-nowrap tabular-nums">
                                 {order.currency} {(order.priceAmount / 100).toFixed(2)}
                               </td>
                               <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -1261,7 +1261,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                   <button
                                     onClick={(e) => { e.stopPropagation(); advanceOrderStatus(order); }}
                                     disabled={advancingId === order.id}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 cursor-pointer"
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 cursor-pointer"
                                     title={`Advance to ${getStatusLabel(next)}`}
                                   >
                                     {advancingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
@@ -1269,7 +1269,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                   </button>
                                 ) : order.status === 'awaiting_payment' ? (
                                   <span
-                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-600"
+                                    className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600"
                                     title="Payment-gated — confirms automatically once payment is received"
                                   >
                                     <Clock className="h-4 w-4" />
@@ -1295,7 +1295,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <button
                         onClick={() => setPipelinePage((p) => Math.max(1, p - 1))}
                         disabled={page <= 1}
-                        className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                        className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                       >
                         &lsaquo; Prev
                       </button>
@@ -1303,7 +1303,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <button
                         onClick={() => setPipelinePage((p) => Math.min(totalPages, p + 1))}
                         disabled={page >= totalPages}
-                        className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                        className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                       >
                         Next &rsaquo;
                       </button>
@@ -1322,12 +1322,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
         <div className="space-y-6 animate-in fade-in duration-200" id="dash_subtab_payments">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Payments Ledger & Audits</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Payments Ledger & Audits</h2>
               <p className="text-sm text-slate-500 mt-0.5">Historical ledger of all completed, pending, or manual reconciliation transactions.</p>
             </div>
             <button
               onClick={handleExportPaymentsCSV}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white min-h-11 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 shadow-sm transition-colors self-start cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white min-h-11 px-4 text-sm font-medium text-slate-700 hover:bg-slate-100 shadow-sm transition-colors self-start cursor-pointer"
             >
               <Download className="h-4.5 w-4.5" />
               <span>Export Accounting CSV</span>
@@ -1339,7 +1339,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           ) : payments.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-500 bg-white">
               <CreditCard className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-slate-700">No ledger transactions logged</p>
+              <p className="text-sm font-medium text-slate-700">No ledger transactions logged</p>
             </div>
           ) : (
             /* Payments Table (paginated 10 / page) */
@@ -1357,23 +1357,23 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <div key={p.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <span className="font-mono text-base font-bold text-slate-900 block">{p.trackingCode}</span>
+                        <span className="font-mono text-base font-semibold text-slate-900 block">{p.trackingCode}</span>
                         <span className="text-sm text-slate-500">{p.senderName}</span>
                       </div>
-                      <span className="shrink-0 text-lg font-bold text-slate-900 tabular-nums">
+                      <span className="shrink-0 text-lg font-semibold text-slate-900 tabular-nums">
                         {p.currency} {(p.amount / 100).toFixed(2)}
                       </span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${
+                      <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
                         p.status === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
                         p.status === 'failed' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
                         'bg-amber-500/10 border-amber-500/20 text-amber-600'
                       }`}>
                         {p.status}
                       </span>
-                      <span className={`rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${
+                      <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
                         p.provider === 'momo' ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-slate-100 border-slate-300 text-slate-700'
                       }`}>
                         {p.provider}
@@ -1394,7 +1394,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
               <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
               <table className="w-full text-left text-sm text-slate-700 border-collapse">
-                <thead className="bg-slate-50 font-bold uppercase tracking-wide text-slate-500 text-xs border-b border-slate-200">
+                <thead className="bg-slate-50 font-semibold uppercase tracking-wide text-slate-500 text-xs border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-3">Order</th>
                     <th className="px-4 py-3">Sender</th>
@@ -1409,16 +1409,16 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 <tbody className="divide-y divide-slate-200">
                   {pagePayments.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-mono font-bold text-slate-900 whitespace-nowrap">{p.trackingCode}</td>
+                      <td className="px-4 py-3 font-mono font-semibold text-slate-900 whitespace-nowrap">{p.trackingCode}</td>
                       <td className="px-4 py-3">
-                        <span className="font-semibold text-slate-900 block">{p.senderName}</span>
+                        <span className="font-medium text-slate-900 block">{p.senderName}</span>
                         <span className="text-xs text-slate-500 block font-mono">{p.senderPhone}</span>
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums whitespace-nowrap">
+                      <td className="px-4 py-3 text-right font-medium text-slate-900 tabular-nums whitespace-nowrap">
                         {p.currency} {(p.amount / 100).toFixed(2)}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${
+                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
                           p.provider === 'momo' ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-slate-100 border-slate-300 text-slate-700'
                         }`}>
                           {p.provider}
@@ -1428,7 +1428,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         {p.providerReference || '—'}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${
+                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
                           p.status === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
                           p.status === 'failed' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
                           'bg-amber-500/10 border-amber-500/20 text-amber-600'
@@ -1455,7 +1455,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <button
                     onClick={() => setPaymentsPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                    className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                   >
                     &lsaquo; Prev
                   </button>
@@ -1463,7 +1463,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <button
                     onClick={() => setPaymentsPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
-                    className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                    className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                   >
                     Next &rsaquo;
                   </button>
@@ -1489,7 +1489,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl space-y-6">
             
             <div className="pb-4 border-b border-slate-200">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-1.5">
+              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-1.5">
                 <Settings className="h-5 w-5 text-red-600" /> Pricing
               </h2>
               <p className="text-sm text-slate-500 mt-1">
@@ -1500,7 +1500,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             </div>
 
             {pricingSuccessMsg && (
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold flex items-center space-x-2">
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-semibold flex items-center space-x-2">
                 <CheckCircle className="h-5 w-5 text-emerald-600" />
                 <span>{pricingSuccessMsg}</span>
               </div>
@@ -1513,11 +1513,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                    <label htmlFor="input_base_rate" className="block text-sm font-semibold text-slate-500">
+                    <label htmlFor="input_base_rate" className="block text-sm font-medium text-slate-500">
                       Flat rate
                     </label>
                     <div className="flex items-center gap-1.5 mt-2">
-                      <span className="text-sm font-semibold text-slate-500">GHS</span>
+                      <span className="text-sm font-medium text-slate-500">GHS</span>
                       <input
                         id="input_base_rate"
                         type="number"
@@ -1526,13 +1526,13 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         required
                         value={baseRateInput}
                         onChange={(e) => setBaseRateInput(e.target.value)}
-                        className="w-full min-h-11 py-2 font-bold font-mono text-slate-900 border-b border-slate-200 bg-transparent text-lg outline-none focus:border-red-500"
+                        className="w-full min-h-11 py-2 font-semibold font-mono text-slate-900 border-b border-slate-200 bg-transparent text-lg outline-none focus:border-red-500"
                       />
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                    <label htmlFor="input_included_kg" className="block text-sm font-semibold text-slate-500">
+                    <label htmlFor="input_included_kg" className="block text-sm font-medium text-slate-500">
                       Covers up to
                     </label>
                     <div className="flex items-center gap-1.5 mt-2">
@@ -1544,18 +1544,18 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         required
                         value={includedKgInput}
                         onChange={(e) => setIncludedKgInput(e.target.value)}
-                        className="w-full min-h-11 py-2 font-bold font-mono text-slate-900 border-b border-slate-200 bg-transparent text-lg outline-none focus:border-red-500"
+                        className="w-full min-h-11 py-2 font-semibold font-mono text-slate-900 border-b border-slate-200 bg-transparent text-lg outline-none focus:border-red-500"
                       />
-                      <span className="text-sm font-semibold text-slate-500">kg</span>
+                      <span className="text-sm font-medium text-slate-500">kg</span>
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                    <label htmlFor="input_per_extra_kg" className="block text-sm font-semibold text-slate-500">
+                    <label htmlFor="input_per_extra_kg" className="block text-sm font-medium text-slate-500">
                       Each extra kg
                     </label>
                     <div className="flex items-center gap-1.5 mt-2">
-                      <span className="text-sm font-semibold text-slate-500">GHS</span>
+                      <span className="text-sm font-medium text-slate-500">GHS</span>
                       <input
                         id="input_per_extra_kg"
                         type="number"
@@ -1564,7 +1564,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         required
                         value={perExtraKgInput}
                         onChange={(e) => setPerExtraKgInput(e.target.value)}
-                        className="w-full min-h-11 py-2 font-bold font-mono text-slate-900 border-b border-slate-200 bg-transparent text-lg outline-none focus:border-red-500"
+                        className="w-full min-h-11 py-2 font-semibold font-mono text-slate-900 border-b border-slate-200 bg-transparent text-lg outline-none focus:border-red-500"
                       />
                     </div>
                   </div>
@@ -1574,7 +1574,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 {/* What the numbers above actually produce, so a change can be
                     sanity-checked before it is saved. */}
                 <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <span className="text-sm font-semibold text-slate-500">Worked examples</span>
+                  <span className="text-sm font-medium text-slate-500">Worked examples</span>
                   <ul className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                     {[1, 3, 5, 10].map((kg) => {
                       const rule = {
@@ -1586,7 +1586,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       return (
                         <li key={kg}>
                           <span className="block text-slate-500">{kg}kg</span>
-                          <span className="block font-semibold text-slate-900 tabular-nums">
+                          <span className="block font-medium text-slate-900 tabular-nums">
                             {formatAmount(quote(kg, rule).total, rule.currency)}
                           </span>
                         </li>
@@ -1600,7 +1600,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     id="btn_save_pricing"
                     type="submit"
                     disabled={submittingPricing}
-                    className="w-full sm:w-auto min-h-12 rounded-xl btn-aurora text-white text-base font-bold px-6 shadow-lg shadow-red-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto min-h-12 rounded-xl btn-aurora text-white text-base font-semibold px-6 shadow-lg shadow-red-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {submittingPricing ? (
                       <>
@@ -1646,7 +1646,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
                 <div>
                   <span className="text-sm text-slate-500 block">Order</span>
-                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-1.5 mt-0.5">
+                  <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-1.5 mt-0.5">
                     {selectedOrderDetails?.order.trackingCode ?? ''}
                   </h2>
                 </div>
@@ -1672,7 +1672,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                           carries the price alone rather than repeating it. */}
                       <div className="pb-3 border-b border-dashed border-slate-200">
                         <span className="text-sm text-slate-500 block">Price</span>
-                        <span className="text-xl font-semibold text-slate-900 tabular-nums">
+                        <span className="text-xl font-medium text-slate-900 tabular-nums">
                           {selectedOrderDetails.order.currency} {(selectedOrderDetails.order.priceAmount / 100).toFixed(2)}
                         </span>
                       </div>
@@ -1680,7 +1680,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="text-slate-500 block">Status</span>
-                          <span className={`inline-block font-bold capitalize mt-0.5 rounded px-2 py-0.5 text-xs tracking-wider ${
+                          <span className={`inline-block font-semibold capitalize mt-0.5 rounded px-2 py-0.5 text-xs tracking-wider ${
                             STATUS_ORDER.find(s => s.key === selectedOrderDetails.order.status)?.bg || 'bg-slate-100'
                           } ${
                             STATUS_ORDER.find(s => s.key === selectedOrderDetails.order.status)?.text || 'text-slate-700'
@@ -1691,7 +1691,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                         <div>
                           <span className="text-slate-500 block">Payment</span>
-                          <span className={`inline-block font-bold uppercase mt-0.5 rounded border px-2 py-0.5 text-xs tracking-wider ${
+                          <span className={`inline-block font-semibold uppercase mt-0.5 rounded border px-2 py-0.5 text-xs tracking-wider ${
                             selectedOrderDetails.order.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
                             'bg-amber-500/10 border-amber-500/20 text-amber-600'
                           }`}>
@@ -1706,7 +1706,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                           <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0">
                               <span className="text-slate-500 font-medium block text-xs">Assigned courier</span>
-                              <span className="flex items-center gap-1.5 mt-0.5 text-sm font-semibold text-slate-900">
+                              <span className="flex items-center gap-1.5 mt-0.5 text-sm font-medium text-slate-900">
                                 <Truck className="h-3.5 w-3.5 text-red-600" />
                                 {selectedOrderDetails.order.riderName || 'Unassigned'}
                               </span>
@@ -1718,7 +1718,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                 setCopiedRiderLink(true);
                                 setTimeout(() => setCopiedRiderLink(false), 2000);
                               }}
-                              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 min-h-11 px-3 text-sm font-bold text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
+                              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 min-h-11 px-3 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
                               title="Copy the courier's self-service update link"
                             >
                               {copiedRiderLink ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
@@ -1735,15 +1735,15 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                     {/* Coordinates & Customer info */}
                     <div className="space-y-4">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Sender and recipient</h3>
+                      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">Sender and recipient</h3>
                       
                       <div className="space-y-3.5 bg-white rounded-xl border border-slate-200 p-4 text-xs text-slate-700">
                         {/* Sender */}
                         <div className="flex gap-2.5 pb-3 border-b border-slate-200">
                           <User className="h-4.5 w-4.5 text-slate-500 shrink-0" />
                           <div>
-                            <span className="text-slate-500 block font-semibold text-xs uppercase">Sender</span>
-                            <span className="font-bold text-slate-900 block mt-0.5">{selectedOrderDetails.order.senderName}</span>
+                            <span className="text-slate-500 block font-medium text-xs uppercase">Sender</span>
+                            <span className="font-semibold text-slate-900 block mt-0.5">{selectedOrderDetails.order.senderName}</span>
                             <span className="text-slate-500 font-mono text-xs block mt-0.5">{selectedOrderDetails.order.senderPhone}</span>
                             <span className="text-slate-700 block mt-1"><strong className="text-slate-500">Pickup:</strong> {selectedOrderDetails.order.pickupAddress}</span>
                             {selectedOrderDetails.order.pickupNotes && (
@@ -1756,8 +1756,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         <div className="flex gap-2.5">
                           <User className="h-4.5 w-4.5 text-slate-500 shrink-0" />
                           <div>
-                            <span className="text-slate-500 block font-semibold text-xs uppercase">Recipient</span>
-                            <span className="font-bold text-slate-900 block mt-0.5">{selectedOrderDetails.order.recipientName}</span>
+                            <span className="text-slate-500 block font-medium text-xs uppercase">Recipient</span>
+                            <span className="font-semibold text-slate-900 block mt-0.5">{selectedOrderDetails.order.recipientName}</span>
                             <span className="text-slate-500 font-mono text-xs block mt-0.5">{selectedOrderDetails.order.recipientPhone}</span>
                             <span className="text-slate-700 block mt-1"><strong className="text-slate-500">Dropoff:</strong> {selectedOrderDetails.order.dropoffAddress}</span>
                             {selectedOrderDetails.order.dropoffNotes && (
@@ -1770,10 +1770,10 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                     {/* Specifications */}
                     <div className="space-y-3">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Parcel specs</h3>
+                      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">Parcel specs</h3>
                       <div className="bg-white rounded-xl border border-slate-200 p-4 text-xs text-slate-700 space-y-2">
-                        <p><strong className="text-slate-500">Size:</strong> <span className="capitalize font-bold text-slate-900">{selectedOrderDetails.order.packageSize}</span></p>
-                        <p><strong className="text-slate-500">Weight:</strong> <span className="font-bold text-slate-900">{selectedOrderDetails.order.packageWeightKg} kg</span></p>
+                        <p><strong className="text-slate-500">Size:</strong> <span className="capitalize font-semibold text-slate-900">{selectedOrderDetails.order.packageSize}</span></p>
+                        <p><strong className="text-slate-500">Weight:</strong> <span className="font-semibold text-slate-900">{selectedOrderDetails.order.packageWeightKg} kg</span></p>
                         <p><strong className="text-slate-500">Description:</strong> <span className="text-slate-700">{selectedOrderDetails.order.packageDescription}</span></p>
                         <p><strong className="text-slate-500">Pickup:</strong> <span className="text-slate-700">{new Date(selectedOrderDetails.order.scheduledPickupAt).toLocaleString()}</span></p>
                       </div>
@@ -1782,7 +1782,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     {/* CONTROL BOX: Transition workflow status — write roles only */}
                     {canWriteOrders && (
                     <div className="space-y-4 border-t border-slate-200 pt-6">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
+                      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
                         <Edit2 className="h-4 w-4 text-red-600" /> Workflow Transition Pipeline
                       </h3>
 
@@ -1790,12 +1790,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         {/* Quick sequential next step trigger */}
                         {advanceStatus(selectedOrderDetails.order.status) && (
                           <div className="space-y-2 pb-3 border-b border-slate-200 mb-3">
-                            <span className="text-xs text-slate-500 font-semibold block">Fast Next Step:</span>
+                            <span className="text-xs text-slate-500 font-medium block">Fast Next Step:</span>
                             <button
                               id="btn_trigger_next_status"
                               onClick={() => handleUpdateStatus(advanceStatus(selectedOrderDetails.order.status)!)}
                               disabled={submittingStatus}
-                              className="w-full text-center min-h-12 px-4 rounded-xl btn-aurora text-white font-bold text-base shadow-md shadow-red-500/20 transition-colors flex items-center justify-center space-x-1 cursor-pointer"
+                              className="w-full text-center min-h-12 px-4 rounded-xl btn-aurora text-white font-semibold text-base shadow-md shadow-red-500/20 transition-colors flex items-center justify-center space-x-1 cursor-pointer"
                             >
                               <span>Move to "{getStatusLabel(advanceStatus(selectedOrderDetails.order.status)!)}"</span>
                               <ArrowRight className="h-4 w-4" />
@@ -1822,7 +1822,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                   key={key}
                                   disabled={submittingStatus}
                                   onClick={() => handleUpdateStatus(key)}
-                                  className="min-h-11 px-3 rounded-lg border text-center transition-colors font-semibold text-sm bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer disabled:opacity-50"
+                                  className="min-h-11 px-3 rounded-lg border text-center transition-colors font-medium text-sm bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer disabled:opacity-50"
                                 >
                                   {getStatusLabel(key)}
                                 </button>
@@ -1833,7 +1833,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                         {/* Optional status log notes */}
                         <div className="pt-2">
-                          <label className="block text-sm text-slate-500 mb-1 font-semibold">Workflow Log Note (Who, what landmark/action)</label>
+                          <label className="block text-sm text-slate-500 mb-1 font-medium">Workflow Log Note (Who, what landmark/action)</label>
                           <input
                             id="input_status_note"
                             type="text"
@@ -1850,12 +1850,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     {/* CONTROL BOX: Mark payment as paid manually — finance/owner only */}
                     {canRecordPayment && selectedOrderDetails.order.paymentStatus !== 'paid' && (
                       <div className="space-y-4 border-t border-slate-200 pt-6">
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
+                        <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
                           <CreditCard className="h-4 w-4 text-emerald-600" /> Manual Payment reconciliation
                         </h3>
 
                         <form onSubmit={handleRecordPayment} className="space-y-3 bg-emerald-950/10 rounded-xl p-4 border border-emerald-800/30">
-                          <span className="text-xs text-emerald-600 font-semibold block leading-relaxed">
+                          <span className="text-xs text-emerald-600 font-medium block leading-relaxed">
                             Log a manually confirmed MTN MoMo transfer, banking deposit, or cash transaction to unlock metrics.
                           </span>
 
@@ -1869,7 +1869,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                 required
                                 value={paymentAmount}
                                 onChange={(e) => setPaymentAmount(e.target.value)}
-                                className="w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 outline-none text-slate-900 font-bold focus:border-red-500"
+                                className="w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 outline-none text-slate-900 font-semibold focus:border-red-500"
                               />
                             </div>
                             <div>
@@ -1902,7 +1902,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                             id="btn_confirm_reconcile"
                             type="submit"
                             disabled={submittingPayment}
-                            className="w-full text-center min-h-12 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 font-bold text-base shadow-lg shadow-emerald-600/10 transition-colors flex items-center justify-center space-x-1 cursor-pointer"
+                            className="w-full text-center min-h-12 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 font-semibold text-base shadow-lg shadow-emerald-600/10 transition-colors flex items-center justify-center space-x-1 cursor-pointer"
                           >
                             {submittingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <span>Record Ledger Payment & Clear pending</span>}
                           </button>
@@ -1912,7 +1912,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                     {/* Historical Status Timeline & Payment History logs */}
                     <div className="space-y-4 border-t border-slate-200 pt-6">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
                         <Clock className="h-4.5 w-4.5" /> Event Timeline History ({selectedOrderDetails.history.length})
                       </h3>
 
@@ -1921,7 +1921,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                           <div key={log.id} className="relative pl-4 text-xs font-sans text-slate-500 space-y-1">
                             <div className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-slate-300 border border-white"></div>
                             <div className="flex items-center justify-between">
-                              <span className="font-bold text-slate-900 capitalize">{log.status.replace('_', ' ')}</span>
+                              <span className="font-semibold text-slate-900 capitalize">{log.status.replace('_', ' ')}</span>
                               <span className="text-xs text-slate-500 font-mono">{new Date(log.changedAt).toLocaleString()}</span>
                             </div>
                             <p className="text-slate-600 leading-relaxed">{log.note}</p>

@@ -30,6 +30,22 @@ import GhanaMap from './GhanaMap.js';
  * not one of them answers a question a customer is actually asking.
  */
 
+/**
+ * A figure inside a sentence.
+ *
+ * Nothing but a weight and colour change — the number keeps its place in the
+ * prose, so the sentence still reads normally out loud, but the figures can be
+ * found without reading it. tabular-nums so a changing price does not shuffle
+ * the words around it.
+ */
+function Num({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
+  return (
+    <span className={`font-semibold tabular-nums ${dark ? 'text-white' : 'text-slate-900'}`}>
+      {children}
+    </span>
+  );
+}
+
 /** The status flow a parcel moves through, in customer words. */
 const FLOW = ['Booked', 'Confirmed', 'Collected', 'On the road', 'Delivered'];
 
@@ -117,13 +133,13 @@ export default function Home() {
 
             <div>
               <Reveal>
-                <span className="text-sm font-semibold uppercase tracking-widest text-red-400">
+                <span className="text-sm font-medium uppercase tracking-widest text-red-400">
                   We deliver trust
                 </span>
               </Reveal>
 
               <Reveal delay={70}>
-                <h1 className="mt-4 font-display text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[0.95] text-balance">
+                <h1 className="mt-4 font-display text-5xl sm:text-6xl lg:text-7xl font-semibold tracking-tight leading-[0.95] text-balance">
                   Anywhere in Ghana.
                   <span className="block text-red-400">One rate.</span>
                 </h1>
@@ -131,9 +147,9 @@ export default function Home() {
 
               <Reveal delay={130}>
                 <p className="mt-6 text-lg sm:text-xl text-white/70 max-w-md leading-relaxed">
-                  {formatAmount(rule.baseAmount, rule.currency)} for any parcel up to{' '}
-                  {rule.includedKg}kg, collected anywhere in Accra. The distance is our
-                  problem, not your bill.
+                  <Num dark>{formatAmount(rule.baseAmount, rule.currency)}</Num> for any
+                  parcel up to <Num dark>{rule.includedKg}kg</Num>, collected anywhere in
+                  Accra. The distance is our problem, not your bill.
                 </p>
               </Reveal>
 
@@ -148,7 +164,7 @@ export default function Home() {
                   </Link>
                   <a
                     href={`tel:${CONTACT_PHONE_E164}`}
-                    className="inline-flex items-center justify-center gap-2.5 rounded-[14px] border border-white/20 bg-white/5 px-6 py-3 text-[15px] font-semibold text-white hover:border-white/40 hover:bg-white/10 transition-colors"
+                    className="inline-flex items-center justify-center gap-2.5 rounded-[14px] border border-white/20 bg-white/5 px-6 py-3 text-[15px] font-medium text-white hover:border-white/40 hover:bg-white/10 transition-colors"
                   >
                     <Phone className="h-4 w-4 text-red-400" />
                     {CONTACT_PHONE}
@@ -165,7 +181,7 @@ export default function Home() {
                   ].map(([value, label]) => (
                     <div key={label}>
                       <dt className="text-sm text-white/50">{label}</dt>
-                      <dd className="text-2xl font-bold tabular-nums">{value}</dd>
+                      <dd className="text-2xl font-semibold tabular-nums">{value}</dd>
                     </div>
                   ))}
                 </dl>
@@ -190,16 +206,16 @@ export default function Home() {
           <Reveal>
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <span className="text-sm font-semibold uppercase tracking-widest text-red-600">
+                <span className="text-sm font-medium uppercase tracking-widest text-red-600">
                   Before you pack
                 </span>
-                <h2 className="mt-2 font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                <h2 className="mt-2 font-display text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
                   Things we cannot carry.
                 </h2>
               </div>
               <Link
                 to="/policy"
-                className="inline-flex items-center gap-2 min-h-11 text-[15px] font-bold text-red-700 hover:underline"
+                className="inline-flex items-center gap-2 min-h-11 text-[15px] font-semibold text-red-700 hover:underline"
               >
                 Full terms
                 <ArrowRight className="h-4 w-4" />
@@ -226,7 +242,7 @@ export default function Home() {
                       className="absolute left-1/2 top-1/2 h-0.5 w-9 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full bg-red-500/80"
                     />
                   </span>
-                  <span className="mt-3 text-[13px] font-semibold text-slate-800 leading-snug">
+                  <span className="mt-3 text-[13px] font-medium text-slate-800 leading-snug">
                     {item.label}
                   </span>
                 </li>
@@ -244,7 +260,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
           <Reveal>
             <form onSubmit={track} className="flex flex-col sm:flex-row gap-3 sm:items-center">
-              <label htmlFor="home_track" className="text-base font-semibold text-slate-900 sm:shrink-0">
+              <label htmlFor="home_track" className="text-base font-medium text-slate-900 sm:shrink-0">
                 Already sent something?
               </label>
               <div className="relative flex-1">
@@ -259,7 +275,7 @@ export default function Home() {
               </div>
               <button
                 type="submit"
-                className="min-h-12 px-6 rounded-xl bg-slate-900 text-white text-[15px] font-semibold hover:bg-slate-800 transition-colors cursor-pointer"
+                className="min-h-12 px-6 rounded-xl bg-slate-900 text-white text-[15px] font-medium hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Track it
               </button>
@@ -274,19 +290,20 @@ export default function Home() {
           <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-start">
             <Reveal>
               <div>
-                <span className="text-sm font-semibold uppercase tracking-widest text-red-600">What it costs</span>
-                <h2 className="mt-3 font-display text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight text-balance">
+                <span className="text-sm font-medium uppercase tracking-widest text-red-600">What it costs</span>
+                <h2 className="mt-3 font-display text-3xl sm:text-4xl font-semibold text-slate-900 tracking-tight text-balance">
                   Published in full, so you can check it.
                 </h2>
-                <p className="mt-4 text-lg text-slate-600 max-w-lg">
-                  {formatAmount(rule.baseAmount, rule.currency)} covers any parcel up to{' '}
-                  {rule.includedKg}kg. Above that, each extra kilo is{' '}
-                  {formatAmount(rule.perExtraKgAmount, rule.currency)}, and part kilos round
-                  up to the next whole kilo. No distance charge, no surcharge, no asterisk.
+                <p className="mt-4 text-lg text-slate-600 max-w-lg leading-relaxed">
+                  <Num>{formatAmount(rule.baseAmount, rule.currency)}</Num> covers any parcel
+                  up to <Num>{rule.includedKg}kg</Num>. Above that, each extra kilo is{' '}
+                  <Num>{formatAmount(rule.perExtraKgAmount, rule.currency)}</Num>, and part
+                  kilos round up to the next whole kilo. No distance charge, no surcharge,
+                  no asterisk.
                 </p>
                 <Link
                   to="/book"
-                  className="mt-7 inline-flex items-center gap-2 min-h-12 text-base font-bold text-red-700 hover:underline"
+                  className="mt-7 inline-flex items-center gap-2 min-h-12 text-base font-semibold text-red-700 hover:underline"
                 >
                   Get a price for your parcel
                   <ArrowRight className="h-4 w-4" />
@@ -300,8 +317,8 @@ export default function Home() {
                   <caption className="sr-only">Delivery price by parcel weight</caption>
                   <thead>
                     <tr className="border-b border-slate-200">
-                      <th scope="col" className="px-5 py-3 text-sm font-semibold text-slate-500">Weight</th>
-                      <th scope="col" className="px-5 py-3 text-sm font-semibold text-slate-500 text-right">Charge</th>
+                      <th scope="col" className="px-5 py-3 text-sm font-medium text-slate-500">Weight</th>
+                      <th scope="col" className="px-5 py-3 text-sm font-medium text-slate-500 text-right">Charge</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -310,7 +327,7 @@ export default function Home() {
                         <td className="px-5 py-3.5 text-base text-slate-700">
                           {kg <= rule.includedKg ? `Up to ${rule.includedKg}kg` : `${kg}kg`}
                         </td>
-                        <td className="px-5 py-3.5 text-base font-semibold text-slate-900 text-right tabular-nums">
+                        <td className="px-5 py-3.5 text-base font-medium text-slate-900 text-right tabular-nums">
                           {formatAmount(quote(kg, rule).total, rule.currency)}
                         </td>
                       </tr>
@@ -330,7 +347,7 @@ export default function Home() {
             <div className="rounded-2xl bg-slate-900 text-white p-8 sm:p-12 grid gap-8 md:grid-cols-[1.3fr_1fr] md:items-center">
               <div>
                 <PackageCheck className="h-7 w-7 text-red-400" aria-hidden="true" />
-                <h2 className="mt-4 font-display text-2xl sm:text-3xl font-bold tracking-tight text-balance">
+                <h2 className="mt-4 font-display text-2xl sm:text-3xl font-semibold tracking-tight text-balance">
                   Got something that needs to be there?
                 </h2>
                 <p className="mt-3 text-lg text-white/70 max-w-md">
@@ -341,13 +358,13 @@ export default function Home() {
               <div className="flex flex-col gap-3">
                 <Link
                   to="/book"
-                  className="flex items-center justify-center min-h-12 rounded-xl bg-red-600 hover:bg-red-500 text-[15px] font-bold transition-colors"
+                  className="flex items-center justify-center min-h-12 rounded-xl bg-red-600 hover:bg-red-500 text-[15px] font-semibold transition-colors"
                 >
                   Book a delivery
                 </Link>
                 <a
                   href={`tel:${CONTACT_PHONE_E164}`}
-                  className="flex items-center justify-center gap-2.5 min-h-12 rounded-xl border border-white/20 hover:border-white/40 hover:bg-white/5 text-[15px] font-semibold transition-colors"
+                  className="flex items-center justify-center gap-2.5 min-h-12 rounded-xl border border-white/20 hover:border-white/40 hover:bg-white/5 text-[15px] font-medium transition-colors"
                 >
                   <Phone className="h-5 w-5" />
                   {CONTACT_PHONE}

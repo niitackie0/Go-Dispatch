@@ -78,7 +78,7 @@ export default function RegionPicker({ value, onChange, id }: RegionPickerProps)
           <span className="min-w-0">
             {value ? (
               <>
-                <span className="block text-base font-semibold text-slate-900">{value} Region</span>
+                <span className="block text-base font-medium text-slate-900">{value} Region</span>
                 <span className="block text-sm text-slate-500 truncate">{selected?.towns.join(' · ')}</span>
               </>
             ) : (
@@ -86,7 +86,7 @@ export default function RegionPicker({ value, onChange, id }: RegionPickerProps)
             )}
           </span>
         </span>
-        <span className="text-sm font-semibold text-red-700 shrink-0">{value ? 'Change' : 'Select'}</span>
+        <span className="text-sm font-medium text-red-700 shrink-0">{value ? 'Change' : 'Select'}</span>
       </button>
 
       {open && (
@@ -107,7 +107,7 @@ export default function RegionPicker({ value, onChange, id }: RegionPickerProps)
           >
             <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-200">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Where is it going?</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Where is it going?</h2>
                 <p className="text-sm text-slate-500 mt-0.5">
                   We collect anywhere in Accra and deliver to these regions.
                 </p>
@@ -136,7 +136,7 @@ export default function RegionPicker({ value, onChange, id }: RegionPickerProps)
                       }`}
                     >
                       <span className="min-w-0">
-                        <span className={`block text-base font-semibold ${active ? 'text-red-700' : 'text-slate-900'}`}>
+                        <span className={`block text-base font-medium ${active ? 'text-red-700' : 'text-slate-900'}`}>
                           {region.name}
                         </span>
                         {/* The towns are what the flyer advertises, so they are

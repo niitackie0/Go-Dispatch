@@ -139,7 +139,7 @@ export default function Reports({ token, user }: ReportsProps) {
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       <div>
-        <h2 className="text-lg font-bold text-slate-900">Reports</h2>
+        <h2 className="text-lg font-semibold text-slate-900">Reports</h2>
         <p className="text-sm text-slate-500 mt-1 max-w-2xl">
           Downloads cover the whole date range, not just what is on screen. Figures are
           generated fresh each time, so a report always matches the database.
@@ -150,7 +150,7 @@ export default function Reports({ token, user }: ReportsProps) {
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
           <div>
-            <label htmlFor="report_from" className="block text-sm font-semibold text-slate-500 mb-1">From</label>
+            <label htmlFor="report_from" className="block text-sm font-medium text-slate-500 mb-1">From</label>
             <input
               id="report_from"
               type="date"
@@ -161,7 +161,7 @@ export default function Reports({ token, user }: ReportsProps) {
             />
           </div>
           <div>
-            <label htmlFor="report_to" className="block text-sm font-semibold text-slate-500 mb-1">To</label>
+            <label htmlFor="report_to" className="block text-sm font-medium text-slate-500 mb-1">To</label>
             <input
               id="report_to"
               type="date"
@@ -176,7 +176,7 @@ export default function Reports({ token, user }: ReportsProps) {
               <button
                 key={p.label}
                 onClick={() => applyPreset(p.days)}
-                className="min-h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                className="min-h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 {p.label}
               </button>
@@ -194,7 +194,7 @@ export default function Reports({ token, user }: ReportsProps) {
 
       {/* What is in the range, before anyone downloads it. */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="text-sm font-semibold text-slate-500">In this range</h3>
+        <h3 className="text-sm font-medium text-slate-500">In this range</h3>
         {loading ? (
           <div className="flex py-6 justify-center"><Loader2 className="h-5 w-5 animate-spin text-red-600" /></div>
         ) : summary ? (
@@ -209,7 +209,7 @@ export default function Reports({ token, user }: ReportsProps) {
             ].map(([label, value]) => (
               <div key={label as string}>
                 <dt className="text-sm text-slate-500">{label}</dt>
-                <dd className="text-xl font-semibold text-slate-900 tabular-nums">{value}</dd>
+                <dd className="text-xl font-medium text-slate-900 tabular-nums">{value}</dd>
               </div>
             ))}
           </dl>
@@ -221,12 +221,12 @@ export default function Reports({ token, user }: ReportsProps) {
         {REPORTS.map((r) => (
           <div key={r.path} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col">
             <FileSpreadsheet className="h-5 w-5 text-red-600" />
-            <h3 className="mt-3 text-base font-bold text-slate-900">{r.title}</h3>
+            <h3 className="mt-3 text-base font-semibold text-slate-900">{r.title}</h3>
             <p className="mt-1 text-sm text-slate-500 flex-1">{r.body}</p>
             <button
               onClick={() => download(r.path, r.name)}
               disabled={downloading === r.path}
-              className="mt-4 w-full min-h-11 inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 text-sm font-bold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 cursor-pointer"
+              className="mt-4 w-full min-h-11 inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 cursor-pointer"
             >
               {downloading === r.path
                 ? <Loader2 className="h-4 w-4 animate-spin" />

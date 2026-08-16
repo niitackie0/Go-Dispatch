@@ -113,7 +113,7 @@ export default function GhanaMap({ onSelect, className = '' }: GhanaMapProps) {
                 className="fill-white"
                 style={{
                   fontSize: 13,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   paintOrder: 'stroke',
                   stroke: 'rgba(10,6,7,.78)',
                   strokeWidth: 3,
@@ -135,7 +135,7 @@ export default function GhanaMap({ onSelect, className = '' }: GhanaMapProps) {
               className="fill-white"
               style={{
                 fontSize: 13.5,
-                fontWeight: 800,
+                fontWeight: 700,
                 paintOrder: 'stroke',
                 stroke: 'rgba(10,6,7,.78)',
                 strokeWidth: 3,
@@ -176,7 +176,7 @@ export default function GhanaMap({ onSelect, className = '' }: GhanaMapProps) {
       <p className="mt-2 min-h-6 text-center text-sm" aria-live="polite">
         {active ? (
           <>
-            <span className="font-semibold text-white">{active}</span>
+            <span className="font-medium text-white">{active}</span>
             <span className="text-white/50"> — {townsFor(active)}</span>
           </>
         ) : (
