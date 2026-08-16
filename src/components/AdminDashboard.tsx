@@ -79,8 +79,8 @@ type SubTab = 'overview' | 'pipeline' | 'payments' | 'pricing' | 'staff' | 'acco
 /**
  * The console's sections, in sidebar order.
  *
- * One list drives all three places a section is named — the desktop sidebar,
- * the mobile section menu, and the page heading — so they cannot drift apart.
+ * One list drives all three places a section is named — the desktop sidebar,
+ * the mobile section menu, and the page heading — so they cannot drift apart.
  * `capability` gates visibility; a section without one is open to every role.
  */
 const NAV_ITEMS: {
@@ -310,7 +310,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     }
   }, [activeSubTab, searchFilter, statusFilter, startDateFilter, endDateFilter]);
 
-  // Silent background refresh. Ticks every 30s rather than every second — the
+  // Silent background refresh. Ticks every 30s rather than every second — the
   // old version re-rendered the whole console once a second to decrement a
   // countdown that is no longer shown.
   useEffect(() => {
@@ -513,145 +513,74 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     return STATUS_ORDER.find(item => item.key === s)?.label || s;
   };
 
-  // Advanced calculations for premium analytics
-  const getPast7DaysStats = () => {
-    const days = [];
-    const now = new Date();
-    
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
-      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const startOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-      const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
-      
-      let dailyRevenue = 0;
-      let dailyOrderCount = 0;
-      
-      allPaymentsForStats.forEach(p => {
-        if (p.status === 'success') {
-          const paidTime = new Date(p.paidAt || p.createdAt).getTime();
-          if (paidTime >= startOfDay && paidTime < endOfDay) {
-            dailyRevenue += p.amount;
-          }
-        }
-      });
-
-      allOrdersForStats.forEach(o => {
-        const createdTime = new Date(o.createdAt).getTime();
-        if (createdTime >= startOfDay && createdTime < endOfDay) {
-          dailyOrderCount += 1;
-        }
-      });
-      
-      days.push({
-        label: dateStr,
-        revenueGhs: dailyRevenue / 100,
-        orderCount: dailyOrderCount
-      });
-    }
-    return days;
+  /** "3d", "6h", "45m" — how long something has been sitting. */
+  const formatAge = (iso: string) => {
+    const mins = Math.max(0, (Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 60) return `${Math.floor(mins)}m`;
+    if (mins < 60 * 24) return `${Math.floor(mins / 60)}h`;
+    return `${Math.floor(mins / (60 * 24))}d`;
   };
 
-  const getPast7DaysStatusStats = () => {
-    const daysData = [];
-    const now = new Date();
-    
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
-      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const startOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-      const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
-      
-      const statusCounts: Record<string, number> = {
-        requested: 0,
-        confirmed: 0,
-        queued: 0,
-        picked_up: 0,
-        in_transit: 0,
-        delivered: 0,
-        cancelled: 0,
-      };
-      
-      allOrdersForStats.forEach(o => {
-        const createdTime = new Date(o.createdAt).getTime();
-        if (createdTime >= startOfDay && createdTime < endOfDay) {
-          if (statusCounts[o.status] !== undefined) {
-            statusCounts[o.status] += 1;
-          }
-        }
-      });
-      
-      daysData.push({
-        name: dateStr,
-        ...statusCounts,
-      });
+  /**
+   * Everything the overview shows beyond the raw status counts, derived from
+   * the orders and payments already loaded — no extra endpoint.
+   *
+   * `updatedAt` is the last time an order changed at all, which for a stalled
+   * order is when it entered its current status. That is what "sitting for 3d"
+   * means here; it is not a per-status clock.
+   */
+  const overview = useMemo(() => {
+    const hoursSince = (iso: string) => (Date.now() - new Date(iso).getTime()) / 3_600_000;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const isToday = (iso?: string) => !!iso && new Date(iso) >= startOfToday;
+
+    // Orders that need a human to do something. One reason per order — the
+    // first that matches, most urgent first.
+    const attention = allOrdersForStats
+      .filter((o) => o.status !== 'delivered' && o.status !== 'cancelled')
+      .map((o) => {
+        const idle = hoursSince(o.updatedAt || o.createdAt);
+        let reason: string | null = null;
+        if (o.status === 'awaiting_payment' && idle >= 24) reason = 'Awaiting payment';
+        else if (o.status === 'requested' && idle >= 2) reason = 'Not yet confirmed';
+        else if (o.status === 'queued' && !o.riderName) reason = 'No rider assigned';
+        else if ((o.status === 'picked_up' || o.status === 'in_transit') && idle >= 24) reason = 'On the road over a day';
+        return reason ? { order: o, reason, idle } : null;
+      })
+      .filter((x): x is { order: Order; reason: string; idle: number } => x !== null)
+      .sort((a, b) => b.idle - a.idle);
+
+    // Money owed on orders that are still live. Cancelled orders are not debt.
+    const unpaid = allOrdersForStats.filter(
+      (o) => o.paymentStatus === 'pending' && o.status !== 'cancelled'
+    );
+    const outstanding = unpaid.reduce((sum, o) => sum + o.priceAmount, 0);
+
+    // Who is carrying what right now.
+    const carrying = new Map<string, number>();
+    for (const o of allOrdersForStats) {
+      if (!o.riderName) continue;
+      if (o.status === 'queued' || o.status === 'picked_up' || o.status === 'in_transit') {
+        carrying.set(o.riderName, (carrying.get(o.riderName) ?? 0) + 1);
+      }
     }
-    return daysData;
-  };
-
-  const getKPIs = () => {
-    const finishedOrders = allOrdersForStats.filter(o => o.status === 'delivered' || o.status === 'cancelled');
-    const deliveredCount = allOrdersForStats.filter(o => o.status === 'delivered').length;
-    const totalCount = allOrdersForStats.length;
-    
-    // Delivery success percentage
-    const successRate = finishedOrders.length > 0 ? Math.round((deliveredCount / finishedOrders.length) * 100) : 100;
-    
-    // Average Order Value (AOV) in GHS
-    const paidOrders = allOrdersForStats.filter(o => o.paymentStatus === 'paid');
-    const totalPaidSum = paidOrders.reduce((sum, o) => sum + o.priceAmount, 0) / 100;
-    const aov = paidOrders.length > 0 ? (totalPaidSum / paidOrders.length) : 0;
-    
-    // Package size breakdown
-    const smallCount = allOrdersForStats.filter(o => o.packageSize === 'small').length;
-    const mediumCount = allOrdersForStats.filter(o => o.packageSize === 'medium').length;
-    const largeCount = allOrdersForStats.filter(o => o.packageSize === 'large').length;
-    
-    // Payment provider preferences
-    const momoCount = allPaymentsForStats.filter(p => p.provider === 'momo' && p.status === 'success').length;
-    const cashCount = allPaymentsForStats.filter(p => p.provider === 'manual' && p.status === 'success').length;
-    const totalPaidCount = momoCount + cashCount || 1;
-    const momoPercent = Math.round((momoCount / totalPaidCount) * 100);
-    const cashPercent = 100 - momoPercent;
-
-    // Suburb Location analysis
-    const locations = ['Airport', 'East Legon', 'Labone', 'Osu', 'Spintex', 'Madina', 'Tema', 'Dzorwulu', 'Kokomlemle'];
-    const locationCounts: { [key: string]: number } = {};
-    locations.forEach(loc => locationCounts[loc] = 0);
-    
-    allOrdersForStats.forEach(o => {
-      const addr = `${o.pickupAddress} ${o.dropoffAddress}`.toLowerCase();
-      locations.forEach(loc => {
-        if (addr.includes(loc.toLowerCase())) {
-          locationCounts[loc] += 1;
-        }
-      });
-    });
-    
-    const topLocations = Object.entries(locationCounts)
+    const riders = [...carrying.entries()]
       .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .filter(x => x.count > 0)
-      .slice(0, 4);
+      .sort((a, b) => b.count - a.count);
 
     return {
-      successRate,
-      aov,
-      totalCount,
-      sizes: {
-        small: { count: smallCount, pct: totalCount > 0 ? Math.round((smallCount / totalCount) * 100) : 0 },
-        medium: { count: mediumCount, pct: totalCount > 0 ? Math.round((mediumCount / totalCount) * 105) : 0 }, // slightly adjusted to look premium
-        large: { count: largeCount, pct: totalCount > 0 ? Math.round((largeCount / totalCount) * 100) : 0 }
+      attention,
+      outstanding,
+      unpaidCount: unpaid.length,
+      today: {
+        booked: allOrdersForStats.filter((o) => isToday(o.createdAt)).length,
+        delivered: allOrdersForStats.filter((o) => o.status === 'delivered' && isToday(o.updatedAt)).length,
+        cancelled: allOrdersForStats.filter((o) => o.status === 'cancelled' && isToday(o.updatedAt)).length,
       },
-      payments: {
-        momo: { count: momoCount, pct: momoPercent },
-        cash: { count: cashCount, pct: cashPercent }
-      },
-      topLocations
+      riders,
     };
-  };
+  }, [allOrdersForStats]);
 
   return (
     <div className="w-full min-h-screen bg-[#F5F8FE] relative text-[#e4e4e7]" id="admin_dashboard_container">
@@ -659,7 +588,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
       {/* Sidebar on desktop, section menu on mobile */}
       <div className="flex min-h-screen">
 
-        {/* Desktop sidebar. Hidden below lg — phones use the header menu instead
+        {/* Desktop sidebar. Hidden below lg — phones use the header menu instead
             of a full-width nav block stacked above the content. */}
         <aside className="hidden lg:flex w-72 shrink-0 p-5 border-r border-slate-200 bg-white sticky top-0 h-[100dvh] flex-col justify-between overflow-y-auto">
           {/* Top Section */}
@@ -796,7 +725,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               </div>
             </div>
 
-            {/* Mobile section menu — the dropdown that replaces the stacked
+            {/* Mobile section menu — the dropdown that replaces the stacked
                 sidebar. Only rendered below lg. */}
             {sectionMenuOpen && (
               <nav className="lg:hidden mt-2 pb-1 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
@@ -839,72 +768,181 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             <div className="flex py-12 justify-center"><Loader2 className="h-8 w-8 text-violet-600 animate-spin" /></div>
           ) : (
             <>
-              {/* Revenue cards — omitted entirely for roles without revenue:read.
+              {/* Needs attention — first, because it is the only block on this
+                  screen that asks the reader to do something. Everything below
+                  is a readout; this is a queue. */}
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-200">
+                  <h2 className="text-base font-semibold text-slate-900">Needs attention</h2>
+                  {overview.attention.length > 0 && (
+                    <span className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-sm font-bold text-amber-700 tabular-nums">
+                      {overview.attention.length}
+                    </span>
+                  )}
+                </div>
+
+                {overview.attention.length === 0 ? (
+                  <div className="px-5 py-8 text-center">
+                    <CheckCircle className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-slate-700">Nothing is stuck</p>
+                    <p className="text-sm text-slate-500 mt-0.5">
+                      No unpaid, unconfirmed or unassigned orders waiting.
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-slate-200">
+                    {overview.attention.slice(0, 6).map(({ order, reason }) => (
+                      <li key={order.id}>
+                        <button
+                          onClick={() => setSelectedOrderId(order.id)}
+                          className="w-full min-h-14 flex items-center justify-between gap-3 px-5 py-3 text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                        >
+                          <span className="min-w-0">
+                            <span className="font-mono text-sm font-bold text-slate-900 block">
+                              {order.trackingCode}
+                            </span>
+                            <span className="text-sm text-slate-500 truncate block">{reason}</span>
+                          </span>
+                          <span className="shrink-0 flex items-center gap-2">
+                            <span className="text-sm font-semibold text-amber-700 tabular-nums">
+                              {formatAge(order.updatedAt || order.createdAt)}
+                            </span>
+                            <ChevronRight className="h-4 w-4 text-slate-400" />
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {overview.attention.length > 6 && (
+                  <button
+                    onClick={() => goToSection('pipeline')}
+                    className="w-full min-h-12 border-t border-slate-200 text-sm font-semibold text-violet-700 hover:bg-violet-50 transition-colors cursor-pointer rounded-b-2xl"
+                  >
+                    View all {overview.attention.length} on the dispatch board
+                  </button>
+                )}
+              </div>
+
+              {/* The day so far, money owed, and who is out. Outstanding is
+                  money, so it follows the same revenue gate as the cards. */}
+              <div className={`grid grid-cols-1 gap-4 ${canSeeRevenue ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-sm font-semibold text-slate-500">Today</h3>
+                  <dl className="mt-3 space-y-2">
+                    {([
+                      ['Booked', overview.today.booked],
+                      ['Delivered', overview.today.delivered],
+                      ['Cancelled', overview.today.cancelled],
+                    ] as const).map(([label, value]) => (
+                      <div key={label} className="flex items-baseline justify-between">
+                        <dt className="text-base text-slate-600">{label}</dt>
+                        <dd className="text-xl font-semibold text-slate-900 tabular-nums">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+
+                {canSeeRevenue && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h3 className="text-sm font-semibold text-slate-500">Outstanding</h3>
+                    <p className="mt-3 text-3xl font-semibold text-slate-900 tabular-nums tracking-tight">
+                      GHS {(overview.outstanding / 100).toFixed(2)}
+                    </p>
+                    <p className="mt-1.5 text-sm text-slate-500">
+                      {overview.unpaidCount === 0
+                        ? 'Everything live is paid for'
+                        : `Across ${overview.unpaidCount} unpaid order${overview.unpaidCount === 1 ? '' : 's'}`}
+                    </p>
+                  </div>
+                )}
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-sm font-semibold text-slate-500">On the road</h3>
+                  {overview.riders.length === 0 ? (
+                    <p className="mt-3 text-base text-slate-500">No riders carrying parcels.</p>
+                  ) : (
+                    <ul className="mt-3 space-y-2">
+                      {overview.riders.map((r) => (
+                        <li key={r.name} className="flex items-baseline justify-between gap-3">
+                          <span className="flex items-center gap-2 min-w-0">
+                            <Truck className="h-4 w-4 text-violet-500 shrink-0" />
+                            <span className="text-base text-slate-700 truncate">{r.name}</span>
+                          </span>
+                          <span className="text-base font-semibold text-slate-900 tabular-nums shrink-0">
+                            {r.count}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {/* Revenue cards — omitted entirely for roles without revenue:read.
                   The server does not send the figures to them, so rendering the
                   cards would show GHS 0.00, which reads as "you earned nothing"
                   rather than "this is not yours to see". */}
               {canSeeRevenue && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 
                 {/* Today */}
-                <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-xl relative overflow-hidden transition-all duration-300 hover:border-violet-400 hover:shadow-violet-500/10 hover:-translate-y-0.5">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full pointer-events-none" />
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-xs uppercase tracking-widest font-mono text-slate-500 font-bold block">Today's Revenue</span>
-                      <span className="text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
+                      <span className="text-sm font-semibold text-slate-500 block">Revenue today</span>
+                      <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
                         GHS {((stats?.revenue?.today || 0) / 100).toFixed(2)}
                       </span>
                       <span className="text-xs text-emerald-600 font-semibold mt-1.5 flex items-center gap-1">
-                        <TrendingUp className="h-3 w-3" /> Settled Mobile Money / Cash
+                        Settled today
                       </span>
                     </div>
                   </div>
                 </div>
 
                 {/* Week */}
-                <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-xl relative overflow-hidden transition-all duration-300 hover:border-violet-400 hover:shadow-violet-500/10 hover:-translate-y-0.5">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full pointer-events-none" />
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-xs uppercase tracking-widest font-mono text-slate-500 font-bold block">Weekly Revenue</span>
-                      <span className="text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
+                      <span className="text-sm font-semibold text-slate-500 block">Revenue this week</span>
+                      <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
                         GHS {((stats?.revenue?.week || 0) / 100).toFixed(2)}
                       </span>
                       <span className="text-xs text-slate-500 font-medium mt-1.5 block">
-                        Past 7 trailing calendar days
+                        Trailing 7 days
                       </span>
                     </div>
                   </div>
                 </div>
 
                 {/* Month */}
-                <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-xl relative overflow-hidden transition-all duration-300 hover:border-violet-400 hover:shadow-violet-500/10 hover:-translate-y-0.5">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full pointer-events-none" />
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-xs uppercase tracking-widest font-mono text-slate-500 font-bold block">Monthly Revenue</span>
-                      <span className="text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
+                      <span className="text-sm font-semibold text-slate-500 block">Revenue this month</span>
+                      <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
                         GHS {((stats?.revenue?.month || 0) / 100).toFixed(2)}
                       </span>
                       <span className="text-xs text-slate-500 font-medium mt-1.5 block">
-                        Past 30 calendar days
+                        Trailing 30 days
                       </span>
                     </div>
                   </div>
                 </div>
 
                 {/* All Time */}
-                <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-xl relative overflow-hidden transition-all duration-300 hover:border-violet-400 hover:shadow-violet-500/10 hover:-translate-y-0.5">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full pointer-events-none" />
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-xs uppercase tracking-widest font-mono text-slate-500 font-bold block">All Time Collected</span>
-                      <span className="text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
+                      <span className="text-sm font-semibold text-slate-500 block">Collected all time</span>
+                      <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 mt-1 block tracking-tight tabular-nums">
                         GHS {((stats?.revenue?.allTime || 0) / 100).toFixed(2)}
                       </span>
                       <span className="text-xs text-slate-500 font-medium mt-1.5 block">
-                        Entire operational database sum
+                        Every settled payment
                       </span>
                     </div>
                   </div>
@@ -913,7 +951,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               </div>
               )}
 
-              {/* Dispatch pipeline — one card: distribution bar + clickable status segments */}
+              {/* Dispatch pipeline — one card: distribution bar + clickable status segments */}
               {(() => {
                 const rows = STATUS_ORDER.map((s) => ({ ...s, count: stats?.counts[s.key] || 0 }));
                 const total = rows.reduce((sum, s) => sum + s.count, 0);
@@ -1103,7 +1141,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                             </span>
                           </div>
 
-                          {/* Full addresses — no truncation, this is the screen
+                          {/* Full addresses — no truncation, this is the screen
                               a rider or dispatcher actually reads them from. */}
                           <div className="text-sm space-y-1">
                             <p className="text-slate-800">{order.pickupAddress}</p>
@@ -1216,7 +1254,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                 ) : order.status === 'awaiting_payment' ? (
                                   <span
                                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-600"
-                                    title="Payment-gated — confirms automatically once payment is received"
+                                    title="Payment-gated — confirms automatically once payment is received"
                                   >
                                     <Clock className="h-4 w-4" />
                                     Auto on payment
@@ -1637,7 +1675,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                             </button>
                           </div>
                           <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                            Send this to the courier — they can mark picked up, in transit and delivered themselves,
+                            Send this to the courier — they can mark picked up, in transit and delivered themselves,
                             without a dashboard login.
                           </p>
                         </div>
@@ -1690,7 +1728,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       </div>
                     </div>
 
-                    {/* CONTROL BOX: Transition workflow status — write roles only */}
+                    {/* CONTROL BOX: Transition workflow status — write roles only */}
                     {canWriteOrders && (
                     <div className="space-y-4 border-t border-slate-200 pt-6">
                       <h3 className="text-xs font-bold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
@@ -1748,7 +1786,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     </div>
                     )}
 
-                    {/* CONTROL BOX: Mark payment as paid manually — finance/owner only */}
+                    {/* CONTROL BOX: Mark payment as paid manually — finance/owner only */}
                     {canRecordPayment && selectedOrderDetails.order.paymentStatus !== 'paid' && (
                       <div className="space-y-4 border-t border-slate-200 pt-6">
                         <h3 className="text-xs font-bold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
