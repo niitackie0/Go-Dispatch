@@ -33,13 +33,76 @@ import GhanaMap from './GhanaMap.js';
 /** The status flow a parcel moves through, in customer words. */
 const FLOW = ['Booked', 'Confirmed', 'Collected', 'On the road', 'Delivered'];
 
-const WONT_CARRY = [
-  'Cash and bank cards',
-  'Firearms and ammunition',
-  'Illegal or controlled drugs',
-  'Live animals',
-  'Flammable or corrosive goods',
-  'Perishable food, unarranged',
+/**
+ * What we will not carry, drawn.
+ *
+ * Hand-authored SVG rather than an icon-set lookup: several of these — a
+ * banknote, a firearm, a jerrycan — either do not exist in the set the rest of
+ * the app uses or arrive in a different weight, and a row of six symbols is
+ * exactly where a mismatch shows. All are 40x40, 1.7 stroke, round caps.
+ */
+const S = { width: 40, height: 40, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+
+const PROHIBITED: { label: string; icon: React.ReactNode }[] = [
+  {
+    label: 'Cash and bank cards',
+    icon: (
+      <svg {...S} aria-hidden="true">
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <circle cx="12" cy="12" r="2.6" />
+        <path d="M5 9v6M19 9v6" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Firearms and ammunition',
+    icon: (
+      <svg {...S} aria-hidden="true">
+        <path d="M3 9h13l3 3h2v3h-6l-2-2H9v4H6v-4H3z" />
+        <path d="M8 15l-2 5" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Drugs and controlled substances',
+    icon: (
+      <svg {...S} aria-hidden="true">
+        <rect x="2.5" y="9" width="19" height="6.5" rx="3.25" transform="rotate(-30 12 12)" />
+        <path d="M8.6 7.4l6.8 6.8" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Live animals',
+    icon: (
+      <svg {...S} aria-hidden="true">
+        <ellipse cx="12" cy="15.5" rx="4" ry="3.3" />
+        <ellipse cx="6.4" cy="10.6" rx="1.9" ry="2.5" />
+        <ellipse cx="17.6" cy="10.6" rx="1.9" ry="2.5" />
+        <ellipse cx="9.6" cy="6.6" rx="1.8" ry="2.3" />
+        <ellipse cx="14.4" cy="6.6" rx="1.8" ry="2.3" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Flammable or corrosive goods',
+    icon: (
+      <svg {...S} aria-hidden="true">
+        <path d="M7 8h8l2 3v9a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1z" />
+        <path d="M10 8V5h4v3" />
+        <path d="M12 13c-1.2 1.2-1.6 2-1.6 2.8a1.6 1.6 0 0 0 3.2 0c0-.8-.4-1.6-1.6-2.8z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Perishable food, unarranged',
+    icon: (
+      <svg {...S} aria-hidden="true">
+        <path d="M12 8.5c2.6-2.6 8 0 6.4 5.2C17.3 17.4 14 20 12 20s-5.3-2.6-6.4-6.3C4 8.5 9.4 5.9 12 8.5z" />
+        <path d="M12 8.5V5.5M12 5.5c1.6 0 2.6-1 2.8-2.3-1.5-.2-2.6.7-2.8 2.3z" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Home() {
@@ -150,6 +213,55 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ---------------- WHAT WE WON'T CARRY ----------------
+          Directly under the hero, because it is the first thing that can waste
+          somebody's trip. Each item is drawn rather than bulleted — a symbol is
+          read faster than a line of text, and this list is meant to be scanned,
+          not studied. */}
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 sm:py-16">
+          <Reveal>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <span className="text-sm font-semibold uppercase tracking-widest text-red-600">
+                  Before you pack
+                </span>
+                <h2 className="mt-2 font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                  Six things we cannot carry.
+                </h2>
+              </div>
+              <Link
+                to="/policy"
+                className="inline-flex items-center gap-2 min-h-11 text-base font-bold text-red-700 hover:underline"
+              >
+                Full terms
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </Reveal>
+
+          <ul className="mt-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {PROHIBITED.map((item, i) => (
+              <Reveal key={item.label} delay={i * 60}>
+                <li className="group h-full rounded-2xl border border-slate-200 bg-[var(--wp-bg)] p-5 flex flex-col items-center text-center transition-colors hover:border-red-200 hover:bg-red-50/40">
+                  <span className="relative text-slate-400 group-hover:text-red-500 transition-colors">
+                    {item.icon}
+                    {/* The bar that makes it a prohibition rather than a category. */}
+                    <span
+                      aria-hidden="true"
+                      className="absolute left-1/2 top-1/2 h-0.5 w-11 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full bg-red-500/80"
+                    />
+                  </span>
+                  <span className="mt-3 text-sm font-semibold text-slate-800 leading-snug">
+                    {item.label}
+                  </span>
+                </li>
+              </Reveal>
+            ))}
+          </ul>
+        </div>
+      </section>
+
       {/* ---------------- TRACK ----------------
           A working tracking box, high on the page. Checking a parcel is the
           most common reason anyone comes back to a courier's site; making them
@@ -180,68 +292,6 @@ export default function Home() {
             </form>
           </Reveal>
         </div>
-      </section>
-
-      {/* ---------------- THE ROAD ----------------
-          Nine regions as stops on one road out of Accra. A list of towns is a
-          list; the same towns on a road read as a network. */}
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
-        <Reveal>
-          <div className="max-w-2xl">
-            <span className="text-sm font-semibold uppercase tracking-widest text-red-600">Where we go</span>
-            <h2 className="mt-3 font-display text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight text-balance">
-              One road out of Accra, nine regions along it.
-            </h2>
-            <p className="mt-4 text-lg text-slate-600">
-              We collect anywhere in the city. Everything below is the same flat rate.
-            </p>
-          </div>
-        </Reveal>
-
-        <ol className="mt-12 relative">
-          <span aria-hidden="true" className="road-line absolute left-[11px] top-2 bottom-2 w-0.5" />
-
-          <li className="relative pl-10 pb-8">
-            <span
-              aria-hidden="true"
-              className="absolute left-0 top-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 ring-4 ring-[var(--wp-bg)]"
-            >
-              <span className="h-2 w-2 rounded-full bg-white" />
-            </span>
-            <Reveal as="left">
-              <span className="block text-lg font-bold text-slate-900">Accra</span>
-              <span className="block text-base text-slate-500">
-                Adabraka, closer to Odorna Clinic — collection from anywhere in the city
-              </span>
-            </Reveal>
-          </li>
-
-          {REGIONS.map((region, i) => (
-            <li key={region.name} className="relative pl-10 pb-8 last:pb-0">
-              <span
-                aria-hidden="true"
-                className="absolute left-[5px] top-2 h-3.5 w-3.5 rounded-full border-2 border-red-500 bg-[var(--wp-bg)]"
-              />
-              <Reveal as="left" delay={i * 55}>
-                <span className="block text-lg font-semibold text-slate-900">{region.name}</span>
-                <span className="block text-base text-slate-500">{region.towns.join(' · ')}</span>
-              </Reveal>
-            </li>
-          ))}
-        </ol>
-
-        <Reveal>
-          <p className="mt-8 text-base text-slate-500">
-            Somewhere not listed?{' '}
-            <a
-              href={`tel:${CONTACT_PHONE_E164}`}
-              className="inline-flex items-center min-h-11 font-semibold text-red-700 hover:underline"
-            >
-              Call {CONTACT_PHONE}
-            </a>{' '}
-            — we go further than the list.
-          </p>
-        </Reveal>
       </section>
 
       {/* ---------------- RATE ---------------- */}
@@ -295,44 +345,6 @@ export default function Home() {
                 </table>
               </div>
             </Reveal>
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------- WHAT WE WON'T CARRY ----------------
-          Specific to a courier, and the kind of thing a real operator tells you
-          before you pack rather than after they refuse the parcel. */}
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
-        <div className="grid lg:grid-cols-[1fr_1.1fr] gap-10 lg:gap-16">
-          <Reveal>
-            <div>
-              <span className="text-sm font-semibold uppercase tracking-widest text-red-600">Before you book</span>
-              <h2 className="mt-3 font-display text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight text-balance">
-                Things we will not carry.
-              </h2>
-              <p className="mt-4 text-lg text-slate-600 max-w-md">
-                Better to know now than at the counter. Everything else is fair game — if
-                you are unsure, call and ask.
-              </p>
-              <Link
-                to="/policy"
-                className="mt-6 inline-flex items-center gap-2 min-h-11 text-base font-bold text-red-700 hover:underline"
-              >
-                Read the full terms
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </Reveal>
-
-          <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4">
-            {WONT_CARRY.map((item, i) => (
-              <Reveal key={item} delay={i * 50}>
-                <div className="flex items-start gap-3 border-t border-slate-200 pt-4">
-                  <Ban className="h-5 w-5 text-slate-300 shrink-0 mt-0.5" aria-hidden="true" />
-                  <span className="text-base text-slate-700">{item}</span>
-                </div>
-              </Reveal>
-            ))}
           </div>
         </div>
       </section>

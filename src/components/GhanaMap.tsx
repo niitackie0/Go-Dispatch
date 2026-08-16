@@ -32,24 +32,28 @@ interface Shape {
   anchor?: 'start' | 'middle' | 'end';
 }
 
+/** The national outline, so the country reads as Ghana even where the internal
+ *  boundaries are approximate. */
+const OUTLINE = 'M57.2 37.8 L154.5 33.4 L229.7 28.9 L269.2 25.4 L324.6 37.8 L352.3 64.6 L309.6 171.7 L328.6 243.1 L320.7 305.5 L352.3 359.1 L376 439.4 L376 475.1 L328.6 501.8 L281.1 524.2 L209.9 528.6 L154.5 573.2 L114.9 582.2 L59.6 577.7 L35.8 564.3 L23.2 484 L51.6 394.8 L75.4 305.5 L63.5 216.3 Z';
+
 const ORIGIN: Shape = {
   name: 'Greater Accra',
-  d: 'M292 440 L336 458 L300 486 L248 500 Z',
-  pin: [296, 466],
-  label: [296, 484],
-  anchor: 'middle',
+  d: 'M257.4 434.9 L289 434.9 L308.8 479.5 L281.1 524.2 L237.6 524.2 Z',
+  pin: [266.1, 519.7],
+  label: [280.1, 523.7],
+  anchor: 'start',
 };
 
 const SHAPES: Shape[] = [
-  { name: 'Upper West', d: 'M54 44 L168 36 L172 112 L52 116 Z',                                pin: [110, 72],  label: [110, 92] },
-  { name: 'Upper East', d: 'M168 36 L300 26 L344 64 L352 112 L172 112 Z',                      pin: [258, 68],  label: [258, 88] },
-  { name: 'Northern',   d: 'M52 116 L352 112 L356 180 L348 248 L46 252 Z',                     pin: [196, 178], label: [196, 198] },
-  { name: 'Bono',       d: 'M46 252 L172 248 L178 364 L54 368 Z',                              pin: [110, 302], label: [110, 322] },
-  { name: 'Ashanti',    d: 'M172 248 L268 246 L274 364 L178 364 Z',                            pin: [222, 300], label: [222, 320] },
-  { name: 'Eastern',    d: 'M268 246 L344 248 L340 336 L286 368 L274 364 Z',                   pin: [306, 296], label: [306, 316] },
-  { name: 'Volta',      d: 'M344 248 L356 300 L352 420 L372 470 L336 458 L292 440 L286 368 L340 336 Z', pin: [332, 372], label: [332, 392] },
-  { name: 'Western',    d: 'M54 368 L178 364 L184 470 L150 492 L78 458 L50 392 Z',             pin: [116, 418], label: [116, 438] },
-  { name: 'Central',    d: 'M178 364 L274 364 L286 368 L292 440 L248 500 L184 470 Z',          pin: [228, 424], label: [228, 444] },
+  { name: 'Upper West', d: 'M57.2 37.8 L154.5 33.4 L154.5 162.8 L63.5 162.8 L63.5 216.3 L57.2 37.8 Z', pin: [83.3, 121.7], label: [83.3, 138.7] },
+  { name: 'Upper East', d: 'M154.5 33.4 L269.2 25.4 L324.6 37.8 L309.6 100.3 L154.5 100.3 Z', pin: [213.8, 56.6], label: [213.8, 73.6] },
+  { name: 'Northern', d: 'M154.5 100.3 L309.6 100.3 L324.6 37.8 L352.3 64.6 L309.6 171.7 L328.6 243.1 L79.3 243.1 L63.5 162.8 L154.5 162.8 Z', pin: [214.6, 180.6], label: [214.6, 197.6] },
+  { name: 'Bono', d: 'M79.3 243.1 L194.1 243.1 L194.1 385.8 L65.9 385.8 L75.4 305.5 Z', pin: [96.7, 364.4], label: [96.7, 381.4] },
+  { name: 'Ashanti', d: 'M194.1 243.1 L253.4 243.1 L257.4 434.9 L190.1 466.2 L194.1 385.8 Z', pin: [152.9, 422.4], label: [152.9, 439.4] },
+  { name: 'Eastern', d: 'M253.4 243.1 L324.6 274.3 L320.7 305.5 L330.2 376.9 L289 434.9 L257.4 434.9 Z', pin: [260.5, 476], label: [260.5, 493] },
+  { name: 'Volta', d: 'M324.6 274.3 L328.6 243.1 L320.7 305.5 L352.3 359.1 L376 439.4 L376 475.1 L328.6 501.8 L308.8 479.5 L289 434.9 L330.2 376.9 L320.7 305.5 Z', pin: [318.3, 429.6], label: [318.3, 446.6] },
+  { name: 'Western', d: 'M65.9 385.8 L190.1 466.2 L178.2 568.8 L114.9 582.2 L59.6 577.7 L35.8 564.3 L23.2 484 L51.6 394.8 Z', pin: [141.8, 582.2], label: [141.8, 599.2] },
+  { name: 'Central', d: 'M190.1 466.2 L257.4 434.9 L237.6 524.2 L209.9 528.6 L178.2 568.8 Z', pin: [179.8, 563.4], label: [179.8, 580.4] },
 ];
 
 interface GhanaMapProps {
@@ -68,7 +72,7 @@ export default function GhanaMap({ onSelect, className = '' }: GhanaMapProps) {
   return (
     <div className={`relative ${className}`}>
       <svg
-        viewBox="0 0 420 560"
+        viewBox="0 0 400 620"
         className="w-full h-auto"
         role="group"
         aria-label="Map of the regions GO DISPATCH delivers to"
@@ -81,7 +85,9 @@ export default function GhanaMap({ onSelect, className = '' }: GhanaMapProps) {
         </defs>
 
         {/* The glow the whole country sits in. */}
-        <ellipse cx="210" cy="260" rx="220" ry="250" fill={`url(#${glowId})`} />
+        <ellipse cx="200" cy="300" rx="210" ry="290" fill={`url(#${glowId})`} />
+
+        <path d={OUTLINE} fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.34)" strokeWidth="2" />
 
         {/* The routes, drawn from Accra outward. Purely decorative — the shapes
             below carry the meaning and the interaction. */}
