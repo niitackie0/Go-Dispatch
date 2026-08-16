@@ -32,18 +32,20 @@ export const BRAND_PROMISES = ['Safe', 'Fast', 'Reliable'] as const;
 /**
  * Social profiles.
  *
- * Only WhatsApp is filled in, because it is the one handle I actually have —
- * it is derived from the phone number on the flyer. The rest are blank on
- * purpose: an invented facebook.com/godispatch would either 404 or, worse,
- * point customers at somebody else's page. The footer renders only the ones
- * with a URL, so filling any of these in is all that is needed to light it up.
+ * Instagram and TikTok are the handles the owner gave us, with the share
+ * tracking stripped — the `?igsh=` and `?_t=` parameters on a shared link are
+ * one-off referral tokens tied to whoever copied it, not part of the address.
+ * Facebook is deliberately blank: an invented facebook.com/godispatch would
+ * either 404 or, worse, point customers at somebody else's page. The footer
+ * renders only the entries with a URL, so filling it in is all that is needed
+ * to light it up.
  */
 export const SOCIAL: { name: string; url: string }[] = [
   { name: 'WhatsApp', url: WHATSAPP_URL },
-  { name: 'Facebook', url: '' },
-  { name: 'Instagram', url: '' },
-  { name: 'TikTok', url: '' },
+  { name: 'Instagram', url: 'https://www.instagram.com/go_dispatch' },
+  { name: 'TikTok', url: 'https://www.tiktok.com/@go_dispatch' },
   { name: 'Snapchat', url: 'https://snapchat.com/t/pCO24mO6' },
+  { name: 'Facebook', url: '' },
 ];
 
 /** When a rider can actually be sent, and when the phone is answered. */

@@ -343,24 +343,3 @@ body {
    lands the copy where the original started, so the loop is
    seamless rather than snapping back.
    ============================================================ */
-@keyframes wp-marquee { to { transform: translate3d(-50%, 0, 0); } }
-
-.marquee {
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
-  mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
-}
-.marquee-track {
-  display: flex;
-  width: max-content;
-  gap: 12px;
-  animation: wp-marquee 46s linear infinite;
-}
-/* Stop when someone is trying to read it. */
-.marquee:hover .marquee-track,
-.marquee:focus-within .marquee-track { animation-play-state: paused; }
-
-@media (prefers-reduced-motion: reduce) {
-  .marquee { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
-  .marquee-track { animation: none; }
-}

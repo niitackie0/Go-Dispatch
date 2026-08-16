@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, Phone, Search, Ban, PackageCheck } from 'lucide-react';
+import { ArrowRight, Phone, Search, PackageCheck } from 'lucide-react';
 import { Link, useRouter } from '../router.js';
 import { PricingConfig } from '../types.js';
 import { REGIONS, ALL_TOWNS } from '../regions.js';
@@ -52,39 +52,132 @@ const FLOW = ['Booked', 'Rider collects', 'Weighed', 'On the road', 'Delivered']
 /**
  * What we will not carry.
  *
- * Twelve items rather than six, because the short list read as arbitrary — a
- * customer's first thought was "is that all?". Each is drawn: a symbol is read
- * faster than a line of text, and this is a row meant to be scanned.
+ * Two lists, because there are two rules and running them together was the
+ * flaw in the old row: ten things a rider will hand straight back, and two
+ * that only need telling us first. The split is what a customer actually
+ * needs to know, and it matches clause 4 of the terms exactly.
  *
- * Hand-authored SVG rather than an icon-set lookup. Several of these — a
- * banknote, a firearm, a jerrycan — either are not in the set the rest of the
- * app uses or arrive at a different weight, and a row of a dozen symbols is
- * exactly where a mismatch shows.
+ * Each item is drawn as a prohibition sign rather than an icon with a stripe
+ * over it. The stripe was the problem — a short bar floating across a glyph
+ * reads as a rendering artefact. The sign is the one every road in Ghana
+ * already uses: red ring, red bar corner to corner, pictogram in the middle.
+ * It carries its meaning without the heading, which is the whole point of a
+ * symbol.
  */
-const S = {
-  width: 30,
-  height: 30,
-  viewBox: '0 0 24 24',
+
+/** A pictogram in the 24-unit box the glyphs below are drawn in. */
+const G = {
   fill: 'none',
   stroke: 'currentColor',
-  strokeWidth: 1.7,
+  // Heavier than the icons elsewhere on the site: a hairline pictogram loses
+  // to the bar drawn across it, which is what made the old row unreadable.
+  strokeWidth: 2,
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
 };
 
-const PROHIBITED: { label: string; icon: React.ReactNode }[] = [
-  { label: 'Cash and bank cards', icon: (<svg {...S}><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.6" /><path d="M5 9v6M19 9v6" /></svg>) },
-  { label: 'Firearms and ammunition', icon: (<svg {...S}><path d="M3 9h13l3 3h2v3h-6l-2-2H9v4H6v-4H3z" /><path d="M8 15l-2 5" /></svg>) },
-  { label: 'Drugs and controlled substances', icon: (<svg {...S}><rect x="2.5" y="9" width="19" height="6.5" rx="3.25" transform="rotate(-30 12 12)" /><path d="M8.6 7.4l6.8 6.8" /></svg>) },
-  { label: 'Live animals', icon: (<svg {...S}><ellipse cx="12" cy="15.5" rx="4" ry="3.3" /><ellipse cx="6.4" cy="10.6" rx="1.9" ry="2.5" /><ellipse cx="17.6" cy="10.6" rx="1.9" ry="2.5" /><ellipse cx="9.6" cy="6.6" rx="1.8" ry="2.3" /><ellipse cx="14.4" cy="6.6" rx="1.8" ry="2.3" /></svg>) },
-  { label: 'Flammable liquids', icon: (<svg {...S}><path d="M7 8h8l2 3v9a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1z" /><path d="M10 8V5h4v3" /><path d="M12 13c-1.2 1.2-1.6 2-1.6 2.8a1.6 1.6 0 0 0 3.2 0c0-.8-.4-1.6-1.6-2.8z" /></svg>) },
-  { label: 'Perishable food, unarranged', icon: (<svg {...S}><path d="M12 8.5c2.6-2.6 8 0 6.4 5.2C17.3 17.4 14 20 12 20s-5.3-2.6-6.4-6.3C4 8.5 9.4 5.9 12 8.5z" /><path d="M12 8.5V5.5M12 5.5c1.6 0 2.6-1 2.8-2.3-1.5-.2-2.6.7-2.8 2.3z" /></svg>) },
-  { label: 'Explosives and fireworks', icon: (<svg {...S}><path d="M12 21a5 5 0 0 0 5-5c0-3-5-9-5-9s-5 6-5 9a5 5 0 0 0 5 5z" /><path d="M12 3v2M6 5l1.4 1.4M18 5l-1.4 1.4" /></svg>) },
-  { label: 'Loose lithium batteries', icon: (<svg {...S}><rect x="2" y="8" width="16" height="9" rx="2" /><path d="M18 11h3v3h-3" /><path d="M9 10.5l-2 3h3l-2 3" /></svg>) },
-  { label: 'Aerosols and gas canisters', icon: (<svg {...S}><rect x="8" y="8" width="8" height="13" rx="2" /><path d="M10 8V5h4v3" /><path d="M17 5h1M17 8h1M17 11h1" /></svg>) },
-  { label: 'Corrosive chemicals', icon: (<svg {...S}><path d="M10 3h4v5l4 9a2 2 0 0 1-1.8 2.9H7.8A2 2 0 0 1 6 17l4-9z" /><path d="M9 15h6" /></svg>) },
-  { label: 'Counterfeit goods', icon: (<svg {...S}><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2a2 2 0 0 1-.6-1.4V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.4 7.4a2 2 0 0 1 0 2.8z" /><circle cx="7.5" cy="7.5" r="1.2" /></svg>) },
-  { label: 'Unpacked glass or fragile items', icon: (<svg {...S}><path d="M7 3h10l-1.2 7.5a4 4 0 0 1-3.8 3.2h0a4 4 0 0 1-3.8-3.2z" /><path d="M12 13.7V21M9 21h6" /></svg>) },
+/**
+ * The sign.
+ *
+ * The bar does not cross the pictogram. That was the flaw in both earlier
+ * attempts: a stripe over line art bisects every stroke it meets, and the eye
+ * cannot complete a drawing made of 2px lines the way it completes a solid
+ * silhouette on a road sign. So the pictogram gets the whole plate and the
+ * negation gets its own badge — a solid red disc with a white bar, ringed in
+ * white so it separates from whatever it sits over.
+ *
+ * Both halves are legible at 64px, which is the point. Drawn as one SVG so
+ * the plate, the pictogram and the badge cannot drift apart.
+ *
+ * `forbidden={false}` drops the badge. Those two items are allowed, and
+ * marking them as though they were not would be a lie told in symbols.
+ */
+function Sign({ children, forbidden = true }: { children: React.ReactNode; forbidden?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      className={forbidden ? 'h-16 w-16 sm:h-[72px] sm:w-[72px] shrink-0' : 'h-14 w-14 shrink-0'}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="29" cy="29" r="29" fill={forbidden ? '#FDECEC' : '#EEF2F6'} />
+      {/* The pictogram is drawn in a 24-unit box; this maps it to 34 units,
+          centred on the plate. */}
+      <g
+        transform="translate(12 12) scale(1.4167)"
+        className={forbidden ? 'text-slate-800' : 'text-slate-600'}
+        {...G}
+      >
+        {children}
+      </g>
+      {forbidden && (
+        <>
+          <circle cx="51" cy="51" r="12.6" fill="#FFFFFF" />
+          <circle cx="51" cy="51" r="10.2" fill="#D81E24" />
+          <line x1="46.6" y1="55.4" x2="55.4" y2="46.6" stroke="#FFFFFF" strokeWidth="2.8" strokeLinecap="round" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/** Refused outright. Ten, and the grid is 2 or 5 across so it never breaks
+    into a ragged last row. */
+const NEVER: { label: string; icon: React.ReactNode }[] = [
+  {
+    label: 'Cash and bank cards',
+    icon: (<><rect x="2" y="7" width="20" height="10" rx="1.6" /><circle cx="12" cy="12" r="2.4" /><path d="M5.2 10v4M18.8 10v4" /></>),
+  },
+  {
+    label: 'Firearms and ammunition',
+    icon: (<><path d="M12 2.6c1.9 2 3 4.1 3 6.1V10H9V8.7c0-2 1.1-4.1 3-6.1z" /><path d="M9 10h6v7.6H9z" /><path d="M8.3 17.6h7.4v3.8H8.3z" /></>),
+  },
+  {
+    label: 'Drugs and controlled substances',
+    icon: (<><rect x="1.6" y="8.4" width="20.8" height="7.2" rx="3.6" transform="rotate(-45 12 12)" /><path d="M9.5 9.5 14.5 14.5" /></>),
+  },
+  {
+    label: 'Explosives and fireworks',
+    icon: (<><circle cx="10.4" cy="14.8" r="6.2" /><path d="M14.8 10.4 17 8.2" /><path d="M17 8.2c0-2.2 1.7-3.9 3.9-3.9" /><path d="M20.9 2.9V1.6M22.2 4.1l.9-.9" /></>),
+  },
+  {
+    label: 'Flammable liquids',
+    icon: (<><path d="M12 2.6c3.4 3.6 5.8 6.4 5.8 9.9a5.8 5.8 0 1 1-11.6 0c0-2 .9-3.7 2.2-5.2" /><path d="M12 21.6a3 3 0 0 0 3-3c0-2-3-5-3-5s-3 3-3 5a3 3 0 0 0 3 3z" /></>),
+  },
+  {
+    label: 'Corrosive chemicals',
+    icon: (<><path d="M9.6 2.8h4.8v5.6l4.5 8.8A2.3 2.3 0 0 1 16.8 21H7.2a2.3 2.3 0 0 1-2.1-3.8l4.5-8.8z" /><path d="M7.4 15.4h9.2" /></>),
+  },
+  {
+    label: 'Aerosols and gas canisters',
+    icon: (<><rect x="7.2" y="8" width="7.2" height="13" rx="2.2" /><path d="M9.2 8V5.1h3.2V8" /><path d="M16.8 5.4h1.6M16.8 8.6h1.6M16.8 11.8h1.6" /></>),
+  },
+  {
+    label: 'Loose lithium batteries',
+    icon: (<><rect x="2.2" y="7.4" width="15.4" height="9.2" rx="2.2" /><path d="M17.6 10.4h2.4a1 1 0 0 1 1 1v1.2a1 1 0 0 1-1 1h-2.4" /><path d="M10.6 9.4 8 12.8h3.4l-2.6 3.4" /></>),
+  },
+  {
+    label: 'Counterfeit goods',
+    icon: (<><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z" /><path d="M7.5 7.5h.01" /></>),
+  },
+  {
+    label: 'Live animals',
+    icon: (<><ellipse cx="12" cy="16" rx="4.1" ry="3.4" /><ellipse cx="6.2" cy="11" rx="1.9" ry="2.5" /><ellipse cx="17.8" cy="11" rx="1.9" ry="2.5" /><ellipse cx="9.5" cy="6.6" rx="1.8" ry="2.4" /><ellipse cx="14.5" cy="6.6" rx="1.8" ry="2.4" /></>),
+  },
+];
+
+/** Not refused — just not a surprise on the doorstep. */
+const ASK_FIRST: { label: string; note: string; icon: React.ReactNode }[] = [
+  {
+    label: 'Perishable food',
+    note: 'Say so when you book, so it goes out on the first run rather than sitting.',
+    icon: (<><path d="M12 8.6c2.6-2.6 8 0 6.4 5.2C17.3 17.5 14 20.2 12 20.2s-5.3-2.7-6.4-6.4C4 8.6 9.4 6 12 8.6z" /><path d="M12 8.6V5.4" /><path d="M12 5.4c1.7 0 2.7-1 2.9-2.4-1.6-.2-2.7.7-2.9 2.4z" /></>),
+  },
+  {
+    label: 'Glass and fragile things',
+    note: 'Tell the rider at collection and pack it properly — unwrapped glass travels badly.',
+    icon: (<><path d="M6.8 3h10.4l-1.3 7.8a4.2 4.2 0 0 1-4 3.4h-.2a4.2 4.2 0 0 1-4-3.4z" /><path d="M12 14.2V21M8.8 21h6.4" /><path d="M12.8 3.8 11.1 7l2.3 1.4-1.6 2.9" /></>),
+  },
 ];
 
 export default function Home() {
@@ -196,59 +289,79 @@ export default function Home() {
       </section>
 
       {/* ---------------- WHAT WE WON'T CARRY ----------------
-          A drifting row rather than a static grid. Twelve items would be a wall
-          as a grid; as one moving line it reads as "there is a list, here is
-          the shape of it", and the detail lives in the terms. The track holds
-          the list twice so the loop is seamless, it pauses on hover or focus,
-          and under reduced motion it becomes a plain scrollable row. */}
-      <section className="border-b border-slate-200 bg-white py-12 sm:py-14">
+          Was a marquee. A moving row is the wrong container for a list
+          somebody has to check their own parcel against: you cannot scan it,
+          you cannot find one item in it, and at 46 seconds a loop the thing
+          you came to look for may be forty seconds away. It is a grid now,
+          all of it visible at once, in the order the terms list it.
+
+          Two groups, because there are two rules — and the shorter group is
+          the one people get caught by, so it is stated rather than buried. */}
+      <section className="border-b border-slate-200 bg-white py-12 sm:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Reveal>
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
+            <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+              <div className="max-w-xl">
                 <span className="text-sm font-medium uppercase tracking-widest text-red-600">
                   Before you pack
                 </span>
-                <h2 className="mt-2 font-display text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
-                  Things we cannot carry.
+                <h2 className="mt-2 font-display text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
+                  <Num>{NEVER.length}</Num> things a rider will hand back.
                 </h2>
+                <p className="mt-3 text-lg text-slate-600">
+                  Book any of these and the parcel comes home with you. Two more just
+                  need telling us first.
+                </p>
               </div>
               <Link
                 to="/policy"
-                className="inline-flex items-center gap-2 min-h-11 text-[15px] font-semibold text-red-700 hover:underline"
+                className="inline-flex items-center gap-2 min-h-11 text-[15px] font-medium text-red-700 hover:underline"
               >
                 Full terms
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </Reveal>
-        </div>
 
-        <div className="mt-8 marquee" aria-label="Items we cannot carry">
-          <ul className="marquee-track">
-            {/* Rendered twice: the second copy is what the loop lands on, and is
-                hidden from assistive tech so the list is not read out doubled. */}
-            {[0, 1].map((copy) =>
-              PROHIBITED.map((item) => (
+          {/* Hairlines rather than twelve separate cards: one list, not ten
+              objects. The gap-px trick draws them at every breakpoint, and 2
+              and 5 both divide ten, so no row is ever left half-empty. */}
+          <Reveal delay={80}>
+            <ul className="mt-8 grid grid-cols-2 md:grid-cols-5 gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200">
+              {NEVER.map((item) => (
                 <li
-                  key={`${copy}-${item.label}`}
-                  aria-hidden={copy === 1 ? true : undefined}
-                  className="shrink-0 w-[168px] rounded-2xl border border-slate-200 bg-[var(--wp-bg)] px-4 py-5 flex flex-col items-center text-center"
+                  key={item.label}
+                  className="flex flex-col items-center gap-3 bg-white px-3 py-7 text-center"
                 >
-                  <span className="relative text-slate-400">
-                    {item.icon}
-                    <span
-                      aria-hidden="true"
-                      className="absolute left-1/2 top-1/2 h-0.5 w-9 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full bg-red-500/80"
-                    />
-                  </span>
-                  <span className="mt-3 text-[13px] font-medium text-slate-800 leading-snug">
+                  <Sign>{item.icon}</Sign>
+                  <span className="text-[15px] text-slate-700 leading-snug text-balance">
                     {item.label}
                   </span>
                 </li>
-              ))
-            )}
-          </ul>
+              ))}
+            </ul>
+          </Reveal>
+
+          {/* Different rule, different shape. No ring and no bar on these two
+              — they are allowed, and a slash would say otherwise. */}
+          <Reveal delay={120}>
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-[var(--wp-bg)] p-5 sm:p-6">
+              <h3 className="text-sm font-medium uppercase tracking-widest text-slate-500">
+                These two are fine — just tell us first
+              </h3>
+              <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                {ASK_FIRST.map((item) => (
+                  <div key={item.label} className="flex items-start gap-4">
+                    <Sign forbidden={false}>{item.icon}</Sign>
+                    <div className="min-w-0">
+                      <span className="block text-[15px] font-medium text-slate-900">{item.label}</span>
+                      <span className="mt-1 block text-[15px] text-slate-600">{item.note}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 

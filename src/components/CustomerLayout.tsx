@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { MapPin, Phone, Truck, Menu, X, ArrowUpRight } from 'lucide-react';
-import { REGIONS } from '../regions.js';
+import React, { useEffect, useRef, useState } from 'react';
+import { Phone, Menu, X, ArrowRight, ChevronRight } from 'lucide-react';
 import { CONTACT_PHONE, CONTACT_PHONE_E164, OFFICE_ADDRESS, OFFICE_LANDMARK, SOCIAL, OPENING_HOURS } from '../brand.js';
 import { Link, useRouter } from '../router.js';
 
@@ -16,6 +15,42 @@ const NAV_LINKS = [
   { to: '/contact', label: 'Contact' },
   { to: '/policy', label: 'Policy' },
 ];
+
+/**
+ * The mark: two chevrons, for "go".
+ *
+ * Drawn rather than pulled from the icon set, because the stock lorry is what
+ * every courier template opens with and this one is meant to be recognised at
+ * 18px in the corner of a phone.
+ */
+function GoMark({ size = 18 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4.5 5.5 11 12l-6.5 6.5" />
+      <path d="M13 5.5 19.5 12 13 18.5" />
+    </svg>
+  );
+}
+
+/** The logotype, set once so the bar, the sheet and the footer agree. */
+function Wordmark({ className = '' }: { className?: string }) {
+  return (
+    <span className={`uppercase leading-none tracking-[0.13em] ${className}`}>
+      <span className="font-semibold">Go</span>
+      <span className="font-normal"> Dispatch</span>
+    </span>
+  );
+}
 
 /** Social glyphs, drawn to one weight so the row reads as a set. */
 function SocialIcon({ name }: { name: string }) {
@@ -119,6 +154,31 @@ function FooterPattern() {
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   const { path } = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  const closeMenu = () => {
+    setMobileOpen(false);
+    menuTriggerRef.current?.focus();
+  };
+
+  // The menu sheet, held to the same contract as every other modal here.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeMenu(); };
+    document.addEventListener('keydown', onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    sheetRef.current?.focus();
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [mobileOpen]);
+
+  // Leaving by any other route — back button, a link inside the page — must
+  // not leave the sheet sitting over the new page.
+  useEffect(() => { setMobileOpen(false); }, [path]);
 
   /**
    * The header gets out of the way going down and comes back coming up — the
@@ -159,34 +219,50 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
 
   return (
     <div className="min-h-dvh bg-[var(--wp-bg)] text-slate-900 flex flex-col font-sans selection:bg-red-200 selection:text-red-900">
-      {/* ---------- Navigation ---------- */}
+      {/* ---------- Navigation ----------
+          One bar, three jobs, left to right: who we are, where you can go,
+          and the single thing we want you to do.
+
+          The phone number has come out of it. It was a third competing action
+          in a strip that already held seven targets, and a number sitting
+          beside a Book button splits the one decision the bar exists to
+          prompt. It is on the contact page, in the footer, on the home page
+          and one tap inside the menu on a phone.
+
+          The links sit in a soft track with the current page raised out of it
+          as a white pill. A segmented control states two things at once —
+          these five are one set, and you are here — where five loose links
+          and a hairline underline state only the second, faintly. */}
       <header
-        className={`sticky top-0 z-40 w-full bg-white/85 backdrop-blur-xl transition-[transform,border-color,box-shadow] duration-300 ease-out ${
+        className={`sticky top-0 z-40 w-full transition-[transform,border-color,box-shadow,background-color] duration-300 ease-out ${
           parked ? '-translate-y-full' : 'translate-y-0'
-        } ${scrolled ? 'border-b border-slate-200 shadow-sm' : 'border-b border-transparent'}`}
+        } ${
+          scrolled
+            ? 'border-b border-slate-200/80 bg-white/85 backdrop-blur-xl shadow-[0_1px_3px_rgba(15,23,42,0.06)]'
+            : 'border-b border-transparent bg-white'
+        }`}
       >
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          {/* Brand. The strapline is gone from the bar — it is in the footer,
-              and repeating it here cost vertical space on every page. */}
-          <Link to="/" className="flex items-center gap-2.5 shrink-0 min-h-11 -ml-1 px-1" aria-label="GO DISPATCH home">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white">
-              <Truck className="h-4 w-4" />
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <Link
+            to="/"
+            className="group flex items-center gap-2.5 shrink-0 min-h-11 -ml-1 px-1"
+            aria-label="GO DISPATCH home"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-600 text-white shadow-[0_6px_14px_-8px_rgba(216,30,36,0.95)] transition-transform duration-300 group-hover:-translate-y-px">
+              <GoMark />
             </span>
-            <span className="text-[15px] font-semibold tracking-tight text-slate-900">GO DISPATCH</span>
+            <Wordmark className="text-[15px] text-slate-900" />
           </Link>
 
-          {/* Desktop nav. The active item is marked with a rule under it rather
-              than a filled pill — five filled pills in a row read as five
-              buttons, none of which is the primary action. */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center rounded-full bg-slate-100/90 p-1" aria-label="Main">
             {NAV_LINKS.map((l) => (
               <Link
                 key={l.to}
                 to={l.to}
                 aria-current={isActive(l.to) ? 'page' : undefined}
-                className={`relative inline-flex items-center min-h-11 px-3 text-[15px] transition-colors ${
+                className={`inline-flex items-center min-h-11 rounded-full px-4 text-[15px] transition-colors duration-200 ${
                   isActive(l.to)
-                    ? 'text-slate-900 after:absolute after:inset-x-3 after:bottom-1 after:h-0.5 after:rounded-full after:bg-red-600'
+                    ? 'bg-white font-medium text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.10)]'
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
@@ -195,74 +271,109 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             ))}
           </nav>
 
-          {/* The one action, and the number beside it — a real share of
-              customers would rather call than book. */}
-          <div className="hidden md:flex items-center gap-3 shrink-0">
-            <a
-              href={`tel:${CONTACT_PHONE_E164}`}
-              className="inline-flex items-center min-h-11 gap-2 text-[15px] font-medium text-slate-700 hover:text-red-700 transition-colors"
-            >
-              <Phone className="h-4 w-4 text-red-600" />
-              {CONTACT_PHONE}
-            </a>
-            <Link
-              to="/book"
-              className="inline-flex items-center min-h-11 gap-1.5 rounded-lg bg-red-600 hover:bg-red-700 px-4 text-[15px] font-medium text-white transition-colors"
-            >
-              Book
-            </Link>
-          </div>
+          <Link
+            to="/book"
+            className="group hidden md:inline-flex items-center shrink-0 min-h-11 gap-2 rounded-full bg-red-600 hover:bg-red-700 pl-5 pr-4 text-[15px] font-medium text-white transition-colors"
+          >
+            Book a delivery
+            <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+          </Link>
 
-          {/* Phone: call button always visible, menu beside it. Making someone
-              open a menu to find the number is the wrong trade for a courier. */}
-          <div className="flex md:hidden items-center gap-2">
-            <a
-              href={`tel:${CONTACT_PHONE_E164}`}
-              aria-label={`Call ${CONTACT_PHONE}`}
-              className="flex h-11 w-11 items-center justify-center rounded-lg bg-red-600 text-white"
-            >
-              <Phone className="h-4 w-4" />
-            </a>
-            <button
-              onClick={() => setMobileOpen((v) => !v)}
-              className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 transition-colors"
-              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-              aria-expanded={mobileOpen}
-            >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
+          <button
+            ref={menuTriggerRef}
+            onClick={() => setMobileOpen(true)}
+            className="md:hidden flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-slate-900 transition-colors"
+            aria-label="Open menu"
+            aria-haspopup="dialog"
+            aria-expanded={mobileOpen}
+          >
+            <Menu className="h-5 w-5" />
+          </button>
         </div>
+      </header>
 
-        {/* Mobile drawer */}
-        {mobileOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white animate-in slide-in-from-top-2 duration-200">
-            <nav className="mx-auto max-w-7xl px-4 py-3">
-              {NAV_LINKS.map((l) => (
-                <Link
-                  key={l.to}
-                  to={l.to}
-                  onClick={() => setMobileOpen(false)}
-                  aria-current={isActive(l.to) ? 'page' : undefined}
-                  className={`flex items-center justify-between min-h-12 rounded-lg px-3 text-base transition-colors ${
-                    isActive(l.to) ? 'text-red-700 font-medium' : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  {l.label}
-                  {isActive(l.to) && <span className="h-1.5 w-1.5 rounded-full bg-red-600" aria-hidden="true" />}
-                </Link>
-              ))}
+      {/* ---------- The menu, on a phone ----------
+          A sheet, not a panel pushed out of the bar, so it behaves like every
+          other chooser on the site: backdrop, Escape, background scroll
+          locked, focus back on the button that opened it.
+
+          It lives outside <header> on purpose. The header carries a transform
+          for its hide-on-scroll behaviour, and a transformed ancestor becomes
+          the containing block for anything fixed inside it — the overlay would
+          slide away with the bar. */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-slate-900/50 animate-in fade-in duration-200"
+            onClick={closeMenu}
+            aria-hidden="true"
+          />
+          <div
+            ref={sheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu"
+            tabIndex={-1}
+            className="absolute inset-x-0 top-0 max-h-[92dvh] overflow-y-auto rounded-b-3xl bg-white shadow-2xl outline-none animate-in slide-in-from-top-4 duration-200"
+          >
+            <div className="flex h-16 items-center justify-between px-4">
+              <span className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-600 text-white">
+                  <GoMark />
+                </span>
+                <Wordmark className="text-[15px] text-slate-900" />
+              </span>
+              <button
+                onClick={closeMenu}
+                aria-label="Close menu"
+                className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <nav className="px-3 pb-2" aria-label="Main">
+              {NAV_LINKS.map((l) => {
+                const on = isActive(l.to);
+                return (
+                  <Link
+                    key={l.to}
+                    to={l.to}
+                    onClick={closeMenu}
+                    aria-current={on ? 'page' : undefined}
+                    className={`flex items-center justify-between min-h-14 rounded-xl px-3 text-[17px] transition-colors ${
+                      on ? 'bg-red-50 font-medium text-red-700' : 'text-slate-800 hover:bg-slate-50'
+                    }`}
+                  >
+                    {l.label}
+                    <ChevronRight className={`h-5 w-5 ${on ? 'text-red-400' : 'text-slate-300'}`} aria-hidden="true" />
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <div className="px-3 pb-5 pt-1 space-y-2">
               <Link
                 to="/book"
-                onClick={() => setMobileOpen(false)}
-                className="mt-2 flex items-center justify-center min-h-12 rounded-lg bg-red-600 text-white text-base font-medium"
+                onClick={closeMenu}
+                className="flex items-center justify-center gap-2 min-h-[52px] rounded-xl bg-red-600 text-base font-medium text-white"
               >
                 Book a delivery
+                <ArrowRight className="h-4 w-4" />
               </Link>
-            </nav>
+              {/* Out of the bar, but not out of reach: on a courier site a
+                  one-tap call is the second most used thing on the page. */}
+              <a
+                href={`tel:${CONTACT_PHONE_E164}`}
+                className="flex items-center justify-center gap-2 min-h-12 rounded-xl border border-slate-200 text-base text-slate-700"
+              >
+                <Phone className="h-4 w-4 text-red-600" />
+                Call {CONTACT_PHONE}
+              </a>
+            </div>
           </div>
-        )}
-      </header>
+        </div>
+      )}
 
       {/* ---------- Page content ---------- */}
       <main className="flex-1">{children}</main>
@@ -294,12 +405,12 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
 
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 shrink-0">
-                <Truck className="h-5 w-5" />
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-600 shrink-0">
+                <GoMark size={20} />
               </span>
               <span className="leading-tight">
-                <span className="block text-[15px] font-medium">GO DISPATCH</span>
-                <span className="block text-sm text-white/45">We deliver trust</span>
+                <Wordmark className="block text-[15px] text-white" />
+                <span className="mt-1 block text-sm text-white/45">We deliver trust</span>
               </span>
             </div>
 
