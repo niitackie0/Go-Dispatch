@@ -52,6 +52,9 @@ enum PaymentRecordStatus {
 }
 
 /// Who settles the bill for a delivery.
+/// Who settles the bill. Recipient is the norm: parcels are weighed at the
+/// office and collected at the door, so the person receiving it is the one
+/// with the final figure in front of them.
 enum Payer {
   sender
   recipient
@@ -186,6 +189,24 @@ model Order {
   /// change instead of a migration.
   destinationRegion String? @db.VarChar(64)
 
+  /// The booking this parcel was part of. One sender can send several parcels
+  /// to different regions in a single visit; each is still its own order with
+  /// its own tracking code, rider and status, because they travel separately
+  /// and arrive on different days.
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  /// What the customer said it weighed. Used for the estimate only.
+  /// packageWeightKg is that declared figure.
+  ///
+  /// actualWeightKg is what the scale said at the office, and it is what the
+  /// price is built from. Null until the parcel has been weighed.
+  actualWeightKg Decimal? @db.Decimal(6, 2)
+
+  /// Set when staff weigh the parcel and fix the price. Until then priceAmount
+  /// is an estimate and must be shown as one.
+  priceConfirmedAt DateTime? @db.Timestamptz(3)
+
   packageSize        PackageSize
   packageWeightKg    Decimal     @db.Decimal(6, 2)
   packageDescription String
@@ -232,6 +253,37 @@ model Order {
 // ---------------------------------------------------------------------------
 // Money
 // ---------------------------------------------------------------------------
+
+/// A single visit to the office: one sender, one pickup, and one or more
+/// parcels going to different places.
+///
+/// The sender's details are also copied onto each order. That duplication is
+/// deliberate — an order has to stay readable on the dispatch board and on a
+/// rider's screen without joining back here, and a booking is a grouping, not
+/// the source of truth for a parcel already on the road.
+model Booking {
+  id String @id @default(cuid())
+
+  /// Shown to the sender so they can see all their parcels at once. Distinct
+  /// from the per-parcel tracking codes, which are what recipients use.
+  reference String @unique @db.VarChar(32)
+
+  senderName  String
+  senderPhone String
+  pickupAddress String
+  pickupNotes   String?
+
+  scheduledPickupAt DateTime @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  orders Order[]
+
+  @@index([senderPhone])
+  @@index([createdAt])
+  @@map("bookings")
+}
 
 model Payment {
   id String @id @default(cuid())

@@ -49,6 +49,12 @@ export interface RiderJob {
   dropoffNotes?: string;
   /** Region this parcel is going to. */
   destinationRegion?: string;
+  /** The booking this parcel was part of, when it was sent with others. */
+  bookingId?: string;
+  /** What the office scale said. Absent until the parcel has been weighed. */
+  actualWeightKg?: number;
+  /** Set when weighing fixed the price. Until then priceAmount is an estimate. */
+  priceConfirmedAt?: string;
   packageSize: PackageSize;
   packageWeightKg: number;
   packageDescription: string;
@@ -82,6 +88,12 @@ export interface Order {
   dropoffNotes?: string;
   /** Region this parcel is going to. */
   destinationRegion?: string;
+  /** The booking this parcel was part of, when it was sent with others. */
+  bookingId?: string;
+  /** What the office scale said. Absent until the parcel has been weighed. */
+  actualWeightKg?: number;
+  /** Set when weighing fixed the price. Until then priceAmount is an estimate. */
+  priceConfirmedAt?: string;
   packageSize: PackageSize;
   packageWeightKg: number;
   packageDescription: string;
