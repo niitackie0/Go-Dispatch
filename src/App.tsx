@@ -10,6 +10,7 @@ import Home from './components/Home.js';
 import BookPage from './components/BookPage.js';
 import TrackPage from './components/TrackPage.js';
 import PolicyPage from './components/PolicyPage.js';
+import ContactPage from './components/ContactPage.js';
 import AdminLogin from './components/AdminLogin.js';
 import AdminDashboard from './components/AdminDashboard.js';
 import RiderView from './components/RiderView.js';
@@ -128,6 +129,8 @@ export default function App() {
     page = <TrackPage />;
   } else if (path === '/policy') {
     page = <PolicyPage />;
+  } else if (path === '/contact') {
+    page = <ContactPage />;
   } else {
     page = <Home />;
   }

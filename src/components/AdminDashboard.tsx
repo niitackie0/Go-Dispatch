@@ -35,7 +35,9 @@ import {
   Check,
   Users,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -112,6 +114,14 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('overview');
   // Mobile only: the section menu that replaces the sidebar below lg
   const [sectionMenuOpen, setSectionMenuOpen] = useState(false);
+  // Desktop: the sidebar collapses to an icon rail. Remembered across visits —
+  // someone working on a small laptop should not re-collapse it every time.
+  const [railed, setRailed] = useState(() => {
+    try { return localStorage.getItem('gd_admin_rail') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('gd_admin_rail', railed ? '1' : '0'); } catch { /* private mode */ }
+  }, [railed]);
 
   // Which controls this role may see. The server enforces the same table; this
   // only stops the console offering buttons that would come back 403.
@@ -578,19 +588,32 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
         {/* Desktop sidebar. Hidden below lg — phones use the header menu instead
             of a full-width nav block stacked above the content. */}
-        <aside className="hidden lg:flex w-72 shrink-0 p-5 border-r border-slate-200 bg-white sticky top-0 h-[100dvh] flex-col justify-between overflow-y-auto">
+        <aside
+          className={`hidden lg:flex shrink-0 border-r border-slate-200 bg-white sticky top-0 h-[100dvh] flex-col justify-between overflow-y-auto overflow-x-hidden transition-[width] duration-200 ease-out ${railed ? 'w-[76px] px-3 py-5' : 'w-72 p-5'}`}
+        >
           {/* Top Section */}
           <div className="space-y-6">
 
-            {/* Branding / Identity Area */}
-            <div className="flex items-center gap-3 pb-4 border-b border-slate-200">
-              <div className="h-10 w-10 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center text-red-600 shadow-sm shrink-0">
+            {/* Branding, and the control that collapses this sidebar. */}
+            <div className={`flex items-center gap-3 pb-4 border-b border-slate-200 ${railed ? 'flex-col' : ''}`}>
+              <div className="h-10 w-10 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center text-red-600 shrink-0">
                 <Truck className="h-5 w-5" />
               </div>
-              <div>
-                <h2 className="text-base font-bold text-slate-900 tracking-tight leading-none">GO DISPATCH</h2>
-                <span className="text-xs font-medium text-slate-500 mt-1 block">Operations console</span>
-              </div>
+              {!railed && (
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base font-bold text-slate-900 tracking-tight leading-none truncate">GO DISPATCH</h2>
+                  <span className="text-xs font-medium text-slate-500 mt-1 block">Operations console</span>
+                </div>
+              )}
+              <button
+                onClick={() => setRailed((v) => !v)}
+                title={railed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-label={railed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-pressed={railed}
+                className="h-11 w-11 shrink-0 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+              >
+                {railed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+              </button>
             </div>
 
             {/* Section navigation */}
@@ -603,17 +626,18 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     key={key}
                     onClick={() => goToSection(key)}
                     aria-current={active ? 'page' : undefined}
-                    className={`w-full min-h-11 flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
+                    title={railed ? label : undefined}
+                    className={`w-full min-h-11 flex items-center gap-3 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${railed ? 'justify-center px-0' : 'justify-between px-3'} py-2.5 ${
                       active
                         ? 'bg-red-50 text-red-700 border border-red-200'
                         : 'text-slate-600 border border-transparent hover:text-slate-900 hover:bg-slate-50'
                     }`}
                   >
-                    <span className="flex items-center gap-3">
+                    <span className="flex items-center gap-3 min-w-0">
                       <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-red-600' : 'text-slate-400'}`} />
-                      <span>{label}</span>
+                      {!railed && <span className="truncate">{label}</span>}
                     </span>
-                    {key === 'pipeline' && allOrdersForStats.length > 0 && (
+                    {!railed && key === 'pipeline' && allOrdersForStats.length > 0 && (
                       <span className="text-xs tabular-nums bg-slate-100 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md font-semibold">
                         {allOrdersForStats.length}
                       </span>
@@ -624,10 +648,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             </nav>
           </div>
 
-          {/* Sidebar Footer */}
-          <div className="pt-4 border-t border-slate-200 text-xs text-slate-400">
-            GO DISPATCH
-          </div>
+          {!railed && (
+            <div className="pt-4 border-t border-slate-200 text-xs text-slate-400">
+              GO DISPATCH
+            </div>
+          )}
         </aside>
 
         {/* Right main area panel */}

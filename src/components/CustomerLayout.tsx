@@ -11,20 +11,61 @@ import { Link, useRouter } from '../router.js';
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
-  { to: '/book', label: 'Book a Delivery' },
-  { to: '/track', label: 'Track Shipment' },
+  { to: '/book', label: 'Book' },
+  { to: '/track', label: 'Track' },
+  { to: '/contact', label: 'Contact' },
+  { to: '/policy', label: 'Policy' },
 ];
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   const { path } = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  /**
+   * The header gets out of the way going down and comes back coming up — the
+   * standard behaviour on a phone, where a fixed bar costs a tenth of the
+   * screen. It never hides while the mobile menu is open, and it never hides
+   * near the top of the page, where hiding reads as a glitch.
+   */
+  const [hidden, setHidden] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  React.useEffect(() => {
+    let last = window.scrollY;
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const y = window.scrollY;
+        setScrolled(y > 8);
+        const delta = y - last;
+        // Ignore rubber-banding and sub-pixel jitter.
+        if (Math.abs(delta) > 6) {
+          setHidden(y > 120 && delta > 0);
+          last = y;
+        }
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  // A hidden header must not swallow the menu that opens from it.
+  const parked = hidden && !mobileOpen;
+
   const isActive = (to: string) => (to === '/' ? path === '/' : path.startsWith(to));
 
   return (
     <div className="min-h-dvh bg-[var(--wp-bg)] text-slate-900 flex flex-col font-sans selection:bg-red-200 selection:text-red-900">
       {/* ---------- Navigation ---------- */}
-      <header className="sticky top-0 z-40 w-full border-b border-slate-200/70 bg-white/70 backdrop-blur-xl">
+      <header
+        className={`sticky top-0 z-40 w-full bg-white/85 backdrop-blur-xl transition-[transform,border-color,box-shadow] duration-300 ease-out ${
+          parked ? '-translate-y-full' : 'translate-y-0'
+        } ${scrolled ? 'border-b border-slate-200 shadow-sm' : 'border-b border-transparent'}`}
+      >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Brand */}
           <Link to="/" className="flex items-center gap-2.5 group" aria-label="GO DISPATCH home">

@@ -22,6 +22,7 @@ import { PricingConfig } from '../types.js';
 import { REGIONS, ALL_TOWNS } from '../regions.js';
 import { quote, formatAmount, DEFAULT_PRICING } from '../pricing.js';
 import { CONTACT_PHONE, CONTACT_PHONE_E164 } from '../brand.js';
+import Reveal from './Reveal.js';
 
 const PIPELINE = [
   { label: 'Requested', desc: 'Order submitted' },
@@ -269,8 +270,9 @@ export default function Home() {
           a region we actually serve, in the order you would meet them leaving
           Accra. */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
+        <Reveal>
         <div className="max-w-2xl">
-          <span className="text-sm font-semibold uppercase tracking-widest text-red-600">Where we go</span>
+          <span className="text-sm font-bold uppercase tracking-[0.2em] text-red-600">Where we go</span>
           <h2 className="mt-3 font-display text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight text-balance">
             One road out of Accra, nine regions along it.
           </h2>
@@ -279,12 +281,13 @@ export default function Home() {
             distance is our problem, not your bill.
           </p>
         </div>
+        </Reveal>
 
         <ol className="mt-12 relative">
-          {/* The road itself. Sits behind the stops on both axes. */}
+          {/* The road itself, travelling. */}
           <span
             aria-hidden="true"
-            className="absolute left-[11px] top-2 bottom-2 w-px border-l-2 border-dashed border-red-300"
+            className="road-line absolute left-[11px] top-2 bottom-2 w-0.5"
           />
 
           <li className="relative pl-10 pb-8">
@@ -297,14 +300,16 @@ export default function Home() {
             </span>
           </li>
 
-          {REGIONS.map((region) => (
+          {REGIONS.map((region, i) => (
             <li key={region.name} className="relative pl-10 pb-8 last:pb-0">
               <span
                 aria-hidden="true"
                 className="absolute left-[5px] top-2 h-3.5 w-3.5 rounded-full border-2 border-red-500 bg-[var(--wp-bg)]"
               />
-              <span className="block text-lg font-semibold text-slate-900">{region.name}</span>
-              <span className="block text-base text-slate-500">{region.towns.join(' · ')}</span>
+              <Reveal as="left" delay={i * 60}>
+                <span className="block text-lg font-semibold text-slate-900">{region.name}</span>
+                <span className="block text-base text-slate-500">{region.towns.join(' · ')}</span>
+              </Reveal>
             </li>
           ))}
         </ol>
