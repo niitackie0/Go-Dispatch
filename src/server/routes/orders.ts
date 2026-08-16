@@ -8,7 +8,9 @@ import { asyncRouter } from '../http.js';
 import type { OrderStatus, PackageSize, Payer, PaymentTiming } from '../../types.js';
 import { requireAdmin } from '../auth.js';
 import { requirePermission } from '../permissions.js';
+import { canTransition, isTerminal, nextStatuses } from '../../transitions.js';
 import { runAutomations } from '../automations.js';
+import { notifyForStatus } from '../notifications.js';
 import { withTrackingCode } from '../ids.js';
 import { prisma } from '../prisma.js';
 import { serializeHistory, serializeOrder, serializePayment } from '../serialize.js';
@@ -192,6 +194,11 @@ ordersRouter.post('/book', async (req, res) => {
         },
       });
 
+      // Pay-on-delivery bookings are confirmed on the spot, so this is their
+      // only chance to be told. Prepaid ones are notified by the payment rule
+      // once the money actually lands.
+      await notifyForStatus(tx, status, { ...order, riderName: null });
+
       if (paymentProvider === 'momo') {
         await tx.payment.create({
           data: {
@@ -313,16 +320,63 @@ ordersRouter.patch('/:id/status', requireAdmin, requirePermission('orders:write'
     return res.status(404).json({ error: 'Order not found' });
   }
 
+  /**
+   * Only legal moves, enforced here rather than trusted from the console.
+   *
+   * This matters beyond tidiness: the automation pass reconciles payment for
+   * an on-delivery order the moment it reads `delivered`, so a jump straight
+   * from `requested` would invent a settled payment for a parcel nobody had
+   * collected.
+   *
+   * An owner may override — a parcel turns up in a van, a wrong button gets
+   * pressed — but must say why, and the override is recorded as such.
+   */
+  const { force } = req.body ?? {};
+  const from = existing.status as OrderStatus;
+  const to = status as OrderStatus;
+
+  // Checked before legality so this says "already delivered" rather than the
+  // confusing "cannot move from delivered to delivered".
+  if (from === to) {
+    return res.status(400).json({ error: `This order is already ${to}.` });
+  }
+
+  const legal = canTransition(from, to);
+  let overridden = false;
+
+  if (!legal) {
+    if (!force) {
+      const allowed = nextStatuses(from);
+      return res.status(400).json({
+        error: isTerminal(from)
+          ? `This order is ${from} and cannot change further.`
+          : `Cannot move from ${from} to ${to}.`,
+        allowed,
+      });
+    }
+    if (admin.role !== 'owner') {
+      return res.status(403).json({ error: 'Only an owner can override the delivery workflow.' });
+    }
+    if (!note?.trim()) {
+      return res.status(400).json({ error: 'An override needs a reason. Add a note explaining it.' });
+    }
+    overridden = true;
+  }
+
   const history = await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: existing.id },
-      data: { status: status as OrderStatus },
+      data: { status: to },
     });
+    await notifyForStatus(tx, to, { ...existing, riderName: null });
+
     return tx.statusHistory.create({
       data: {
         orderId: existing.id,
-        status: status as OrderStatus,
-        note: note || `Status updated from ${existing.status} to ${status}`,
+        status: to,
+        note: overridden
+          ? `OVERRIDE ${from} → ${to}: ${note.trim()}`
+          : note || `Status updated from ${from} to ${to}`,
         changedByAdminId: admin.id,
         changedByName: admin.name,
       },

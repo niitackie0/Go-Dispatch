@@ -7,6 +7,7 @@ import { asyncRouter } from '../http.js';
 import type { OrderStatus, RiderJob } from '../../types.js';
 import { runAutomations } from '../automations.js';
 import { prisma } from '../prisma.js';
+import { notifyForStatus } from '../notifications.js';
 
 /* ============================================================
    RIDER SELF-SERVICE (token-based, no admin login)
@@ -95,6 +96,7 @@ riderRouter.post('/:token/status', async (req, res) => {
 
   await prisma.$transaction(async (tx) => {
     await tx.order.update({ where: { id: order.id }, data: { status: next } });
+    await notifyForStatus(tx, next, order);
     await tx.statusHistory.create({
       data: {
         orderId: order.id,

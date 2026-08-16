@@ -213,6 +213,7 @@ model Order {
 
   payments      Payment[]
   statusHistory StatusHistory[]
+  notifications Notification[]
 
   // Indexes chosen to match how the app actually queries:
   // the dashboard filters by status, lists newest-first, and reports on ranges.
@@ -304,4 +305,57 @@ model PricingConfig {
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@map("pricing_config")
+}
+
+/// What a notification is about. The message text is built when the row is
+/// written, so a later copy change cannot rewrite what a customer was already
+/// told.
+enum NotificationEvent {
+  booking_confirmed
+  payment_received
+  rider_assigned
+  out_for_delivery
+  delivered
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+}
+
+/// Outbox for customer notifications.
+///
+/// Nothing sends yet — there is no SMS provider wired up. Rows accumulate here
+/// so the trigger points are settled and auditable, and so sending can be added
+/// later without touching the code that decides *when* to notify.
+///
+/// Deliberately a table rather than an inline send: an SMS outage must never
+/// fail a customer's booking, and a queue can be retried and inspected.
+model Notification {
+  id String @id @default(cuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  event     NotificationEvent
+  /// Phone number as captured on the order at the time of the event.
+  recipient String
+  /// Rendered at write time, not at send time.
+  message   String
+
+  status   NotificationStatus @default(pending)
+  attempts Int                @default(0)
+  /// Provider message id once sending exists; also the idempotency handle.
+  providerReference String?
+  lastError         String?
+
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  sentAt    DateTime? @db.Timestamptz(3)
+
+  /// One notification per order per event — a retried automation pass or a
+  /// double-tapped button must not text the customer twice.
+  @@unique([orderId, event])
+  @@index([status, createdAt])
+  @@map("notifications")
 }

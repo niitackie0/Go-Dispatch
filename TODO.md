@@ -53,19 +53,14 @@ backend/logic work below.
 
 ## P2 — Before this goes live
 
-- [ ] **SMS notifications** — **L**
-  The customer currently never receives their tracking code anywhere except the
-  screen they booked on. Five triggers: booking confirmed, payment received,
-  rider assigned, out for delivery, delivered.
-  Use a Ghanaian provider — **Arkesel, Hubtel or mNotify** — for cost and for a
-  registered sender ID, so messages arrive from "WAYPOINT" not a random number.
-  **Send from a queue, never inline in the request** — an SMS outage must not
-  fail a customer's booking.
-
-- [ ] **Enforce legal status transitions** — **M**
-  An admin can currently move an order straight from `requested` to `delivered`.
-  The rider path is already constrained; the admin path is not. Add an explicit
-  map of permitted transitions and reject the rest.
+- [ ] **Send the queued notifications** — **M** — *needs a provider account*
+  The outbox is built: the five trigger points write to a `notifications` table,
+  deduplicated per order per event, rendered at write time, and queued inside the
+  same transaction as the change that caused them. Nothing sends yet.
+  What is left is the sender. Pick a Ghanaian provider — **Arkesel, Hubtel or
+  mNotify** — for cost and for a registered sender ID, so messages arrive from
+  "WAYPOINT" rather than a random number. Then a worker that drains
+  `status = pending`, retries with backoff, and records `providerReference`.
 
 - [ ] **Deployment** — **L**
   Nothing is hosted yet. Needs a host, env vars set (including `ADMIN_PATH` and
@@ -148,3 +143,12 @@ backend/logic work below.
 - Staff Accounts screen: add staff, change roles, issue passwords, remove
 - My Account screen: change your own password, see where you are signed in,
   revoke individual sessions or every other device
+- Mobile pass over the console and the customer site: nothing below 12px or 44px,
+  wide tables become cards on a phone, section nav is a dropdown below lg
+- Overview rebuilt around a "needs attention" queue, money owed, the day so far,
+  and which riders are carrying parcels
+- Legal status transitions enforced server-side, with an owner-only override that
+  requires a written reason and is recorded as an override in status_history
+- Riders are released before assignment in the same automation pass, so a courier
+  who finishes a drop can be given the next job immediately
+- Notification outbox: five trigger points queued and deduplicated, not yet sent

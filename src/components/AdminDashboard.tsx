@@ -50,6 +50,7 @@ import {
   AdminUser
 } from '../types.js';
 import { can } from '../capabilities.js';
+import { advanceStatus, nextStatuses } from '../transitions.js';
 import type { Capability } from '../capabilities.js';
 import StaffManagement from './StaffManagement.js';
 import AccountSecurity from './AccountSecurity.js';
@@ -381,7 +382,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
   // Advance a single order to its next pipeline status directly from the table row
   const advanceOrderStatus = async (order: Order) => {
-    const next = getNextStatusAction(order.status);
+    const next = advanceStatus(order.status);
     if (!next) return;
     setAdvancingId(order.id);
     try {
@@ -496,19 +497,6 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   };
 
   // Move Order Status to next step sequentially
-  const getNextStatusAction = (currentStatus: OrderStatus): OrderStatus | null => {
-    switch (currentStatus) {
-      case 'requested': return 'confirmed';
-      // 'awaiting_payment' is intentionally omitted: it is payment-gated and
-      // clears itself automatically once the money lands.
-      case 'confirmed': return 'queued';
-      case 'queued': return 'picked_up';
-      case 'picked_up': return 'in_transit';
-      case 'in_transit': return 'delivered';
-      default: return null;
-    }
-  };
-
   const getStatusLabel = (s: OrderStatus) => {
     return STATUS_ORDER.find(item => item.key === s)?.label || s;
   };
@@ -1119,7 +1107,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <div className="md:hidden space-y-3">
                     {pageOrders.map((order) => {
                       const statusTheme = STATUS_ORDER.find(s => s.key === order.status) || STATUS_ORDER[0];
-                      const next = getNextStatusAction(order.status);
+                      const next = advanceStatus(order.status);
                       return (
                         <div
                           key={order.id}
@@ -1202,7 +1190,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <tbody className="divide-y divide-slate-200">
                         {pageOrders.map((order) => {
                           const statusTheme = STATUS_ORDER.find(s => s.key === order.status) || STATUS_ORDER[0];
-                          const next = getNextStatusAction(order.status);
+                          const next = advanceStatus(order.status);
                           return (
                             <tr
                               key={order.id}
@@ -1733,38 +1721,48 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                       <div className="space-y-3 bg-slate-100/25 rounded-xl p-4 border border-slate-200">
                         {/* Quick sequential next step trigger */}
-                        {getNextStatusAction(selectedOrderDetails.order.status) && (
+                        {advanceStatus(selectedOrderDetails.order.status) && (
                           <div className="space-y-2 pb-3 border-b border-slate-200 mb-3">
                             <span className="text-xs text-slate-500 font-semibold block">Fast Next Step:</span>
                             <button
                               id="btn_trigger_next_status"
-                              onClick={() => handleUpdateStatus(getNextStatusAction(selectedOrderDetails.order.status)!)}
+                              onClick={() => handleUpdateStatus(advanceStatus(selectedOrderDetails.order.status)!)}
                               disabled={submittingStatus}
                               className="w-full text-center min-h-12 px-4 rounded-xl btn-aurora text-white font-bold text-base shadow-md shadow-violet-500/20 transition-colors flex items-center justify-center space-x-1 cursor-pointer"
                             >
-                              <span>Move to "{getStatusLabel(getNextStatusAction(selectedOrderDetails.order.status)!)}"</span>
+                              <span>Move to "{getStatusLabel(advanceStatus(selectedOrderDetails.order.status)!)}"</span>
                               <ArrowRight className="h-4 w-4" />
                             </button>
                           </div>
                         )}
 
-                        {/* General status selection */}
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          {STATUS_ORDER.map(s => (
-                            <button
-                              key={s.key}
-                              disabled={selectedOrderDetails.order.status === s.key || submittingStatus}
-                              onClick={() => handleUpdateStatus(s.key)}
-                              className={`min-h-11 px-3 rounded-lg border text-center transition-colors font-semibold ${
-                                selectedOrderDetails.order.status === s.key
-                                  ? 'bg-slate-100 border-slate-200 text-violet-600 cursor-not-allowed'
-                                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer'
-                              }`}
-                            >
-                              {s.label}
-                            </button>
-                          ))}
-                        </div>
+                        {/* Only the moves the server will actually accept. The
+                            table is shared with the API, so this list cannot
+                            drift from what is permitted. */}
+                        {(() => {
+                          const legal = nextStatuses(selectedOrderDetails.order.status);
+                          if (legal.length === 0) {
+                            return (
+                              <p className="text-sm text-slate-500">
+                                This order is {getStatusLabel(selectedOrderDetails.order.status).toLowerCase()} and cannot change further.
+                              </p>
+                            );
+                          }
+                          return (
+                            <div className="grid grid-cols-2 gap-2">
+                              {legal.map((key) => (
+                                <button
+                                  key={key}
+                                  disabled={submittingStatus}
+                                  onClick={() => handleUpdateStatus(key)}
+                                  className="min-h-11 px-3 rounded-lg border text-center transition-colors font-semibold text-sm bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer disabled:opacity-50"
+                                >
+                                  {getStatusLabel(key)}
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        })()}
 
                         {/* Optional status log notes */}
                         <div className="pt-2">

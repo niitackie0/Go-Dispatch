@@ -4,6 +4,7 @@
  */
 
 import { randomToken } from './ids.js';
+import { queueNotification } from './notifications.js';
 import { prisma } from './prisma.js';
 
 /** Auto-queue an order once its pickup is within the hour. */
@@ -49,7 +50,46 @@ export async function runAutomations(): Promise<string[]> {
           changedByName: 'Waypoint Automation',
         },
       });
+      await queueNotification(tx, 'payment_received', order);
+      await queueNotification(tx, 'booking_confirmed', order);
       actions.push(`auto-confirmed ${order.trackingCode}`);
+    }
+
+    // ---- Release riders whose job has finished ------------------------------
+    // Runs BEFORE assignment, not after, so a rider who finished a drop is
+    // available to the queue in this same pass. Previously the release happened
+    // at the end, so a freed rider sat idle until the next tick — up to a
+    // minute of avoidable delay on every handover.
+    //
+    // The token is left in place so the courier's page still renders straight
+    // after they mark delivered; riderTokenExpiresAt retires it later.
+    const finished = await tx.order.findMany({
+      where: {
+        status: { in: ['delivered', 'cancelled'] },
+        riderId: { not: null },
+        rider: { available: false },
+      },
+      include: { rider: true },
+    });
+
+    for (const order of finished) {
+      if (!order.rider) continue;
+
+      // Only release if this rider has nothing else live. Freeing on the first
+      // finished order would hand them a second parcel while still carrying one.
+      const stillCarrying = await tx.order.count({
+        where: {
+          riderId: order.rider.id,
+          status: { in: ['queued', 'picked_up', 'in_transit'] },
+        },
+      });
+      if (stillCarrying > 0) continue;
+
+      await tx.rider.update({
+        where: { id: order.rider.id },
+        data: { available: true },
+      });
+      actions.push(`freed rider ${order.rider.name}`);
     }
 
     // ---- Rule B: pickup window + free rider -> auto-queue -------------------
@@ -71,7 +111,14 @@ export async function runAutomations(): Promise<string[]> {
 
       for (const order of due) {
         const rider = freeRiders.shift();
-        if (!rider) break; // fleet is fully committed; the rest wait
+        if (!rider) {
+          // Fleet fully committed. Say so once, with the size of the backlog,
+          // rather than failing silently — a queue that never drains should be
+          // visible in the log, not inferred from orders that stay confirmed.
+          const waiting = due.length - due.indexOf(order);
+          actions.push(`no free rider — ${waiting} order(s) waiting on capacity`);
+          break;
+        }
 
         await tx.rider.update({
           where: { id: rider.id },
@@ -94,6 +141,7 @@ export async function runAutomations(): Promise<string[]> {
             changedByName: 'Waypoint Automation',
           },
         });
+        await queueNotification(tx, 'rider_assigned', { ...order, riderName: rider.name });
         actions.push(`auto-queued ${order.trackingCode} -> ${rider.name}`);
       }
     }
@@ -134,26 +182,6 @@ export async function runAutomations(): Promise<string[]> {
       actions.push(`auto-reconciled ${order.trackingCode}`);
     }
 
-    // ---- Free the rider once the job is finished ---------------------------
-    // The token is left in place so the courier's page still renders straight
-    // after they mark delivered; riderTokenExpiresAt retires it later.
-    const finished = await tx.order.findMany({
-      where: {
-        status: { in: ['delivered', 'cancelled'] },
-        riderId: { not: null },
-        rider: { available: false },
-      },
-      include: { rider: true },
-    });
-
-    for (const order of finished) {
-      if (!order.rider) continue;
-      await tx.rider.update({
-        where: { id: order.rider.id },
-        data: { available: true },
-      });
-      actions.push(`freed rider ${order.rider.name}`);
-    }
   });
 
   return actions;
