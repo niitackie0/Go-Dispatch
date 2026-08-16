@@ -43,4 +43,12 @@ export const SOCIAL: { name: string; url: string }[] = [
   { name: 'Facebook', url: '' },
   { name: 'Instagram', url: '' },
   { name: 'TikTok', url: '' },
+  { name: 'Snapchat', url: 'https://snapchat.com/t/pCO24mO6' },
+];
+
+/** When a rider can actually be sent, and when the phone is answered. */
+export const OPENING_HOURS = [
+  { days: 'Monday to Friday', hours: '8am – 5pm' },
+  { days: 'Saturday', hours: '8am – 5pm' },
+  { days: 'Sunday', hours: 'Closed' },
 ];

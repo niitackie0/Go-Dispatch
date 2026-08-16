@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { ADMIN_ROLES, type AdminRole, type AdminUser } from '../types.js';
+import SelectModal from './SelectModal.js';
 
 interface StaffManagementProps {
   token: string;
@@ -447,23 +448,24 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                     </span>
                   </div>
 
-                  <select
+                  <SelectModal
                     value={member.role}
                     disabled={busy || isLastOwner}
-                    onChange={(e) => handleRoleChange(member, e.target.value as AdminRole)}
-                    title={
+                    onChange={(v) => handleRoleChange(member, v as AdminRole)}
+                    title="Change role"
+                    subtitle={
                       isLastOwner
-                        ? 'The last owner cannot be demoted — someone must be able to manage staff and pricing.'
-                        : undefined
+                        ? 'The last owner cannot be demoted — somebody must be able to manage staff and pricing.'
+                        : `What ${member.name} can reach in the console.`
                     }
-                    className={`w-full text-sm font-semibold rounded-lg min-h-11 px-3 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${ROLE_INFO[member.role].chip}`}
-                  >
-                    {ADMIN_ROLES.map((role) => (
-                      <option key={role} value={role}>
-                        {ROLE_INFO[role].label}
-                      </option>
-                    ))}
-                  </select>
+                    options={ADMIN_ROLES.map((role) => ({
+                      value: role,
+                      label: ROLE_INFO[role].label,
+                      hint: ROLE_INFO[role].blurb,
+                      disabled: isLastOwner && role !== 'owner',
+                    }))}
+                    className={`w-full text-sm font-semibold rounded-lg min-h-11 px-3 flex items-center justify-between gap-2 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${ROLE_INFO[member.role].chip}`}
+                  />
 
                   {/* Labelled here rather than icon-only — there is room, and
                       these three actions are not guessable from a glyph. */}
@@ -580,23 +582,24 @@ export default function StaffManagement({ token, currentUser }: StaffManagementP
                       </td>
 
                       <td className="px-4 py-3">
-                        <select
+                        <SelectModal
                           value={member.role}
                           disabled={busy || isLastOwner}
-                          onChange={(e) => handleRoleChange(member, e.target.value as AdminRole)}
-                          title={
+                          onChange={(v) => handleRoleChange(member, v as AdminRole)}
+                          title="Change role"
+                          subtitle={
                             isLastOwner
-                              ? 'The last owner cannot be demoted — someone must be able to manage staff and pricing.'
-                              : undefined
+                              ? 'The last owner cannot be demoted — somebody must be able to manage staff and pricing.'
+                              : `What ${member.name} can reach in the console.`
                           }
-                          className={`text-sm font-semibold rounded-lg min-h-11 px-3 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${ROLE_INFO[member.role].chip}`}
-                        >
-                          {ADMIN_ROLES.map((role) => (
-                            <option key={role} value={role}>
-                              {ROLE_INFO[role].label}
-                            </option>
-                          ))}
-                        </select>
+                          options={ADMIN_ROLES.map((role) => ({
+                            value: role,
+                            label: ROLE_INFO[role].label,
+                            hint: ROLE_INFO[role].blurb,
+                            disabled: isLastOwner && role !== 'owner',
+                          }))}
+                          className={`text-sm font-semibold rounded-lg min-h-11 px-3 flex items-center justify-between gap-2 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${ROLE_INFO[member.role].chip}`}
+                        />
                       </td>
 
                       <td className="px-4 py-3 text-xs text-slate-500 font-mono whitespace-nowrap">

@@ -57,6 +57,7 @@ import { advanceStatus, nextStatuses } from '../transitions.js';
 import { quote, formatAmount } from '../pricing.js';
 import type { Capability } from '../capabilities.js';
 import Reports from './Reports.js';
+import SelectModal from './SelectModal.js';
 import StaffManagement from './StaffManagement.js';
 import AccountSecurity from './AccountSecurity.js';
 import { Link } from '../router.js';
@@ -1072,17 +1073,18 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
             <div>
               <label className="block text-sm font-medium text-slate-500 mb-1">Status</label>
-              <select
+              <SelectModal
                 id="filter_status"
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 px-3 py-3 text-sm outline-none focus:border-red-500 focus:bg-white transition-all"
-              >
-                <option value="">All Pipeline States</option>
-                {STATUS_ORDER.map(s => (
-                  <option key={s.key} value={s.key}>{s.label}</option>
-                ))}
-              </select>
+                onChange={setStatusFilter}
+                title="Filter by status"
+                placeholder="All statuses"
+                options={[
+                  { value: '', label: 'All statuses' },
+                  ...STATUS_ORDER.map((s) => ({ value: s.key, label: s.label })),
+                ]}
+                className="w-full min-h-12 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-sm text-slate-900 hover:border-slate-300 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-colors cursor-pointer"
+              />
             </div>
 
             <div>

@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { MapPin, Phone, Truck, Menu, X, ArrowUpRight } from 'lucide-react';
 import { REGIONS } from '../regions.js';
-import { CONTACT_PHONE, CONTACT_PHONE_E164, OFFICE_ADDRESS, OFFICE_LANDMARK, SOCIAL } from '../brand.js';
+import { CONTACT_PHONE, CONTACT_PHONE_E164, OFFICE_ADDRESS, OFFICE_LANDMARK, SOCIAL, OPENING_HOURS } from '../brand.js';
 import { Link, useRouter } from '../router.js';
 
 const NAV_LINKS = [
@@ -39,6 +39,12 @@ function SocialIcon({ name }: { name: string }) {
           <rect x="3" y="3" width="18" height="18" rx="5" />
           <circle cx="12" cy="12" r="4" />
           <circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 'Snapchat':
+      return (
+        <svg {...common} fill="currentColor">
+          <path d="M12 2c2.9 0 5 2.2 5 5.1 0 .7-.05 1.4-.08 2 .5.2 1-.15 1.5-.15.55 0 1.1.35 1.1.85 0 .6-.8.9-1.5 1.15-.5.18-.9.3-.9.72 0 .9 2.2 3.6 4.2 4.1.4.1.68.3.68.65 0 .7-1.6 1.05-2.6 1.2-.2.35-.15 1.05-.5 1.2-.3.13-.9-.05-1.6-.05-.9 0-1.5.13-2.1.6-.75.6-1.5 1.2-3.2 1.2s-2.45-.6-3.2-1.2c-.6-.47-1.2-.6-2.1-.6-.7 0-1.3.18-1.6.05-.35-.15-.3-.85-.5-1.2-1-.15-2.6-.5-2.6-1.2 0-.35.28-.55.68-.65 2-.5 4.2-3.2 4.2-4.1 0-.42-.4-.54-.9-.72-.7-.25-1.5-.55-1.5-1.15 0-.5.55-.85 1.1-.85.5 0 1 .35 1.5.15-.03-.6-.08-1.3-.08-2C7 4.2 9.1 2 12 2z" />
         </svg>
       );
     case 'TikTok':
@@ -320,6 +326,33 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             </div>
           </div>
 
+          <div className="relative mt-7 pt-6 border-t border-white/10 grid gap-6 sm:grid-cols-2">
+            <div>
+              <h3 className="text-sm font-medium text-white/40">Opening hours</h3>
+              <dl className="mt-2 space-y-1">
+                {OPENING_HOURS.map((h) => (
+                  <div key={h.days} className="flex items-baseline justify-between gap-4 max-w-xs">
+                    <dt className="text-[15px] text-white/70">{h.days}</dt>
+                    <dd className={`text-[15px] tabular-nums ${h.hours === 'Closed' ? 'text-white/35' : 'text-white'}`}>
+                      {h.hours}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-white/40">Find us</h3>
+              <p className="mt-2 text-[15px] text-white/70">
+                {OFFICE_ADDRESS}
+                <br />
+                <span className="text-white/45">{OFFICE_LANDMARK}</span>
+              </p>
+              <p className="mt-3 text-[15px] text-white/70">
+                A rider collects from anywhere in Accra — you do not need to come in.
+              </p>
+            </div>
+          </div>
+
           <div className="relative mt-7 pt-5 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-1 gap-y-0 text-sm text-white/55">
               {[
@@ -337,7 +370,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
               ))}
             </nav>
             <p className="text-sm text-white/35">
-              {OFFICE_ADDRESS} · &copy; 2026
+              &copy; 2026 GO DISPATCH · Safe · Fast · Reliable
             </p>
           </div>
         </div>

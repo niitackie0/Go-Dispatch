@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { AlertTriangle, Phone } from 'lucide-react';
+import { AlertTriangle, Phone, ChevronDown } from 'lucide-react';
 import Reveal from './Reveal.js';
 import { REGIONS } from '../regions.js';
 import { DEFAULT_PRICING, formatAmount } from '../pricing.js';
@@ -34,6 +34,18 @@ const SECTIONS = [
   { id: 'contact', label: 'Complaints' },
 ];
 
+/**
+ * One clause, collapsed by default.
+ *
+ * Eight clauses of prose stacked is a page nobody reaches the end of. Collapsed,
+ * the whole agreement fits on one screen as a list of headings, and a reader
+ * opens only the one they came for.
+ *
+ * Built on <details>, so it works before JavaScript runs, find-in-page can open
+ * a closed clause, and it needs no open/closed state of our own. The summary is
+ * the whole heading row, so the tap target is the full width rather than a
+ * little triangle.
+ */
 function Clause({
   id,
   n,
@@ -46,25 +58,20 @@ function Clause({
   children: React.ReactNode;
 }) {
   return (
-    <Reveal>
-      <section id={id} className="scroll-mt-28 border-t border-slate-200 pt-6 pb-12">
-        <div className="grid gap-x-8 gap-y-3 sm:grid-cols-[3rem_1fr]">
-          {/* Clauses are numbered because people cite them by number when
-              something goes wrong. */}
-          <span className="font-mono text-2xl font-semibold text-red-600 tabular-nums leading-none">
-            {String(n).padStart(2, '0')}
-          </span>
-          <div>
-            <h2 className="font-display text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight text-balance">
-              {title}
-            </h2>
-            <div className="mt-5 space-y-4 text-lg text-slate-700 leading-relaxed max-w-[62ch]">
-              {children}
-            </div>
-          </div>
-        </div>
-      </section>
-    </Reveal>
+    <details id={id} className="group scroll-mt-28 border-b border-slate-200">
+      <summary className="flex items-center gap-4 py-5 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+        <span className="font-mono text-sm text-red-600 tabular-nums shrink-0">
+          {String(n).padStart(2, '0')}
+        </span>
+        <h2 className="flex-1 text-lg sm:text-xl font-medium text-slate-900 tracking-tight">
+          {title}
+        </h2>
+        <ChevronDown className="h-5 w-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="pb-6 pl-10 pr-2 space-y-4 text-[17px] text-slate-700 leading-relaxed max-w-[62ch]">
+        {children}
+      </div>
+    </details>
   );
 }
 
@@ -105,7 +112,7 @@ export default function PolicyPage() {
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 grid lg:grid-cols-[220px_1fr] gap-10">
         {/* On this page */}
-        <nav aria-label="On this page" className="lg:sticky lg:top-24 lg:self-start">
+        <nav aria-label="On this page" className="hidden lg:block lg:sticky lg:top-24 lg:self-start">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">
             Clauses
           </h2>
