@@ -1,4 +1,4 @@
-# Waypoint — Work Queue
+# GO DISPATCH — Work Queue
 
 Ordered by priority. Effort: **S** ≈ under an hour · **M** ≈ half a day · **L** ≈ a day or more.
 
@@ -19,11 +19,11 @@ Small jobs, real exposure. None take more than a few minutes.
   **My Account** in the console, and store the new one in a password manager —
   only a hash is kept, so it cannot be recovered.
 
-- [ ] **Delete the three demo role accounts before launch** — **S**
-  `dispatcher@`, `finance@` and `support@waypoint.com` exist so you can see what
-  each role can and cannot reach. Their passwords are written down in this repo's
-  history and are trivially guessable. Remove them from **Staff Accounts** before
-  this is reachable from the internet.
+- [ ] **Move the admin account off `@waypoint.com`** — **S**
+  The only way into the console is `admin@waypoint.com`, which is the old brand.
+  Changing it is a one-liner from **Staff Accounts**, but doing it wrong locks
+  you out, so add the new address as a second owner first, sign in as it, then
+  remove the old one.
 
 - [ ] **Delete the stale `db.json`** — **S**
   Untracked and unread by anything since the Postgres port. It only exists now
@@ -31,23 +31,20 @@ Small jobs, real exposure. None take more than a few minutes.
 
 ---
 
-## P1 — Paused: visual redesign
+## P1 — Interface
 
-Five admin console directions were mocked up for comparison (Ledger, Command,
-Atlas, Market, Grid — Ledger fits the brief already on file). **Decision on
-which direction, for admin and customer both, is deliberately deferred.**
-Current UI stays exactly as it is until that's picked. Nothing here blocks
-backend/logic work below.
+The visual direction is settled: the GO DISPATCH red and white from the printed
+flyer. The console and the customer site have both had the mobile and type pass.
 
-- [ ] **Pick a visual direction** (admin + customer) — unblocks everything else in this section
+- [ ] **Rider view** — **M**
+  The only screen that never got a proper pass. It inherited the red but still
+  reads as the old product, and it is the one screen used one-handed, outdoors,
+  in sunlight. Wants large type, high contrast and few, obvious controls.
+
 - [ ] **Split admin into its own bundle at a private path** — **M**
   Today admin code ships to every customer and sits at the guessable `/admin`.
   New `admin.html` Vite entry + `src/AdminApp.tsx`, path from `ADMIN_PATH` in
-  `.env` (default `/ops`). Independent of which visual direction wins — could
-  be done now if useful before that decision.
-- [ ] **Redesign the customer site** — **L** — `/`, `/book`, `/track`
-- [ ] **Redesign the admin dashboard** — **L** — role-aware once built
-- [ ] **Rider view redesign** — **M** — one-handed, outdoors, high contrast
+  `.env` (default `/ops`).
 
 ---
 
@@ -59,7 +56,7 @@ backend/logic work below.
   same transaction as the change that caused them. Nothing sends yet.
   What is left is the sender. Pick a Ghanaian provider — **Arkesel, Hubtel or
   mNotify** — for cost and for a registered sender ID, so messages arrive from
-  "WAYPOINT" rather than a random number. Then a worker that drains
+  "GO DISPATCH" rather than a random number. Then a worker that drains
   `status = pending`, retries with backoff, and records `providerReference`.
 
 - [ ] **Deployment** — **L**
@@ -98,7 +95,7 @@ backend/logic work below.
   currently no way to answer "who changed this, and when".
 
 - [ ] **Write a real README** — **S**
-  The AI Studio one was deleted. Needs: what Waypoint is, setup, the route map,
+  The AI Studio one was deleted. Needs: what GO DISPATCH is, setup, the route map,
   and the branch model.
 
 - [ ] **Branch protection on `main`** — **S**
@@ -152,3 +149,8 @@ backend/logic work below.
 - Riders are released before assignment in the same automation pass, so a courier
   who finishes a drop can be given the next job immediately
 - Notification outbox: five trigger points queued and deduplicated, not yet sent
+- Rebranded to GO DISPATCH: red palette from the flyer, contact details in one
+  file, GD- tracking codes, thirteen destination towns
+- Repriced by weight — GHS 50 to 3kg, GHS 10 per extra kilo rounded up — with
+  one shared implementation the form quotes from and the server charges by
+- Demo staff accounts deleted and the order ledger wiped clean
