@@ -34,28 +34,32 @@ Nothing else in this document works until that is done.
 Render Dashboard → **New** → **Blueprint** → pick this repository.
 
 Render reads `render.yaml` and proposes one web service, `go-dispatch`, on the
-**starter** plan in **Frankfurt**.
+**free** instance type in **Frankfurt**.
 
-**On the free instance, for now.** Two things to know before real customers
-arrive, because neither is only about speed:
+**The free instance, deliberately.** It sleeps after 15 minutes with no
+traffic and takes about a minute to wake. For an operation this size that is
+the right trade — the machine has no business running at 3am — but two
+consequences are worth knowing rather than discovering.
 
-A free instance sleeps after 15 minutes idle and takes about a minute to wake.
-That minute lands on a courier standing at a customer's door with a parcel in
-one hand, and on a customer refreshing a tracking page that appears broken.
+**The first request after a quiet spell is slow.** Roughly a minute. In
+practice this is the first booking of the morning, and whoever opens the
+console before the day starts absorbs it on everyone's behalf.
 
-Less obvious: **the automation tick does not run while the service is asleep.**
-`server.ts` runs the rules on a 60-second interval inside the web process, so
-auto-queueing a parcel when its pickup window opens, and auto-reconciling an
-on-delivery payment, only happen while something is awake. Overnight they do
-not happen at all — they all fire at once when the first person of the day
-wakes the service. Nothing is lost, but the timestamps will not match what
-actually happened.
+**The automation rules only run while the service is awake.** `server.ts` runs
+them on a 60-second interval inside the web process: auto-queueing a parcel
+when its pickup window opens, releasing a courier who has finished, reconciling
+an on-delivery payment. While the service sleeps, none of that happens; it all
+runs in the first tick after someone wakes it.
 
-Both go away with `plan: starter` ($7/month, 512MB, 0.5 CPU) in `render.yaml`.
-Do it before the first real customer. When you do, also move `npm run release`
-out of `buildCommand` and back to `preDeployCommand` — Render only offers the
-pre-deploy step on paid instances, which is why migrations currently run at the
-end of the build.
+This matters less than it sounds. Every rule also runs immediately after any
+booking, status change or payment — the interval exists only for transitions
+that are purely about the clock. So the real effect is that a parcel booked at
+1am is not auto-queued at 1am; it is auto-queued when the office opens. For a
+courier that does not drive at night, that is what should happen anyway.
+
+Where it would bite is a pickup window that opens before anyone signs in. If
+that ever becomes real, the fix is not a bigger instance — it is to stop
+relying on the tick for that rule, and run it when the board is read.
 
 **Frankfurt**, because Render has five regions — Oregon, Ohio, Virginia,
 Frankfurt, Singapore — and none of them is London. The Neon project *is* in

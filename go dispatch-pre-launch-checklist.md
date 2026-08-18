@@ -20,7 +20,11 @@ Stack: Node backend on Render, Postgres on Neon.
 - [ ] 6. App connects as a limited role, not the project owner
 - [ ] 7. Pool max ~10 per instance; retry logic for dropped connections
 - [ ] 8. Neon project and Render service in the same region (Frankfurt is usually best for Ghana)
-- [ ] 9. Scale-to-zero disabled; Render on a paid always-on instance
+- [x] 9. ~~Scale-to-zero disabled; Render on a paid always-on instance~~ —
+      **decided against.** The service runs on Render's free instance and
+      sleeps after 15 minutes idle. Accepted knowingly: the first request
+      after a quiet spell takes about a minute, and the automation tick only
+      runs while the service is awake. See docs/deploying.md.
 - [ ] 10. IP allowlist enabled, `sslmode=require`, autoscaling spend cap set
 - [ ] 11. Nightly `pg_dump` to R2/S3 — **and restore it once before launch**
 

@@ -17,16 +17,11 @@ services:
   - type: web
     name: go-dispatch
     runtime: node
-    # `plan` is the INSTANCE type, which is a different axis from the Hobby
-    # workspace -- a Hobby workspace can run free or paid instances.
-    #
-    # Free costs nothing and sleeps after 15 minutes idle, waking in about a
-    # minute. Two consequences, one obvious and one not:
-    #   - a courier at a customer's door pays that minute
-    #   - the automation tick does not run while the service is asleep, so
-    #     time-based transitions happen late, in a burst, when someone next
-    #     wakes it
-    # Change to `starter` before real customers. docs/deploying.md says more.
+    # The service sleeps after 15 minutes idle and takes about a minute to
+    # wake. That is the intended arrangement, not a stage on the way to
+    # something else -- this is a small operation and the machine has no
+    # business running at 3am. docs/deploying.md covers what sleeping means
+    # for the automation rules.
     plan: free
     region: frankfurt # Render has five regions and none of them is London, so
                       # this cannot match the Neon project. Frankfurt is the
@@ -38,16 +33,15 @@ services:
     branch: main
     autoDeploy: false # Deploys are a decision, not a consequence of pushing.
 
-    # Migrations belong in a pre-deploy step, which Render offers only on paid
-    # instances. On free they run at the end of the build instead.
+    # Migrations run at the end of the build. Render's dedicated pre-deploy
+    # step is not available here, so this is the place -- and the reason it is
+    # safe is that there is exactly one instance, so no second copy can race it
+    # through the same migration.
     #
-    # That is a real downgrade and worth naming: the build runs before the old
-    # instance stops, so for a moment the schema is ahead of the code serving
-    # traffic, and a migration that succeeds followed by a start that fails
-    # leaves it that way. It is tolerable here only because a free instance is
-    # a single instance -- nothing races it -- and every migration so far has
-    # been additive. Move this back to preDeployCommand on the day the plan
-    # changes to starter.
+    # The one thing to know: the build finishes before the old process stops,
+    # so for a few seconds the schema is ahead of the code still serving. Write
+    # migrations that the previous version can survive -- add columns, do not
+    # rename them out from under it -- and that window costs nothing.
     buildCommand: npm ci && npm run build && npm run release
     startCommand: npm start
 
