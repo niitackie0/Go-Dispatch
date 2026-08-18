@@ -98,6 +98,19 @@ app.use('/api/bookings', bookingsRouter);
 app.use('/api/riders', ridersRouter);
 app.use('/api/rider', riderRouter);
 
+/**
+ * An unknown /api path is a 404 in JSON.
+ *
+ * Without this it falls through to the SPA catch-all at the bottom of the
+ * file and answers 200 with index.html -- so a typo'd endpoint looks like a
+ * success to whoever called it, `res.ok` is true, and the failure surfaces
+ * later as a JSON parse error on "<!doctype html". Registered after every
+ * router and before the error handler, which is the only place it works.
+ */
+app.use('/api', (_req: Request, res: Response) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
 // Anything a route handler threw or rejected with lands here. Details stay in
 // the log; the client gets a generic message rather than a stack trace.
 app.use('/api', (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
@@ -193,7 +206,20 @@ async function startServer() {
     // The console is reachable at ADMIN_PATH and nowhere else. Without this,
     // express.static would happily serve the same page at /admin.html, and
     // moving the path would have bought nothing.
-    app.get('/admin.html', (_req, res) => {
+    //
+    // /admin needs its own refusal for a different reason: it is not a file,
+    // so static never sees it, and the SPA catch-all at the bottom would hand
+    // back the customer site with a 200. That is not an exposure -- the
+    // console bundle is not in that page -- but development 404s this path,
+    // and a guard that behaves differently in the environment that matters is
+    // not a guard.
+    // Conditional, because ADMIN_PATH is allowed to BE /admin. Refusing it
+    // unconditionally would register ahead of the console's own route below
+    // and lock the operator out of their own console.
+    const refuse = ['/admin.html'];
+    if (ADMIN_PATH.toLowerCase() !== '/admin') refuse.push('/admin');
+
+    app.get(refuse, (_req, res) => {
       res.status(404).send('Not found');
     });
 
