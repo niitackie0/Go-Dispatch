@@ -6,34 +6,65 @@
 import React, { useEffect, useState } from 'react';
 import {
   Truck,
-  MapPin,
+  Navigation,
   Phone,
-  Package,
   Loader2,
   CheckCircle2,
   AlertCircle,
   Banknote,
   ArrowRight,
   Clock,
+  ChevronDown,
 } from 'lucide-react';
 import { RiderJob, OrderStatus } from '../types.js';
 
+/**
+ * The courier's screen.
+ *
+ * Read one-handed, outdoors, in sunlight, by somebody who has stopped a
+ * motorbike to look at it. Everything here follows from that.
+ *
+ * ONE LEG AT A TIME. A job has two ends, but never both at once: before
+ * collection the only thing that matters is the sender's address, and from the
+ * moment the parcel is in the bag it is the recipient's. So the screen shows
+ * the half being worked on, at a size that can be read at arm's length, and
+ * folds the other half into a line that can be opened if needed. The old
+ * version gave pickup, dropoff and parcel three identical cards, which meant
+ * hunting for the relevant one on every glance.
+ *
+ * NAVIGATE IS THE POINT. The first thing a courier does with an address is
+ * open it in Maps. Before this it was plain text to be copied out by hand.
+ *
+ * Contrast over decoration: no grey lighter than slate-600 for anything that
+ * has to be read, borders rather than shadows, and every target at least 48px.
+ */
+
 const NEXT_ACTION: Partial<Record<OrderStatus, { label: string; hint: string }>> = {
-  queued: { label: 'Mark picked up', hint: 'Confirm once the parcel is in your hands.' },
-  picked_up: { label: 'Start transit', hint: 'Confirm once you are on the road.' },
-  in_transit: { label: 'Mark delivered', hint: 'Confirm once the recipient has the parcel.' },
+  queued: { label: 'I have collected it', hint: 'Press once the parcel is in your hands.' },
+  picked_up: { label: 'On my way', hint: 'Press when you set off to the recipient.' },
+  in_transit: { label: 'Delivered', hint: 'Press once the recipient has the parcel.' },
 };
 
 const STATUS_LABEL: Record<string, string> = {
   requested: 'Requested',
   awaiting_payment: 'Awaiting payment',
   confirmed: 'Confirmed',
-  queued: 'Ready for pickup',
-  picked_up: 'Picked up',
-  in_transit: 'In transit',
+  queued: 'To collect',
+  picked_up: 'Collected',
+  in_transit: 'On the road',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
 };
+
+/**
+ * A maps link for an address as people here actually write them — a landmark
+ * and a neighbourhood, not a street number. A free-text search handles that;
+ * coordinates we do not have would handle it better, and we do not have them.
+ */
+function mapsUrl(address: string, region?: string): string {
+  const query = [address, region, 'Ghana'].filter(Boolean).join(', ');
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
 
 export default function RiderView({ token }: { token: string }) {
   const [job, setJob] = useState<RiderJob | null>(null);
@@ -91,11 +122,10 @@ export default function RiderView({ token }: { token: string }) {
     }
   };
 
-  // ---------- loading / invalid link ----------
   if (loading) {
     return (
       <div className="min-h-dvh bg-[var(--wp-bg)] flex items-center justify-center">
-        <Loader2 className="h-7 w-7 animate-spin text-red-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-red-600" />
       </div>
     );
   }
@@ -103,11 +133,11 @@ export default function RiderView({ token }: { token: string }) {
   if (error && !job) {
     return (
       <div className="min-h-dvh bg-[var(--wp-bg)] flex items-center justify-center px-5">
-        <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-          <AlertCircle className="mx-auto h-9 w-9 text-red-500" />
-          <h1 className="mt-3 text-lg font-medium text-slate-900">Link not valid</h1>
-          <p className="mt-2 text-sm text-slate-600">{error}</p>
-          <p className="mt-4 text-sm text-slate-400">Ask dispatch to resend your delivery link.</p>
+        <div className="w-full max-w-sm rounded-2xl border-2 border-slate-300 bg-white p-6 text-center">
+          <AlertCircle className="mx-auto h-10 w-10 text-red-600" />
+          <h1 className="mt-3 text-xl font-semibold text-slate-900">Link not valid</h1>
+          <p className="mt-2 text-base text-slate-700">{error}</p>
+          <p className="mt-4 text-base text-slate-600">Ask dispatch to send your link again.</p>
         </div>
       </div>
     );
@@ -119,152 +149,250 @@ export default function RiderView({ token }: { token: string }) {
   const isDone = job.status === 'delivered';
   const isCancelled = job.status === 'cancelled';
 
+  /**
+   * Which end of the job is live. `queued` means it is still with the sender;
+   * anything past that means it is in the courier's hands and the only address
+   * that matters is where it is going.
+   */
+  const leg: 'pickup' | 'dropoff' | null =
+    job.status === 'queued'
+      ? 'pickup'
+      : job.status === 'picked_up' || job.status === 'in_transit'
+        ? 'dropoff'
+        : null;
+
+  const here =
+    leg === 'pickup'
+      ? {
+          label: 'Collect from',
+          name: job.senderName,
+          phone: job.senderPhone,
+          address: job.pickupAddress,
+          notes: job.pickupNotes,
+          region: undefined as string | undefined,
+        }
+      : {
+          label: 'Deliver to',
+          name: job.recipientName,
+          phone: job.recipientPhone,
+          address: job.dropoffAddress,
+          notes: job.dropoffNotes,
+          region: job.destinationRegion,
+        };
+
+  const other =
+    leg === 'pickup'
+      ? {
+          label: 'Then deliver to',
+          name: job.recipientName,
+          phone: job.recipientPhone,
+          address: job.dropoffAddress,
+          notes: job.dropoffNotes,
+          region: job.destinationRegion,
+        }
+      : {
+          label: 'Collected from',
+          name: job.senderName,
+          phone: job.senderPhone,
+          address: job.pickupAddress,
+          notes: job.pickupNotes,
+          region: undefined as string | undefined,
+        };
+
+  const firstName = (full: string) => (full || '').trim().split(/\s+/)[0] || full;
+
+  /**
+   * Whether the money changes hands on THIS leg.
+   *
+   * A sender who is paying settles when the parcel is handed over; a recipient
+   * who is paying settles at their door. Offering "I have the money" on the
+   * wrong leg invites a courier to mark a payment they have not been given,
+   * which the ledger then believes.
+   */
+  const collectHere =
+    job.cashToCollect &&
+    ((job.payer === 'sender' && leg === 'pickup') || (job.payer !== 'sender' && leg === 'dropoff'));
+
   return (
-    <div className="min-h-dvh bg-[var(--wp-bg)] text-slate-900 font-sans pb-32">
-      {/* Header */}
-      <header className="text-white px-5 pt-6 pb-8" style={{ background: 'var(--wp-grad)' }}>
-        <div className="flex items-center gap-2 text-white/80">
-          <Truck className="h-4 w-4" />
-          <span className="text-xs font-mono uppercase tracking-[0.16em]">GO DISPATCH courier</span>
-        </div>
-        <h1 className="mt-3 font-mono text-2xl font-medium">{job.trackingCode}</h1>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-white/20 backdrop-blur px-2.5 py-1 text-xs font-medium">
+    <div className="min-h-dvh bg-[var(--wp-bg)] text-slate-900 font-sans pb-36">
+      <header className="px-5 pt-5 pb-4 text-white" style={{ background: 'var(--wp-grad)' }}>
+        <div className="flex items-center justify-between gap-3">
+          <span className="flex items-center gap-2 text-white/85">
+            <Truck className="h-4 w-4" />
+            <span className="font-mono text-xs uppercase tracking-[0.16em]">GO DISPATCH</span>
+          </span>
+          <span className="rounded-lg bg-white/20 px-2.5 py-1 text-sm font-semibold">
             {STATUS_LABEL[job.status] ?? job.status}
           </span>
-          {job.riderName && <span className="text-xs text-white/80">Assigned to {job.riderName}</span>}
         </div>
+        <p className="mt-2 font-mono text-xl font-semibold">{job.trackingCode}</p>
       </header>
 
-      <main className="px-4 -mt-4 space-y-3">
-        {/* Cash to collect */}
-        {job.cashToCollect && (
-          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 flex items-start gap-3">
-            <Banknote className="h-5 w-5 shrink-0 text-amber-600" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-amber-900">
-                Collect {job.currency} {(job.priceAmount / 100).toFixed(2)}
-              </p>
-              <p className="mt-0.5 text-sm text-amber-800">
-                Payable by the {job.payer === 'recipient' ? 'recipient at dropoff' : 'sender'}.
-              </p>
-              <button
-                onClick={collect}
-                disabled={collecting}
-                className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-amber-600 px-4 text-sm font-medium text-white disabled:opacity-50"
-              >
-                {collecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                Payment collected
-              </button>
-            </div>
-          </div>
-        )}
-
-        {job.paymentStatus === 'paid' && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            <span className="text-sm font-medium text-emerald-800">Already paid — collect nothing.</span>
-          </div>
-        )}
-
+      <main className="px-4 pt-5 space-y-4">
         {error && (
-          <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-500 mt-0.5" />
-            <span className="text-sm text-red-700">{error}</span>
+          <div role="alert" className="rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 flex items-start gap-2.5">
+            <AlertCircle className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
+            <span className="text-base text-red-800">{error}</span>
           </div>
         )}
 
-        {/* Pickup */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-100 text-xs font-semibold text-red-700">P</span>
-            <h2 className="text-sm font-medium text-slate-900">Pickup</h2>
-          </div>
-          <p className="text-sm font-medium text-slate-900">{job.senderName}</p>
-          <p className="mt-1 flex items-start gap-1.5 text-sm text-slate-600">
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            {job.pickupAddress}
-          </p>
-          {job.pickupNotes && <p className="mt-1 pl-5.5 text-sm italic text-slate-500">{job.pickupNotes}</p>}
-          <a
-            href={`tel:${job.senderPhone}`}
-            className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700"
-          >
-            <Phone className="h-4 w-4 text-red-600" />
-            {job.senderPhone}
-          </a>
-        </section>
+        {leg ? (
+          <>
+            {/* The half of the job being worked on, at a size readable at
+                arm's length in daylight. */}
+            <section>
+              <p className="text-sm font-semibold uppercase tracking-wider text-slate-600">
+                {here.label}
+              </p>
+              <h1 className="mt-1.5 text-3xl font-bold leading-[1.15] tracking-tight text-slate-900">
+                {here.address}
+              </h1>
+              {here.notes && (
+                <p className="mt-2 text-lg leading-snug text-slate-800">{here.notes}</p>
+              )}
+              <p className="mt-2 text-base text-slate-700">{here.name}</p>
 
-        {/* Dropoff */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-100 text-xs font-semibold text-sky-700">D</span>
-            <h2 className="text-sm font-medium text-slate-900">Dropoff</h2>
-          </div>
-          <p className="text-sm font-medium text-slate-900">{job.recipientName}</p>
-          <p className="mt-1 flex items-start gap-1.5 text-sm text-slate-600">
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            {job.dropoffAddress}
-          </p>
-          {job.dropoffNotes && <p className="mt-1 pl-5.5 text-sm italic text-slate-500">{job.dropoffNotes}</p>}
-          <a
-            href={`tel:${job.recipientPhone}`}
-            className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700"
-          >
-            <Phone className="h-4 w-4 text-red-600" />
-            {job.recipientPhone}
-          </a>
-        </section>
+              <div className="mt-4 grid grid-cols-2 gap-2.5">
+                <a
+                  href={mapsUrl(here.address, here.region)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-aurora flex min-h-14 items-center justify-center gap-2 rounded-xl text-base font-semibold text-white"
+                >
+                  <Navigation className="h-5 w-5" />
+                  Navigate
+                </a>
+                <a
+                  href={`tel:${here.phone}`}
+                  className="flex min-h-14 items-center justify-center gap-2 rounded-xl border-2 border-slate-900 bg-white text-base font-semibold text-slate-900"
+                >
+                  <Phone className="h-5 w-5" />
+                  Call {firstName(here.name)}
+                </a>
+              </div>
+            </section>
 
-        {/* Parcel */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <Package className="h-4 w-4 text-red-600" />
-            <h2 className="text-sm font-medium text-slate-900">Parcel</h2>
-          </div>
-          <dl className="grid grid-cols-2 gap-y-2 text-sm">
-            <dt className="text-slate-500">Size</dt>
-            <dd className="text-right font-medium capitalize text-slate-900">{job.packageSize}</dd>
-            <dt className="text-slate-500">Weight</dt>
-            <dd className="text-right font-medium text-slate-900 tabular-nums">{job.packageWeightKg} kg</dd>
-            <dt className="text-slate-500">Pickup by</dt>
-            <dd className="text-right font-medium text-slate-900">
-              {new Date(job.scheduledPickupAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-            </dd>
-          </dl>
-          <p className="mt-3 border-t border-slate-100 pt-3 text-sm text-slate-600">{job.packageDescription}</p>
-        </section>
+            {/* The other end, folded away. Built on <details> so it needs no
+                state of its own and survives a re-render mid-job. */}
+            <details className="group rounded-xl border-2 border-slate-200 bg-white">
+              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-slate-600">{other.label}</span>
+                  <span className="block truncate text-base font-semibold text-slate-900">
+                    {other.address}
+                  </span>
+                </span>
+                <ChevronDown className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="border-t-2 border-slate-100 px-4 py-3.5 space-y-3">
+                {other.notes && <p className="text-base text-slate-800">{other.notes}</p>}
+                <p className="text-base text-slate-700">{other.name}</p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <a
+                    href={mapsUrl(other.address, other.region)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex min-h-12 items-center justify-center gap-2 rounded-xl border-2 border-slate-300 bg-white text-base font-medium text-slate-900"
+                  >
+                    <Navigation className="h-4 w-4" />
+                    Map
+                  </a>
+                  <a
+                    href={`tel:${other.phone}`}
+                    className="flex min-h-12 items-center justify-center gap-2 rounded-xl border-2 border-slate-300 bg-white text-base font-medium text-slate-900"
+                  >
+                    <Phone className="h-4 w-4" />
+                    Call
+                  </a>
+                </div>
+              </div>
+            </details>
+          </>
+        ) : (
+          <section className="rounded-xl border-2 border-slate-200 bg-white p-4">
+            <p className="text-base text-slate-700">
+              {isDone
+                ? `Delivered to ${job.recipientName}.`
+                : isCancelled
+                  ? 'This job was cancelled. Do not collect it.'
+                  : 'Dispatch has not released this parcel yet.'}
+            </p>
+          </section>
+        )}
+
+        {/* Money. Only ever shown when there is money to take. */}
+        {collectHere ? (
+          <section className="rounded-xl border-2 border-red-600 bg-red-50 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-red-800">
+              <Banknote className="h-4 w-4" />
+              Collect at the door
+            </p>
+            <p className="mt-1 text-3xl font-bold tabular-nums text-red-900">
+              {job.currency} {(job.priceAmount / 100).toFixed(2)}
+            </p>
+            <p className="mt-1 text-base text-red-800">
+              From the {job.payer === 'recipient' ? 'recipient' : 'sender'}.
+            </p>
+            <button
+              onClick={collect}
+              disabled={collecting}
+              className="mt-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-red-600 text-base font-semibold text-white disabled:opacity-60"
+            >
+              {collecting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
+              I have the money
+            </button>
+          </section>
+        ) : job.cashToCollect ? (
+          // Money is due, but not on this leg. Worth knowing about, not worth
+          // a button that would record it early.
+          <p className="flex items-center gap-2 px-1 text-base text-slate-700">
+            <Banknote className="h-5 w-5 shrink-0 text-slate-500" />
+            {job.currency} {(job.priceAmount / 100).toFixed(2)} to collect from the{' '}
+            {job.payer === 'sender' ? 'sender' : 'recipient'}
+            {job.payer === 'sender' ? ' now' : ' at the door'}.
+          </p>
+        ) : job.paymentStatus === 'paid' ? (
+          <p className="flex items-center gap-2 px-1 text-base font-medium text-emerald-800">
+            <CheckCircle2 className="h-5 w-5 text-emerald-700" />
+            Paid already — collect nothing.
+          </p>
+        ) : null}
+
+        {/* What is being carried. One line, because a courier checks it once. */}
+        <p className="px-1 text-base text-slate-700">
+          {job.packageWeightKg}kg · {job.packageDescription}
+        </p>
       </main>
 
-      {/* Sticky primary action */}
-      <div className="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white/90 backdrop-blur-xl px-4 py-4">
+      {/* The one action, always in reach of a thumb. */}
+      <div className="fixed inset-x-0 bottom-0 border-t-2 border-slate-200 bg-white px-4 pb-5 pt-4">
         {isDone ? (
-          <div className="flex items-center justify-center gap-2 py-2 text-emerald-700">
-            <CheckCircle2 className="h-5 w-5" />
-            <span className="font-medium">Delivered — job complete</span>
-          </div>
+          <p className="flex items-center justify-center gap-2 py-3 text-lg font-semibold text-emerald-800">
+            <CheckCircle2 className="h-6 w-6" />
+            Job complete
+          </p>
         ) : isCancelled ? (
-          <div className="flex items-center justify-center gap-2 py-2 text-red-600">
-            <AlertCircle className="h-5 w-5" />
-            <span className="font-medium">This job was cancelled</span>
-          </div>
+          <p className="flex items-center justify-center gap-2 py-3 text-lg font-semibold text-red-700">
+            <AlertCircle className="h-6 w-6" />
+            Cancelled
+          </p>
         ) : action ? (
           <>
             <button
               onClick={advance}
               disabled={working}
-              className="btn-aurora flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-medium text-white disabled:opacity-60"
+              className="btn-aurora flex min-h-16 w-full items-center justify-center gap-2.5 rounded-2xl text-lg font-semibold text-white disabled:opacity-60"
             >
-              {working ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
+              {working ? <Loader2 className="h-6 w-6 animate-spin" /> : <ArrowRight className="h-6 w-6" />}
               {action.label}
             </button>
-            <p className="mt-2 text-center text-sm text-slate-500">{action.hint}</p>
+            <p className="mt-2 text-center text-base text-slate-600">{action.hint}</p>
           </>
         ) : (
-          <div className="flex items-center justify-center gap-2 py-2 text-slate-500">
-            <Clock className="h-4 w-4" />
-            <span className="text-sm">Waiting on dispatch — nothing to do yet.</span>
-          </div>
+          <p className="flex items-center justify-center gap-2 py-3 text-base text-slate-600">
+            <Clock className="h-5 w-5" />
+            Nothing to do yet — dispatch will release it.
+          </p>
         )}
       </div>
     </div>
