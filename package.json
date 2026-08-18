@@ -14,7 +14,8 @@
     "db:fixtures": "tsx prisma/fixtures.ts",
     "db:studio": "prisma studio",
     "sms:preview": "tsx scripts/sms-preview.ts",
-    "sms:outbox": "tsx scripts/sms-drain.ts"
+    "sms:outbox": "tsx scripts/sms-drain.ts",
+    "admin": "tsx scripts/admin.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.1.0",

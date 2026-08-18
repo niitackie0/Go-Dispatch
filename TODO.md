@@ -6,28 +6,38 @@ Ordered by priority. Effort: **S** ≈ under an hour · **M** ≈ half a day · 
 
 ## P0 — Security, do these first
 
-Small jobs, real exposure. None take more than a few minutes.
+Small jobs, real exposure. Three are yours; the tooling for them is built.
 
 - [ ] **Rotate the Neon database password** — **S**
   Both connection strings were pasted into a chat, so that credential is in a
   transcript. Neon Console → Roles → `neondb_owner` → Reset password, then
-  update the two lines in `.env`. Do this before real customer data exists.
+  update `DATABASE_URL` and `DIRECT_URL` in `.env` (the pooled host ends in
+  `-pooler`, the direct one does not — see `.env.example`). Confirm it worked
+  with `npm run admin list`, which fails loudly if it cannot connect.
 
-- [ ] **Change the admin password to one you choose** — **S**
-  Currently `admin@waypoint.com` / `u8MoA64Xg588wuLH8dvd`, which was generated
-  by the seed and has since appeared in a chat transcript. Change it from
-  **My Account** in the console, and store the new one in a password manager —
-  only a hash is kept, so it cannot be recovered.
+- [ ] **Roll the Arkesel API key** — **S**
+  Same problem, same fix: it arrived over chat. Arkesel dashboard → new key →
+  `SMS_API_KEY` in `.env`. Do it before switching sending on, not after.
 
-- [ ] **Move the admin account off `@waypoint.com`** — **S**
-  The only way into the console is `admin@waypoint.com`, which is the old brand.
-  Changing it is a one-liner from **Staff Accounts**, but doing it wrong locks
-  you out, so add the new address as a second owner first, sign in as it, then
-  remove the old one.
+- [ ] **Delete the `admin@waypoint.com` account** — **S**
+  One step now closes what used to be two items. The account carries the old
+  brand AND the password that appeared in a transcript, and it currently holds
+  **61 live sessions, none expired** — anyone with that password is one login
+  away from the console. Deleting it ends all 61.
 
-- [ ] **Delete the stale `db.json`** — **S**
-  Untracked and unread by anything since the Postgres port. It only exists now
-  to confuse whoever next opens the folder.
+  Safe to do, because the two things that made it risky are no longer true:
+  a second owner already exists (`annanrichard26@gmail.com`), and the seed
+  script no longer recreates this address — it defaults to
+  `owner@godispatch.local` and leaves existing accounts alone.
+
+  1. Confirm you can sign in as `annanrichard26@gmail.com`. If that password is
+     unknown, set one: `npm run admin password annanrichard26@gmail.com`.
+  2. Signed in as that account, remove `admin@waypoint.com` from **Staff
+     Accounts**.
+
+  `npm run admin` also does all of this from a terminal, which is the way back
+  in if the console ever locks everybody out. Passwords typed there are masked,
+  hashed, and never printed — so they stay out of transcripts.
 
 ---
 
@@ -74,10 +84,6 @@ flyer. The console and the customer site have both had the mobile and type pass.
   Nothing is hosted yet. Needs a host, env vars set (including `ADMIN_PATH` and
   the rotated `DATABASE_URL`), `prisma migrate deploy` in the release step, and
   a decision on where the automation tick runs.
-
-- [ ] **Recreate `.env.example`** — **S**
-  Deleted with the AI Studio cruft, but deployment needs a checklist of required
-  variables: `DATABASE_URL`, `DIRECT_URL`, `ADMIN_PATH`, SMS keys later.
 
 - [ ] **Turn on TypeScript `strict`** — **M**
   `tsconfig.json` has no `strict`, so `tsc` catches almost no null/undefined
@@ -185,3 +191,9 @@ flyer. The console and the customer site have both had the mobile and type pass.
 - Repriced by weight — GHS 50 to 3kg, GHS 10 per extra kilo rounded up — with
   one shared implementation the form quotes from and the server charges by
 - Demo staff accounts deleted and the order ledger wiped clean
+- Undo on the delivery workflow: one step, ten minutes, side effects reversed with it
+- Terms and tracking pages rebuilt; tooltips and a payments search in the console
+- Reports lifted onto `feature-reports-pack` to be sold later as an upgrade
+- SMS decided and built: six events, one billed segment each, Arkesel wired but
+  switched off — see docs/sms-messages.md
+- `.env.example` written, and `npm run admin` for staff accounts from a terminal
