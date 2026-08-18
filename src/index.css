@@ -338,6 +338,128 @@ body {
    ============================================================ */
 
 /* ============================================================
+   THE ROUTE FIELD — the sign-in page's ground.
+
+   Not decoration for its own sake: it is the dashed road the
+   brand already draws, repeated at a shallow angle until it
+   reads as a texture rather than a picture. Three layers, none
+   of them loud:
+
+     - dashes running north-east, the direction every parcel
+       travels out of Accra
+     - a second, wider set crossing them, so the field does not
+       read as stripes
+     - a soft red wash in one corner, to stop the middle of the
+       screen being the brightest thing on it
+
+   Kept under 5% opacity throughout. A sign-in page is looked
+   past, not at.
+   ============================================================ */
+.gd-route-field {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--wp-bg);
+}
+.gd-route-field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      64deg,
+      color-mix(in srgb, var(--wp-maroon) 7%, transparent) 0 2px,
+      transparent 2px 13px
+    ),
+    repeating-linear-gradient(
+      -28deg,
+      color-mix(in srgb, var(--wp-maroon) 4%, transparent) 0 1px,
+      transparent 1px 34px
+    );
+  /* Fades out towards the middle, so the form never sits on texture. */
+  -webkit-mask-image: radial-gradient(120% 90% at 50% 50%, transparent 22%, #000 78%);
+  mask-image: radial-gradient(120% 90% at 50% 50%, transparent 22%, #000 78%);
+  opacity: 0.9;
+}
+.gd-route-field::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 38% at 6% 4%, color-mix(in srgb, var(--wp-red) 12%, transparent), transparent 70%),
+    radial-gradient(40% 34% at 96% 98%, color-mix(in srgb, var(--wp-maroon) 9%, transparent), transparent 68%);
+}
+
+/* ============================================================
+   MOTION
+
+   The console is a working tool, so movement here has one job:
+   to say what just changed and where it came from. Nothing
+   loops, nothing bounces, and nothing lasts long enough to be
+   waited on — 160 to 260ms, which is under the threshold where
+   an interface starts to feel slow.
+
+   Every rule is switched off wholesale for reduced motion at
+   the bottom of this file.
+   ============================================================ */
+
+/* A section arriving when its nav item is chosen. Rises a little,
+   because it came from the click below it. */
+@keyframes gd-enter {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+.gd-enter { animation: gd-enter 260ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Rows landing one after another. The delay is set per row in the
+   component; capped so a full page never takes longer than a beat. */
+@keyframes gd-row-in {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+.gd-row-in { animation: gd-row-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* The nav's active marker. It is one element that moves between
+   items rather than one per item appearing and disappearing, so
+   the eye tracks a thing travelling instead of two things blinking. */
+.gd-nav-item { position: relative; }
+.gd-nav-item .gd-nav-mark {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 0 3px 3px 0;
+  background: var(--wp-red);
+  transform: translateY(-50%);
+  transition: height 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.gd-nav-item[data-active="true"] .gd-nav-mark { height: 22px; }
+
+/* The icon leans towards the label on hover, which is the smallest
+   possible acknowledgement that a control noticed the pointer. */
+.gd-nav-item svg { transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+.gd-nav-item:hover svg { transform: translateX(2px); }
+
+/* Figures that change while you are looking at them. */
+@keyframes gd-tick {
+  0%   { opacity: 0.35; transform: translate3d(0, -3px, 0); }
+  100% { opacity: 1; transform: none; }
+}
+.gd-tick { animation: gd-tick 260ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gd-enter,
+  .gd-row-in,
+  .gd-tick { animation: none !important; }
+  .gd-nav-item .gd-nav-mark,
+  .gd-nav-item svg { transition: none !important; }
+}
+
+/* ============================================================
    The console's surfaces.
 
    Softer than the customer site on purpose: this is a screen

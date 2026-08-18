@@ -62,7 +62,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
   };
 
   return (
-    <div className="min-h-dvh bg-[var(--wp-bg)] flex flex-col items-center justify-center px-5 py-12">
+    <div className="gd-route-field min-h-dvh flex flex-col items-center justify-center px-5 py-12">
       <main className="w-full max-w-[22rem]">
         {/* The mark, letterspaced, doing the work a logo and a headline used
             to do between them. */}
