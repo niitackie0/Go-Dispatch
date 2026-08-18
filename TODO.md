@@ -19,25 +19,12 @@ Small jobs, real exposure. Three are yours; the tooling for them is built.
   Same problem, same fix: it arrived over chat. Arkesel dashboard → new key →
   `SMS_API_KEY` in `.env`. Do it before switching sending on, not after.
 
-- [ ] **Delete the `admin@waypoint.com` account** — **S**
-  One step now closes what used to be two items. The account carries the old
-  brand AND the password that appeared in a transcript, and it currently holds
-  **61 live sessions, none expired** — anyone with that password is one login
-  away from the console. Deleting it ends all 61.
-
-  Safe to do, because the two things that made it risky are no longer true:
-  a second owner already exists (`annanrichard26@gmail.com`), and the seed
-  script no longer recreates this address — it defaults to
-  `owner@godispatch.local` and leaves existing accounts alone.
-
-  1. Confirm you can sign in as `annanrichard26@gmail.com`. If that password is
-     unknown, set one: `npm run admin password annanrichard26@gmail.com`.
-  2. Signed in as that account, remove `admin@waypoint.com` from **Staff
-     Accounts**.
-
-  `npm run admin` also does all of this from a terminal, which is the way back
-  in if the console ever locks everybody out. Passwords typed there are masked,
-  hashed, and never printed — so they stay out of transcripts.
+- [ ] **Add a second owner when there is somebody to add** — **S**
+  `annanrichard26@gmail.com` is now the only owner, and the app refuses to
+  delete or demote a last owner, so the account cannot be locked out by a
+  mistake in the console. The way back in if that password is ever lost is
+  `npm run admin password annanrichard26@gmail.com`, which works without being
+  signed in. Worth a second owner anyway once a colleague needs access.
 
 ---
 
@@ -191,6 +178,8 @@ flyer. The console and the customer site have both had the mobile and type pass.
 - Repriced by weight — GHS 50 to 3kg, GHS 10 per extra kilo rounded up — with
   one shared implementation the form quotes from and the server charges by
 - Demo staff accounts deleted and the order ledger wiped clean
+- The exposed `admin@waypoint.com` owner deleted: old brand, transcript password
+  and 61 live sessions retired in one step, audit trail kept its attribution
 - Undo on the delivery workflow: one step, ten minutes, side effects reversed with it
 - Terms and tracking pages rebuilt; tooltips and a payments search in the console
 - Reports lifted onto `feature-reports-pack` to be sold later as an upgrade
