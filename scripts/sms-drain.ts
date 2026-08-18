@@ -20,6 +20,7 @@ import { smsBalance, smsEnabled, smsProviderName } from '../src/server/smsProvid
 import { smsCost } from '../src/server/sms.js';
 
 const send = process.argv.includes('--send');
+const discard = process.argv.includes('--discard');
 
 const rows = await prisma.notification.findMany({
   orderBy: { createdAt: 'asc' },
@@ -55,10 +56,24 @@ if (failed.length > 0) {
   }
 }
 
+/**
+ * Throw the queue away.
+ *
+ * Wanted exactly once, but wanted badly: messages queued while sending was
+ * being built are addressed to real people about parcels long since settled,
+ * and switching the worker on would deliver every one of them. Only touches
+ * pending rows -- anything already sent stays on the record.
+ */
+if (discard) {
+  const { count } = await prisma.notification.deleteMany({ where: { status: 'pending' } });
+  console.log('Discarded ' + count + ' pending message(s). Nothing was sent.');
+  process.exit(0);
+}
+
 if (!send) {
   console.log(
     pending.length > 0
-      ? 'Nothing was sent. Re-run with --send to send the queue above.\n'
+      ? 'Nothing was sent. Use --send to send it, or --discard to bin it unsent.\n'
       : 'Nothing queued.\n'
   );
   process.exit(0);
