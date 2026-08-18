@@ -63,7 +63,7 @@ export default function PasswordField({
           required={required}
           minLength={minLength}
           autoComplete={autoComplete}
-          className="w-full min-h-12 rounded-2xl border border-slate-200/80 bg-white pl-3.5 pr-12 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
+          className="w-full min-h-12 rounded-2xl border border-slate-200/80 bg-white pl-3.5 pr-12 text-base text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
         />
 
         <button

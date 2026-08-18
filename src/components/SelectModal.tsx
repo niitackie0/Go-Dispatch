@@ -135,7 +135,7 @@ export default function SelectModal({
                       }`}
                     >
                       <span className="min-w-0">
-                        <span className={`block text-[15px] font-medium ${active ? 'text-red-700' : 'text-slate-900'}`}>
+                        <span className={`block text-base font-medium ${active ? 'text-red-700' : 'text-slate-900'}`}>
                           {o.label}
                         </span>
                         {o.hint && <span className="block text-sm text-slate-500">{o.hint}</span>}

@@ -152,7 +152,7 @@ function Rail({ current }: { current: number }) {
         </ol>
       </div>
 
-      <p className="sm:hidden mt-3 text-[15px] text-slate-500">
+      <p className="sm:hidden mt-3 text-base text-slate-500">
         Step {done + 1} of {STEPS.length} —{' '}
         <span className="font-medium text-slate-900">{STEPS[done]?.label}</span>
       </p>
@@ -178,7 +178,7 @@ function Road({ timeline }: { timeline: PublicOrder['timeline'] }) {
   const shown = showAll ? timeline : timeline.slice(hidden);
 
   if (timeline.length === 0) {
-    return <p className="text-[15px] text-slate-500">Nothing has happened yet. We will update this as it moves.</p>;
+    return <p className="text-base text-slate-500">Nothing has happened yet. We will update this as it moves.</p>;
   }
 
   return (
@@ -208,10 +208,10 @@ function Road({ timeline }: { timeline: PublicOrder['timeline'] }) {
               </div>
 
               <div className={isLatest ? 'pb-0' : 'pb-5'}>
-                <p className={`text-[15px] ${isLatest ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
+                <p className={`text-base ${isLatest ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
                   {event.note || STEPS.find((s) => s.key === event.status)?.label || event.status.replace('_', ' ')}
                 </p>
-                <p className="text-[15px] text-slate-500 tabular-nums">{formatWhen(event.changedAt)}</p>
+                <p className="text-base text-slate-500 tabular-nums">{formatWhen(event.changedAt)}</p>
               </div>
             </li>
           );
@@ -288,7 +288,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
           </button>
         </form>
 
-        <p className="mt-3 text-[15px] text-slate-500">
+        <p className="mt-3 text-base text-slate-500">
           A tracking code looks like <span className="font-mono text-slate-700">GD-0000-000</span> and a
           booking reference like <span className="font-mono text-slate-700">GDB-0000-000</span>. Either
           works, as does the phone number the parcel was booked with.
@@ -299,7 +299,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
           <div>
-            <p className="text-[15px] text-red-800">{error}</p>
+            <p className="text-base text-red-800">{error}</p>
             <a
               href={`tel:${CONTACT_PHONE_E164}`}
               className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-red-700 hover:text-red-800"
@@ -312,7 +312,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
       )}
 
       {results && results.length > 1 && (
-        <p className="mb-4 text-[15px] text-slate-500">
+        <p className="mb-4 text-base text-slate-500">
           {results.length} parcels booked on that number.
         </p>
       )}
@@ -334,7 +334,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                   <h2 className="font-mono text-xl font-semibold text-slate-900 tracking-tight">
                     {order.trackingCode}
                   </h2>
-                  <p className="mt-1 text-[15px] text-slate-500">
+                  <p className="mt-1 text-base text-slate-500">
                     {order.pickupAddress} <span className="text-slate-300 mx-0.5">&rarr;</span>{' '}
                     {order.dropoffAddress}
                   </p>
@@ -352,7 +352,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                 <div className="px-5 sm:px-7 pb-6">
                   <div className="rounded-xl border border-red-200 bg-red-50 p-4">
                     <p className="font-medium text-red-800">This booking was cancelled</p>
-                    <p className="mt-1 text-[15px] text-red-700">
+                    <p className="mt-1 text-base text-red-700">
                       If that is not right, call {CONTACT_PHONE} with this tracking code and we
                       will sort it out.
                     </p>
@@ -371,7 +371,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                       {statusLine(order)}
                     </p>
                     {order.paymentStatus !== 'paid' && (
-                      <p className="mt-1.5 text-[15px] text-slate-500">
+                      <p className="mt-1.5 text-base text-slate-500">
                         Payment is due on this parcel.
                       </p>
                     )}
@@ -381,7 +381,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
 
               {/* Facts. Deliberately short — a customer needs to recognise the
                   parcel, not audit it. */}
-              <dl className="px-5 sm:px-7 py-5 border-t border-slate-200 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4 text-[15px]">
+              <dl className="px-5 sm:px-7 py-5 border-t border-slate-200 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4 text-base">
                 <div>
                   <dt className="text-sm text-slate-500">Sent by</dt>
                   <dd className="text-slate-900 truncate">{order.senderName}</dd>

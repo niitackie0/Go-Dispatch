@@ -307,18 +307,32 @@ body {
 /* ============================================================
    TYPE SCALE
 
-   Two products, two densities, one ramp.
+   Tailwind's default ramp, which is also Material's:
 
-   Customer site   17px lead · 15-16px body · 14px meta
+     12 · 14 · 16 · 18 · 20 · 24 · 30 · 36 · 48
+     xs   sm   base lg   xl   2xl  3xl  4xl  5xl
+
+   Use those names. Do not reach for text-[15px]: 13/15/17 is
+   Apple's ramp, equally valid and a different system, and this
+   project had ended up on both at once.
+
+   Customer site   lg lead · base body · sm meta
                    Read once, by somebody who has never seen it,
                    on a phone, often outdoors.
 
-   Console         15px titles · 13px rows · 12px labels
+   Console         base titles · sm rows · xs labels
                    Read all day by two people who know it by
                    heart, on a screen holding forty rows.
 
-   Floor: 12px, everywhere, no exceptions. Below that type stops
-   being small and becomes a rumour.
+   THE TWO HARD RULES
+
+   1. Form controls are never below 16px. Under that, iOS Safari
+      zooms the page when the field takes focus, and the layout
+      lurches under the thumb that just tapped it. This is why
+      .gd-field is 16px and not 15.
+
+   2. Nothing below 12px. Below that type stops being small and
+      becomes a rumour.
 
    Targets: 44px minimum, which is min-h-11.
    ============================================================ */

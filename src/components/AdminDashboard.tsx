@@ -1339,7 +1339,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 setStartDateFilter('');
                 setEndDateFilter('');
               }}
-              className={`${filtersOpen ? 'block' : 'hidden'} sm:block w-full min-h-12 text-center rounded-2xl border border-slate-200/80 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium text-[13px] transition-colors cursor-pointer`}
+              className={`${filtersOpen ? 'block' : 'hidden'} sm:block w-full min-h-12 text-center rounded-2xl border border-slate-200/80 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium text-sm transition-colors cursor-pointer`}
             >
               Clear filters
             </button>
@@ -1348,11 +1348,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             <button
               onClick={() => setFiltersOpen((v) => !v)}
               aria-expanded={filtersOpen}
-              className="sm:hidden flex min-h-11 w-full items-center justify-center gap-2 text-[13px] font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+              className="sm:hidden flex min-h-11 w-full items-center justify-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             >
               {filtersOpen ? 'Fewer filters' : 'More filters'}
               {activeFilters > 0 && (
-                <span className="rounded-full bg-red-50 px-2 py-0.5 text-[12px] font-semibold text-red-700">
+                <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
                   {activeFilters} on
                 </span>
               )}
@@ -1381,12 +1381,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                   {/* One switch for the whole list. */}
                   <div className="flex items-center justify-between px-1">
-                    <p className="text-[13px] text-slate-500">Most overdue first</p>
+                    <p className="text-sm text-slate-500">Most overdue first</p>
                     <button
                       onClick={() => setFullDetail((v) => !v)}
                       role="switch"
                       aria-checked={fullDetail}
-                      className="flex items-center gap-2 min-h-11 text-[13px] font-medium text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                      className="flex items-center gap-2 min-h-11 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
                     >
                       Full detail
                       <span className={`relative h-6 w-10 rounded-full transition-colors ${fullDetail ? 'bg-red-600' : 'bg-slate-300'}`}>
@@ -1420,7 +1420,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                           <span className="flex items-start gap-3">
                             {/* Who is carrying it. */}
                             <span
-                              className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold ${
+                              className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                                 unassigned
                                   ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
                                   : order.riderName
@@ -1437,23 +1437,23 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                   On a phone these are the two facts that decide
                                   whether the row is worth opening. */}
                               <span className="flex items-center justify-between gap-2">
-                                <span className={`text-[13px] font-semibold leading-tight ${
+                                <span className={`text-sm font-semibold leading-tight ${
                                   late ? 'text-red-600' : settled ? 'text-slate-400' : 'text-slate-900'
                                 }`}>
                                   {formatDue(order)}
                                 </span>
-                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold ${theme.bg} ${theme.text}`}>
+                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${theme.bg} ${theme.text}`}>
                                   {theme.label}
                                 </span>
                               </span>
 
                               {/* Line two: which parcel. */}
-                              <span className="mt-0.5 block font-mono text-[13px] font-semibold text-slate-900">
+                              <span className="mt-0.5 block font-mono text-sm font-semibold text-slate-900">
                                 {order.trackingCode}
                               </span>
 
                               {/* Line three: who and where to. */}
-                              <span className="block truncate text-[13px] text-slate-500">
+                              <span className="block truncate text-sm text-slate-500">
                                 {order.riderName ? (
                                   <>{order.riderName} <span className="text-slate-300">·</span> </>
                                 ) : (
@@ -1464,7 +1464,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                               {/* What the switch adds, on every row at once. */}
                               {fullDetail && (
-                                <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-[12px] text-slate-500">
+                                <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-xs text-slate-500">
                                   <span>{order.packageWeightKg}kg</span>
                                   <span className="font-medium text-slate-900 tabular-nums">
                                     {order.currency} {(order.priceAmount / 100).toFixed(2)}
@@ -1484,7 +1484,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   </div>
 
                   {/* Pager */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-1 text-[13px] text-slate-500">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-1 text-sm text-slate-500">
                     <span>
                       Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, boardOrders.length)} of {boardOrders.length}
                     </span>
@@ -1492,7 +1492,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <button
                         onClick={() => setPipelinePage((p) => Math.max(1, p - 1))}
                         disabled={page <= 1}
-                        className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                        className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                       >
                         &lsaquo; Prev
                       </button>
@@ -1500,7 +1500,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <button
                         onClick={() => setPipelinePage((p) => Math.min(totalPages, p + 1))}
                         disabled={page >= totalPages}
-                        className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                        className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                       >
                         Next &rsaquo;
                       </button>
@@ -1586,7 +1586,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               <div className="space-y-3">
 
               <div className="flex items-center justify-between px-1">
-                <p className="text-[13px] text-slate-500">Newest first</p>
+                <p className="text-sm text-slate-500">Newest first</p>
                 <button
                   onClick={() => setFullDetail((v) => !v)}
                   role="switch"
@@ -1623,14 +1623,14 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         title={p.status}
                       />
                       <span className="min-w-0 flex-1">
-                        <span className="block font-mono text-[13px] font-semibold text-slate-900">{p.trackingCode}</span>
-                        <span className="block truncate text-[13px] text-slate-500">{p.senderName}</span>
+                        <span className="block font-mono text-sm font-semibold text-slate-900">{p.trackingCode}</span>
+                        <span className="block truncate text-sm text-slate-500">{p.senderName}</span>
                       </span>
                       <span className="shrink-0 text-right">
-                        <span className="block text-[15px] font-semibold text-slate-900 tabular-nums">
+                        <span className="block text-base font-semibold text-slate-900 tabular-nums">
                           {p.currency} {(p.amount / 100).toFixed(2)}
                         </span>
-                        <span className="block text-[12px] text-slate-400 tabular-nums">
+                        <span className="block text-xs text-slate-400 tabular-nums">
                           {new Date(settled).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
                         </span>
                       </span>
@@ -1648,7 +1648,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 })}
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-1 text-[13px] text-slate-500">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-1 text-sm text-slate-500">
                 <span>
                   Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, filteredPayments.length)} of {filteredPayments.length}
                   {paymentSearch && ' matching'}
@@ -1657,7 +1657,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <button
                     onClick={() => setPaymentsPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                    className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                   >
                     &lsaquo; Prev
                   </button>
@@ -1665,7 +1665,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <button
                     onClick={() => setPaymentsPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
-                    className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                    className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                   >
                     Next &rsaquo;
                   </button>
@@ -2000,14 +2000,14 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               {/* Where it goes, and when. */}
               <div className="rounded-2xl bg-slate-50 p-4">
                 <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Collect from</p>
-                <p className="mt-1 text-[15px] leading-snug text-slate-900">
+                <p className="mt-1 text-base leading-snug text-slate-900">
                   {selectedOrderDetails.order.pickupAddress}
                 </p>
                 {selectedOrderDetails.order.pickupNotes && (
                   <p className="text-sm text-slate-500">{selectedOrderDetails.order.pickupNotes}</p>
                 )}
                 <p className="mt-3 text-xs font-medium uppercase tracking-wider text-slate-400">Deliver to</p>
-                <p className="mt-1 text-[15px] leading-snug text-slate-900">
+                <p className="mt-1 text-base leading-snug text-slate-900">
                   {selectedOrderDetails.order.dropoffAddress}
                 </p>
                 {selectedOrderDetails.order.dropoffNotes && (

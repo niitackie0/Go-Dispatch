@@ -66,7 +66,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
       <main className="w-full max-w-[22rem]">
         {/* The mark, letterspaced, doing the work a logo and a headline used
             to do between them. */}
-        <h1 className="font-mono text-[13px] font-medium uppercase tracking-[0.28em] text-slate-900">
+        <h1 className="font-mono text-sm font-medium uppercase tracking-[0.28em] text-slate-900">
           GO DISPATCH
         </h1>
 
@@ -85,7 +85,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full min-h-12 rounded-2xl border border-slate-200/80 bg-white px-3.5 text-[15px] text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
+              className="w-full min-h-12 rounded-2xl border border-slate-200/80 bg-white px-3.5 text-base text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
             />
           </div>
 
@@ -103,7 +103,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
           {error && (
             <div
               role="alert"
-              className="flex items-start gap-2.5 rounded-2xl bg-red-50 px-3.5 py-3 text-[13px] text-red-800"
+              className="flex items-start gap-2.5 rounded-2xl bg-red-50 px-3.5 py-3 text-sm text-red-800"
             >
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
               <span>{error}</span>
@@ -114,7 +114,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
             id="btn_admin_signin"
             type="submit"
             disabled={loading}
-            className="btn-aurora w-full min-h-12 inline-flex items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-all disabled:opacity-60 cursor-pointer"
+            className="btn-aurora w-full min-h-12 inline-flex items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white transition-all disabled:opacity-60 cursor-pointer"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {loading ? 'Signing in' : 'Sign in'}
@@ -125,7 +125,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
       {/* No credentials, no product description, no link to anything. A sign-in
           page that explains what it guards has told a stranger the one thing
           worth withholding. */}
-      <p className="mt-10 text-[13px] text-slate-400">Access is issued by an owner.</p>
+      <p className="mt-10 text-sm text-slate-400">Access is issued by an owner.</p>
     </div>
   );
 }

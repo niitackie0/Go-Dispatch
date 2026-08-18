@@ -35,7 +35,7 @@ export default function BookPage() {
             </span>
             <span className="text-sm text-slate-500">Takes about two minutes</span>
           </div>
-          <p className="text-[15px] text-slate-600">
+          <p className="text-base text-slate-600">
             <strong className="font-medium text-slate-900">{formatAmount(rule.baseAmount, rule.currency)}</strong>
             {' '}up to {rule.includedKg}kg · {formatAmount(rule.perExtraKgAmount, rule.currency)} per extra kilo
           </p>
