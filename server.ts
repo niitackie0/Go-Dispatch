@@ -25,7 +25,16 @@ import { ridersRouter } from './src/server/routes/riders.js';
 import { statsRouter } from './src/server/routes/stats.js';
 
 const app = express();
-const PORT = 3000;
+
+/**
+ * The port is the host's to choose.
+ *
+ * Render, Fly and every other platform hand it over in the environment and
+ * expect the process to bind to exactly that one -- a hardcoded 3000 gets the
+ * service marked unhealthy and rolled back, having never received a request.
+ * 3000 stays as the local default.
+ */
+const PORT = Number(process.env.PORT) || 3000;
 
 /**
  * Where the operations console lives.
@@ -46,6 +55,10 @@ if (proxyHops === false) {
 } else {
   app.set('trust proxy', proxyHops);
 }
+
+// Express announces itself on every response by default. It tells an attacker
+// which CVE list to read and tells a customer nothing.
+app.disable('x-powered-by');
 
 app.use(securityHeaders);
 
@@ -196,9 +209,13 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`GO DISPATCH server listening on http://localhost:${PORT}`);
-    console.log(`  customer site  http://localhost:${PORT}/`);
-    console.log(`  console        http://localhost:${PORT}${ADMIN_PATH}`);
+    if (process.env.NODE_ENV === 'production') {
+      console.log(`GO DISPATCH listening on :${PORT} — console at ${ADMIN_PATH}`);
+    } else {
+      console.log(`GO DISPATCH server listening on http://localhost:${PORT}`);
+      console.log(`  customer site  http://localhost:${PORT}/`);
+      console.log(`  console        http://localhost:${PORT}${ADMIN_PATH}`);
+    }
   });
 }
 

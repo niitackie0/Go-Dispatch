@@ -1,0 +1,72 @@
+# GO DISPATCH on Render.
+#
+# One web service. The Express process serves the API, the customer site and
+# the console from the same origin, so there is no second static service and
+# no CORS to configure.
+#
+# The database is NOT declared here. It lives on Neon, which is already
+# provisioned and holds the live orders -- letting a blueprint create a Render
+# Postgres alongside it would give us two databases and one of them would
+# quietly be the wrong one.
+#
+# To use: Render Dashboard -> New -> Blueprint -> pick this repo.
+# Secrets are marked `sync: false`, which means Render prompts for them on
+# first deploy and never stores them in this file. Nothing secret belongs here.
+
+services:
+  - type: web
+    name: go-dispatch
+    runtime: node
+    plan: starter # Not `free`: it sleeps, and a courier hitting a cold start
+                  # at the door waits 50 seconds. See docs/deploying.md.
+    region: frankfurt # Nearest Render region to Ghana, and the same one the
+                      # Neon project should sit in.
+    # STOP. As of the day this file was written, `main` is still the initial
+    # commit and 59 behind `dev` -- deploying it would ship the scaffolding
+    # this product was built out of. Merge dev -> staging -> main first.
+    # docs/deploying.md opens with that step.
+    branch: main
+    autoDeploy: false # Deploys are a decision, not a consequence of pushing.
+
+    buildCommand: npm ci && npm run build
+    # Migrations run here, once per deploy, before the new instance starts
+    # taking traffic -- never on boot, where every restart would race them.
+    preDeployCommand: npm run release
+    startCommand: npm start
+
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Render terminates TLS one hop in front of us. Without this, every
+      # visitor shares one rate-limit bucket; with it set too high, a client
+      # can spoof X-Forwarded-For straight past the limits.
+      - key: TRUST_PROXY
+        value: 1
+
+      # Pooled Neon connection (the `-pooler` host).
+      - key: DATABASE_URL
+        sync: false
+
+      # Direct Neon connection (host WITHOUT `-pooler`). Used by
+      # `prisma migrate deploy` in the pre-deploy step, and by `prisma
+      # generate` during the build -- prisma.config.ts reads it either way, so
+      # a missing value fails the build, not the deploy.
+      - key: DIRECT_URL
+        sync: false
+
+      # Where the console is served. Not a secret, but not advertised either.
+      - key: ADMIN_PATH
+        sync: false
+
+      # SMS. Leave SMS_PROVIDER empty to deploy with sending off; messages
+      # queue in the outbox until it is set to `arkesel`. The sender ID is not
+      # here -- it is a constant in src/brand.ts, because it has to match what
+      # the provider approved and a typo in a dashboard field is a silent
+      # delivery failure.
+      - key: SMS_PROVIDER
+        sync: false
+      - key: SMS_API_KEY
+        sync: false
