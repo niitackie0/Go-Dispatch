@@ -28,6 +28,7 @@
 
 import 'dotenv/config';
 import { hash, verify } from '@node-rs/argon2';
+import crypto from 'node:crypto';
 import readline from 'node:readline';
 import { prisma } from '../src/server/prisma.js';
 import { MIN_PASSWORD_LENGTH } from '../src/server/auth.js';
@@ -38,7 +39,43 @@ function ask(question: string): Promise<string> {
   return new Promise((resolve) => rl.question(question, (answer) => { rl.close(); resolve(answer.trim()); }));
 }
 
-/** Reads a password without echoing it, so it is not left on screen. */
+/**
+ * Whether this process actually has a keyboard attached.
+ *
+ * Without a TTY there is nothing to read a password from, and a prompt would
+ * hang looking like a crash. An IDE output pane and a piped command both land
+ * here.
+ */
+function canPrompt(): boolean {
+  return Boolean(process.stdin.isTTY);
+}
+
+/**
+ * A password nobody has to type.
+ *
+ * The way out when there is no usable terminal, and the better option anyway:
+ * random beats anything a person invents under pressure. Printed once, on the
+ * screen of whoever ran it, and never stored in readable form.
+ */
+function generatePassword(): string {
+  return crypto.randomBytes(18).toString('base64url');
+}
+
+/** Prints a generated password once, with the warning it deserves. */
+function announce(password: string): void {
+  console.log('\n  ' + password + '\n');
+  console.log('  Shown once and never again - only a hash is stored, so it cannot be');
+  console.log('  recovered. Put it in your password manager now, then clear this screen.');
+  console.log('  Do not paste it into a chat, a ticket or an email.\n');
+}
+
+/**
+ * Reads a password without printing it.
+ *
+ * Asterisks rather than nothing at all: silent input is indistinguishable from
+ * a frozen terminal, and somebody typing a long password into what looks like a
+ * hung process will give up halfway.
+ */
 function askSecret(question: string): Promise<string> {
   const rl: any = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
   return new Promise((resolve) => {
@@ -49,12 +86,60 @@ function askSecret(question: string): Promise<string> {
     });
     // Everything after the prompt is swallowed rather than echoed.
     rl._writeToOutput = (chunk: string) => {
-      if (chunk.startsWith(question)) rl.output.write(chunk);
+      if (chunk.startsWith(question)) {
+        rl.output.write(chunk);
+        return;
+      }
+      // Newlines are swallowed; control sequences (backspace, arrows) pass
+      // through so editing still works; everything else becomes a star.
+      if (chunk === '\r\n' || chunk === '\n') return;
+      if (chunk.charCodeAt(0) === 127 || chunk.includes('\u001b')) {
+        rl.output.write(chunk);
+        return;
+      }
+      rl.output.write('*');
     };
   });
 }
 
-async function readNewPassword(existingHash?: string): Promise<string> {
+/**
+ * Where the new password comes from: generated, supplied by the environment, or
+ * typed. Checked in that order, so the two routes that need no keyboard work in
+ * the places a prompt cannot.
+ */
+async function readNewPassword(existingHash?: string): Promise<{ password: string; generated: boolean }> {
+  if (process.argv.includes('--generate')) {
+    return { password: generatePassword(), generated: true };
+  }
+
+  const fromEnv = process.env.ADMIN_PASSWORD;
+  if (fromEnv) {
+    if (fromEnv.length < MIN_PASSWORD_LENGTH) {
+      console.log('\nADMIN_PASSWORD is too short. At least ' + MIN_PASSWORD_LENGTH + ' characters.\n');
+      process.exit(1);
+    }
+    return { password: fromEnv, generated: false };
+  }
+
+  if (!canPrompt()) {
+    console.log(`
+This terminal cannot accept a typed password - there is no keyboard attached to
+it. That happens in an IDE output pane, or when the command is piped.
+
+Either open a real terminal (Windows Terminal, PowerShell or Git Bash) in this
+folder and run it again, or let it choose one for you:
+
+    npm run admin password <email> -- --generate
+
+That prints a strong password once, on your screen only.
+`);
+    process.exit(1);
+  }
+
+  return { password: await readTypedPassword(existingHash), generated: false };
+}
+
+async function readTypedPassword(existingHash?: string): Promise<string> {
   for (;;) {
     const first = await askSecret('New password (not shown): ');
 
@@ -118,13 +203,14 @@ async function create(): Promise<void> {
   const roleInput = (await ask(`Role [${ADMIN_ROLES.join(' / ')}] (owner): `)).toLowerCase() || 'owner';
   if (!ADMIN_ROLES.includes(roleInput as AdminRole)) return console.log(`Unknown role "${roleInput}".`);
 
-  const password = await readNewPassword();
+  const { password, generated } = await readNewPassword();
 
   const created = await prisma.adminUser.create({
     data: { name, email, role: roleInput as AdminRole, passwordHash: await hash(password) },
   });
 
   console.log(`\nCreated ${created.email} as ${created.role}.`);
+  if (generated) announce(password);
   console.log('Sign in with it now, before removing any account you are replacing.\n');
 }
 
@@ -133,14 +219,16 @@ async function setPassword(email: string): Promise<void> {
   if (!target) return console.log(`\nNo account for ${email}. Run \`npm run admin list\`.\n`);
 
   console.log(`\nSetting a new password for ${target.email} (${target.role}).`);
-  const password = await readNewPassword(target.passwordHash);
+  const { password, generated } = await readNewPassword(target.passwordHash);
 
   const [, sessions] = await prisma.$transaction([
     prisma.adminUser.update({ where: { id: target.id }, data: { passwordHash: await hash(password) } }),
     prisma.session.deleteMany({ where: { adminUserId: target.id } }),
   ]);
 
-  console.log(`\nPassword changed. ${sessions.count} session(s) signed out — sign in again with the new one.\n`);
+  console.log(`\nPassword changed. ${sessions.count} session(s) signed out.`);
+  if (generated) announce(password);
+  else console.log('Sign in again with the new one.\n');
 }
 
 const [command, argument] = process.argv.slice(2);
@@ -166,6 +254,11 @@ Staff accounts
   npm run admin list                 who has an account, and their role
   npm run admin create               add one, typing the password yourself
   npm run admin password <email>     set a new password and sign that account out
+
+Passwords are typed at a masked prompt. Where a terminal cannot do that:
+
+  npm run admin password <email> -- --generate    choose a strong one, shown once
+  ADMIN_PASSWORD=... npm run admin password <email>
 `);
 }
 
