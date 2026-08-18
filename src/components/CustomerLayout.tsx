@@ -480,7 +480,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                 </React.Fragment>
               ))}
             </nav>
-            <p className="text-sm text-white/35">
+            <p className="text-[15px] text-white/35">
               &copy; 2026 GO DISPATCH · Safe · Fast · Reliable
             </p>
           </div>

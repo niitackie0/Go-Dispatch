@@ -152,7 +152,7 @@ function Rail({ current }: { current: number }) {
         </ol>
       </div>
 
-      <p className="sm:hidden mt-3 text-sm text-slate-500">
+      <p className="sm:hidden mt-3 text-[15px] text-slate-500">
         Step {done + 1} of {STEPS.length} —{' '}
         <span className="font-medium text-slate-900">{STEPS[done]?.label}</span>
       </p>
@@ -178,7 +178,7 @@ function Road({ timeline }: { timeline: PublicOrder['timeline'] }) {
   const shown = showAll ? timeline : timeline.slice(hidden);
 
   if (timeline.length === 0) {
-    return <p className="text-sm text-slate-500">Nothing has happened yet. We will update this as it moves.</p>;
+    return <p className="text-[15px] text-slate-500">Nothing has happened yet. We will update this as it moves.</p>;
   }
 
   return (
@@ -211,7 +211,7 @@ function Road({ timeline }: { timeline: PublicOrder['timeline'] }) {
                 <p className={`text-[15px] ${isLatest ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
                   {event.note || STEPS.find((s) => s.key === event.status)?.label || event.status.replace('_', ' ')}
                 </p>
-                <p className="text-sm text-slate-500 tabular-nums">{formatWhen(event.changedAt)}</p>
+                <p className="text-[15px] text-slate-500 tabular-nums">{formatWhen(event.changedAt)}</p>
               </div>
             </li>
           );
@@ -288,7 +288,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
           </button>
         </form>
 
-        <p className="mt-3 text-sm text-slate-500">
+        <p className="mt-3 text-[15px] text-slate-500">
           A tracking code looks like <span className="font-mono text-slate-700">GD-0000-000</span> and a
           booking reference like <span className="font-mono text-slate-700">GDB-0000-000</span>. Either
           works, as does the phone number the parcel was booked with.
@@ -312,7 +312,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
       )}
 
       {results && results.length > 1 && (
-        <p className="mb-4 text-sm text-slate-500">
+        <p className="mb-4 text-[15px] text-slate-500">
           {results.length} parcels booked on that number.
         </p>
       )}
@@ -334,7 +334,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                   <h2 className="font-mono text-xl font-semibold text-slate-900 tracking-tight">
                     {order.trackingCode}
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-[15px] text-slate-500">
                     {order.pickupAddress} <span className="text-slate-300 mx-0.5">&rarr;</span>{' '}
                     {order.dropoffAddress}
                   </p>
@@ -371,7 +371,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                       {statusLine(order)}
                     </p>
                     {order.paymentStatus !== 'paid' && (
-                      <p className="mt-1.5 text-sm text-slate-500">
+                      <p className="mt-1.5 text-[15px] text-slate-500">
                         Payment is due on this parcel.
                       </p>
                     )}

@@ -1352,7 +1352,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             >
               {filtersOpen ? 'Fewer filters' : 'More filters'}
               {activeFilters > 0 && (
-                <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                <span className="rounded-full bg-red-50 px-2 py-0.5 text-[12px] font-semibold text-red-700">
                   {activeFilters} on
                 </span>
               )}
@@ -1420,7 +1420,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                           <span className="flex items-start gap-3">
                             {/* Who is carrying it. */}
                             <span
-                              className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                              className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold ${
                                 unassigned
                                   ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
                                   : order.riderName
@@ -1442,7 +1442,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                 }`}>
                                   {formatDue(order)}
                                 </span>
-                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${theme.bg} ${theme.text}`}>
+                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold ${theme.bg} ${theme.text}`}>
                                   {theme.label}
                                 </span>
                               </span>
@@ -1630,7 +1630,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         <span className="block text-[15px] font-semibold text-slate-900 tabular-nums">
                           {p.currency} {(p.amount / 100).toFixed(2)}
                         </span>
-                        <span className="block text-[11px] text-slate-400 tabular-nums">
+                        <span className="block text-[12px] text-slate-400 tabular-nums">
                           {new Date(settled).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
                         </span>
                       </span>

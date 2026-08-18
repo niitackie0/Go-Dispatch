@@ -583,7 +583,7 @@ export default function Home() {
                   Book a parcel
                   <ArrowRight className="h-4 w-4" />
                 </Link>
-                <p className="mt-3 text-sm text-slate-500">
+                <p className="mt-3 text-[15px] text-slate-500">
                   {kg >= MAX_KG
                     ? `Heavier than ${MAX_KG}kg? Ring ${CONTACT_PHONE} and we will sort it out.`
                     : 'An estimate until your parcel is on our scale.'}

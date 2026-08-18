@@ -77,7 +77,7 @@ export default function ContactPage() {
                   </span>
                   <ArrowRight className="h-5 w-5 text-slate-400" />
                 </a>
-                <p className="text-sm text-slate-500 text-center">Same number for both</p>
+                <p className="text-[15px] text-slate-500 text-center">Same number for both</p>
               </div>
             </Reveal>
           </div>
@@ -147,7 +147,7 @@ export default function ContactPage() {
                 <item.icon className="h-5 w-5 text-red-600" />
                 <h3 className="mt-3 text-lg font-semibold text-slate-900">{item.title}</h3>
                 <p className="mt-1.5 text-[15px] text-slate-700">{item.body}</p>
-                <p className="mt-auto pt-5 text-sm text-slate-500">{item.foot}</p>
+                <p className="mt-auto pt-5 text-[15px] text-slate-500">{item.foot}</p>
                 {item.to && (
                   <Link
                     to={item.to}

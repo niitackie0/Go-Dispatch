@@ -305,6 +305,25 @@ body {
 }
 
 /* ============================================================
+   TYPE SCALE
+
+   Two products, two densities, one ramp.
+
+   Customer site   17px lead · 15-16px body · 14px meta
+                   Read once, by somebody who has never seen it,
+                   on a phone, often outdoors.
+
+   Console         15px titles · 13px rows · 12px labels
+                   Read all day by two people who know it by
+                   heart, on a screen holding forty rows.
+
+   Floor: 12px, everywhere, no exceptions. Below that type stops
+   being small and becomes a rumour.
+
+   Targets: 44px minimum, which is min-h-11.
+   ============================================================ */
+
+/* ============================================================
    The console's surfaces.
 
    Softer than the customer site on purpose: this is a screen

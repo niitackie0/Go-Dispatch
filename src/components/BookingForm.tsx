@@ -308,7 +308,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             </span>
           </div>
 
-          <p className="mt-4 text-sm text-slate-500">
+          <p className="mt-4 text-[15px] text-slate-500">
             Every figure here is an estimate from the weight you gave us. Each parcel is
             weighed once our rider brings it in, and that weighed price is what the
             recipient pays.
@@ -441,7 +441,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             Add another parcel
           </button>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-[15px] text-slate-500">
             Each parcel gets its own tracking code and can go to a different region. The
             recipient pays for theirs when it arrives.
           </p>
@@ -453,7 +453,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             <h3 className="text-sm font-medium text-slate-500">Collection</h3>
             <p className="mt-1 text-[15px] text-slate-900">{senderName || '—'} · {senderPhone}</p>
             <p className="text-[15px] text-slate-600">{pickupAddress}</p>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-[15px] text-slate-500 mt-1">
               {scheduledPickup ? new Date(scheduledPickup).toLocaleString() : ''}
             </p>
           </div>
