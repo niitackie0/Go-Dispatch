@@ -36,10 +36,26 @@ Render Dashboard → **New** → **Blueprint** → pick this repository.
 Render reads `render.yaml` and proposes one web service, `go-dispatch`, on the
 **starter** plan in **Frankfurt**.
 
-**Not the free plan.** Free instances sleep after 15 minutes and take around 50
-seconds to wake. That cost lands on a courier standing at a customer's door
-with a parcel in one hand, and on the customer refreshing a tracking page that
-appears to be broken.
+**On the free instance, for now.** Two things to know before real customers
+arrive, because neither is only about speed:
+
+A free instance sleeps after 15 minutes idle and takes about a minute to wake.
+That minute lands on a courier standing at a customer's door with a parcel in
+one hand, and on a customer refreshing a tracking page that appears broken.
+
+Less obvious: **the automation tick does not run while the service is asleep.**
+`server.ts` runs the rules on a 60-second interval inside the web process, so
+auto-queueing a parcel when its pickup window opens, and auto-reconciling an
+on-delivery payment, only happen while something is awake. Overnight they do
+not happen at all — they all fire at once when the first person of the day
+wakes the service. Nothing is lost, but the timestamps will not match what
+actually happened.
+
+Both go away with `plan: starter` ($7/month, 512MB, 0.5 CPU) in `render.yaml`.
+Do it before the first real customer. When you do, also move `npm run release`
+out of `buildCommand` and back to `preDeployCommand` — Render only offers the
+pre-deploy step on paid instances, which is why migrations currently run at the
+end of the build.
 
 **Frankfurt**, because Render has five regions — Oregon, Ohio, Virginia,
 Frankfurt, Singapore — and none of them is London. The Neon project *is* in

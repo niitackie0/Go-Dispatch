@@ -17,8 +17,17 @@ services:
   - type: web
     name: go-dispatch
     runtime: node
-    plan: starter # Not `free`: it sleeps, and a courier hitting a cold start
-                  # at the door waits 50 seconds. See docs/deploying.md.
+    # `plan` is the INSTANCE type, which is a different axis from the Hobby
+    # workspace -- a Hobby workspace can run free or paid instances.
+    #
+    # Free costs nothing and sleeps after 15 minutes idle, waking in about a
+    # minute. Two consequences, one obvious and one not:
+    #   - a courier at a customer's door pays that minute
+    #   - the automation tick does not run while the service is asleep, so
+    #     time-based transitions happen late, in a burst, when someone next
+    #     wakes it
+    # Change to `starter` before real customers. docs/deploying.md says more.
+    plan: free
     region: frankfurt # Render has five regions and none of them is London, so
                       # this cannot match the Neon project. Frankfurt is the
                       # only European one. See docs/deploying.md on the hop.
@@ -29,10 +38,17 @@ services:
     branch: main
     autoDeploy: false # Deploys are a decision, not a consequence of pushing.
 
-    buildCommand: npm ci && npm run build
-    # Migrations run here, once per deploy, before the new instance starts
-    # taking traffic -- never on boot, where every restart would race them.
-    preDeployCommand: npm run release
+    # Migrations belong in a pre-deploy step, which Render offers only on paid
+    # instances. On free they run at the end of the build instead.
+    #
+    # That is a real downgrade and worth naming: the build runs before the old
+    # instance stops, so for a moment the schema is ahead of the code serving
+    # traffic, and a migration that succeeds followed by a start that fails
+    # leaves it that way. It is tolerable here only because a free instance is
+    # a single instance -- nothing races it -- and every migration so far has
+    # been additive. Move this back to preDeployCommand on the day the plan
+    # changes to starter.
+    buildCommand: npm ci && npm run build && npm run release
     startCommand: npm start
 
     healthCheckPath: /api/health
