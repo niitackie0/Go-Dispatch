@@ -31,7 +31,12 @@ services:
     # this product was built out of. Merge dev -> staging -> main first.
     # docs/deploying.md opens with that step.
     branch: main
-    autoDeploy: false # Deploys are a decision, not a consequence of pushing.
+    # Every push to `main` deploys itself. That is the point of the branch
+    # model: work lands on `dev`, and reaching `main` is already the decision
+    # -- having to also click a button in a dashboard was one decision too
+    # many. It does mean a broken merge into `main` goes live on its own, so
+    # let the build be the gate: `npm run lint` before you merge up.
+    autoDeploy: true
 
     # Migrations run at the end of the build. Render's dedicated pre-deploy
     # step is not available here, so this is the place -- and the reason it is
