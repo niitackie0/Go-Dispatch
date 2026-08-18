@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { AUTOMATION_ACTOR } from '../brand.js';
 import { randomToken } from './ids.js';
 import { queueNotification } from './notifications.js';
 import { prisma } from './prisma.js';
@@ -47,7 +48,7 @@ export async function runAutomations(): Promise<string[]> {
           orderId: order.id,
           status: 'confirmed',
           note: 'Auto-confirmed — payment received',
-          changedByName: 'GO DISPATCH Automation',
+          changedByName: AUTOMATION_ACTOR,
         },
       });
       await queueNotification(tx, 'payment_received', order);
@@ -138,7 +139,7 @@ export async function runAutomations(): Promise<string[]> {
             orderId: order.id,
             status: 'queued',
             note: `Auto-queued — assigned to ${rider.name}`,
-            changedByName: 'GO DISPATCH Automation',
+            changedByName: AUTOMATION_ACTOR,
           },
         });
         await queueNotification(tx, 'rider_assigned', { ...order, riderName: rider.name });
@@ -176,7 +177,7 @@ export async function runAutomations(): Promise<string[]> {
           orderId: order.id,
           status: 'delivered',
           note: 'Payment auto-reconciled — collected on delivery',
-          changedByName: 'GO DISPATCH Automation',
+          changedByName: AUTOMATION_ACTOR,
         },
       });
       actions.push(`auto-reconciled ${order.trackingCode}`);

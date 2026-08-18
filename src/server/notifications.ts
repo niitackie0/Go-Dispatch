@@ -131,3 +131,28 @@ export async function notifyForStatus(
   if (!event) return false;
   return queueNotification(tx, event, order);
 }
+
+/**
+ * Take back the message a status earned, when that status is undone.
+ *
+ * Only `pending` rows are removed. Once something has been sent the customer
+ * has read it, and deleting the row would only lose the record of having told
+ * them — the honest repair for that is the next message, not a quiet delete.
+ *
+ * The row is deleted rather than marked, because (orderId, event) is unique:
+ * leaving a cancelled row behind would block the notification that a genuine
+ * re-delivery should send.
+ */
+export async function unqueueForStatus(
+  tx: Prisma.TransactionClient,
+  status: string,
+  orderId: string
+): Promise<number> {
+  const event = STATUS_EVENTS[status];
+  if (!event) return 0;
+
+  const { count } = await tx.notification.deleteMany({
+    where: { orderId, event, status: 'pending' },
+  });
+  return count;
+}

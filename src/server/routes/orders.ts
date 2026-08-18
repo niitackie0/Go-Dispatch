@@ -6,14 +6,15 @@
 import type { Prisma } from '@prisma/client';
 import { asyncRouter } from '../http.js';
 import type { OrderStatus, PackageSize, Payer, PaymentTiming } from '../../types.js';
+import { AUTOMATION_ACTOR } from '../../brand.js';
 import { requireAdmin } from '../auth.js';
 import { requirePermission } from '../permissions.js';
-import { canTransition, isTerminal, nextStatuses } from '../../transitions.js';
+import { canTransition, checkUndo, isTerminal, nextStatuses, UNDO_NOTE_PREFIX } from '../../transitions.js';
 import { isRegion, REGION_NAMES } from '../../regions.js';
 import { quote, sizeForWeight } from '../../pricing.js';
 import { currentRule } from './pricing.js';
 import { runAutomations } from '../automations.js';
-import { notifyForStatus } from '../notifications.js';
+import { notifyForStatus, unqueueForStatus } from '../notifications.js';
 import { withTrackingCode } from '../ids.js';
 import { prisma } from '../prisma.js';
 import { serializeHistory, serializeOrder, serializePayment } from '../serialize.js';
@@ -217,7 +218,7 @@ ordersRouter.post('/book', async (req, res) => {
           note: isPrepaid
             ? `Order submitted — awaiting payment from ${resolvedPayer}`
             : `Order submitted and auto-confirmed — payment due on delivery (${resolvedPayer})`,
-          changedByName: 'GO DISPATCH Automation',
+          changedByName: AUTOMATION_ACTOR,
         },
       });
 
@@ -419,6 +420,149 @@ ordersRouter.patch('/:id/status', requireAdmin, requirePermission('orders:write'
 
   res.json({
     success: true,
+    order: settled ? serializeOrder(settled) : null,
+    history: serializeHistory(history),
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   ADMIN: UNDO THE LAST STATUS CHANGE
+   --------------------------------------------------------------------------- */
+
+/**
+ * Take back the step just taken.
+ *
+ * Advancing an order is one click on a table row, and the row under the
+ * pointer is not always the row that was meant. Before this, the only way back
+ * was an owner-only override with a written reason — which is right for
+ * repairing history days later, and far too heavy for a misclick noticed two
+ * seconds after it happened.
+ *
+ * So undo is narrow on purpose. It reverses exactly one step, only within
+ * UNDO_WINDOW_MS, and only when a person took that step: automation's own
+ * moves are refused, because the next pass would simply take them again.
+ * checkUndo() in src/transitions.ts holds those rules and the console imports
+ * the same function to decide whether to offer the button.
+ *
+ * What makes it safe is that the side effects come back with it, in the same
+ * transaction as the status:
+ *
+ *  - the payment automation invented when the order hit `delivered` is voided,
+ *    and the order goes back to owing money;
+ *  - the rider freed by that delivery is put back on the job;
+ *  - the notification queued for the undone step is dropped from the outbox,
+ *    so nobody is texted about a delivery that did not happen.
+ *
+ * An undo is itself recorded in status_history. Nothing is erased — the board
+ * goes back, the audit trail only ever moves forward.
+ */
+ordersRouter.post('/:id/undo', requireAdmin, requirePermission('orders:write'), async (req, res) => {
+  const admin = req.admin!;
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+
+  const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+
+  // Newest first, and by id as a tie-break: rows written inside one
+  // transaction can share a millisecond, and which of them came first decides
+  // what "the last change" means.
+  const rows = await prisma.statusHistory.findMany({
+    where: { orderId: existing.id },
+    orderBy: [{ changedAt: 'desc' }, { id: 'desc' }],
+    take: 50,
+  });
+
+  const check = checkUndo(rows, existing.status as OrderStatus, AUTOMATION_ACTOR);
+  if (check.ok === false) {
+    return res.status(400).json({ error: check.reason });
+  }
+
+  const from = check.from;
+  const to = check.previous;
+
+  const history = await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: existing.id },
+      data: { status: to },
+    });
+
+    // Void the payment automation created for a delivery that is being taken
+    // back. Marked failed rather than deleted: revenue only counts `success`,
+    // so the figures correct themselves while the row stays in the ledger as
+    // evidence of what happened. A payment a person recorded by hand is left
+    // alone — that one is somebody's word that money changed hands.
+    if (from === 'delivered') {
+      const auto = await tx.payment.findFirst({
+        where: {
+          orderId: existing.id,
+          status: 'success',
+          recordedByAdminId: null,
+          note: { startsWith: 'Auto-reconciled' },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (auto) {
+        await tx.payment.update({
+          where: { id: auto.id },
+          data: {
+            status: 'failed',
+            note: `${auto.note ?? 'Auto-reconciled'} — voided when ${admin.name} undid the delivery`,
+          },
+        });
+
+        const stillPaid = await tx.payment.count({
+          where: { orderId: existing.id, status: 'success' },
+        });
+        if (stillPaid === 0) {
+          await tx.order.update({
+            where: { id: existing.id },
+            data: { paymentStatus: 'pending' },
+          });
+        }
+      }
+    }
+
+    // The parcel is back on the road, so the courier carrying it is busy
+    // again. Without this the automation pass would hand them a second job
+    // while the first is still in their bag.
+    const backOnTheRoad = to === 'queued' || to === 'picked_up' || to === 'in_transit';
+    if (backOnTheRoad && existing.riderId) {
+      await tx.rider.update({
+        where: { id: existing.riderId },
+        data: { available: false },
+      });
+    }
+
+    await unqueueForStatus(tx, from, existing.id);
+
+    return tx.statusHistory.create({
+      data: {
+        orderId: existing.id,
+        status: to,
+        note: reason
+          ? `${UNDO_NOTE_PREFIX}${from} → ${to}: ${reason}`
+          : `${UNDO_NOTE_PREFIX}${from} → ${to} — reverted the change made by ${check.by}`,
+        changedByAdminId: admin.id,
+        changedByName: admin.name,
+      },
+    });
+  });
+
+  // No automation pass here, deliberately. The rules run on a timer anyway,
+  // and running one now would re-apply whatever was just undone before the
+  // response even reached the browser.
+  const settled = await prisma.order.findUnique({
+    where: { id: existing.id },
+    include: { rider: true },
+  });
+
+  res.json({
+    success: true,
+    from,
+    to,
     order: settled ? serializeOrder(settled) : null,
     history: serializeHistory(history),
   });

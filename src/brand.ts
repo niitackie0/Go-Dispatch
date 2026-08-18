@@ -16,6 +16,15 @@
 export const BRAND_NAME = 'GO DISPATCH';
 export const BRAND_TAGLINE = 'We deliver trust';
 
+/**
+ * The name automation signs its status_history rows with.
+ *
+ * A constant rather than a literal because undo reads it back: a step the
+ * rules engine took is not a step a person can revert, and that decision is
+ * made by comparing against this exact string.
+ */
+export const AUTOMATION_ACTOR = `${BRAND_NAME} Automation`;
+
 /** As printed, for humans to read and dial. */
 export const CONTACT_PHONE = '054 030 4994';
 /** Same number in international form, for tel: and wa.me links. */

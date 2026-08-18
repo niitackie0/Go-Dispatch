@@ -59,3 +59,108 @@ export function advanceStatus(from: OrderStatus): OrderStatus | null {
 export function isTerminal(status: OrderStatus): boolean {
   return nextStatuses(status).length === 0;
 }
+
+/* ---------------------------------------------------------------------------
+   UNDO
+   --------------------------------------------------------------------------- */
+
+/**
+ * How long after a status change it can still be taken back.
+ *
+ * Undo is for the misclick you notice immediately — the wrong row on the
+ * dispatch board, the wrong button in the drawer. It is deliberately not a
+ * general "edit history" tool: past the window, moving an order backwards is
+ * an owner override, which demands a written reason and is recorded as one.
+ */
+export const UNDO_WINDOW_MS = 10 * 60 * 1000;
+
+/** The shape of a status_history row, as either side of the wire has it. */
+export interface HistoryRow {
+  status: OrderStatus;
+  changedAt: string | Date;
+  note?: string | null;
+  changedByName?: string | null;
+  changedByAdminId?: string | null;
+}
+
+/** The prefix an undo writes on the history row it leaves behind. */
+export const UNDO_NOTE_PREFIX = 'UNDO ';
+
+export type UndoCheck =
+  | {
+      ok: true;
+      previous: OrderStatus;
+      from: OrderStatus;
+      by: string;
+      changedAt: Date;
+      /**
+       * True when the step being reversed was itself an undo — so this one is
+       * a redo, and the console says so. The operation is identical either
+       * way; only the word for it changes.
+       */
+      wasUndo: boolean;
+    }
+  | { ok: false; reason: string };
+
+/**
+ * Whether the last status change can be undone, and what it would go back to.
+ *
+ * Shared for the same reason ALLOWED_TRANSITIONS is: the server refuses undos
+ * that fail these rules, and the console hides the button when they fail, so
+ * it cannot offer an undo the API will reject.
+ *
+ * `rows` must be the order's status history, newest first.
+ *
+ * Finding the step to reverse is not simply "the newest row": a payment
+ * recorded against an order writes a history row carrying the order's CURRENT
+ * status, so the newest row is often a note rather than a transition. What is
+ * wanted is the OLDEST row of the newest unbroken run of rows in the current
+ * status — that is the row that actually moved the order here.
+ */
+export function checkUndo(
+  rows: readonly HistoryRow[],
+  current: OrderStatus,
+  automationActor: string,
+  now: number = Date.now()
+): UndoCheck {
+  let i = 0;
+  while (i < rows.length && rows[i].status === current) i++;
+
+  if (i === 0) {
+    return { ok: false, reason: 'There is no recorded change to undo.' };
+  }
+  if (i >= rows.length) {
+    return { ok: false, reason: 'This order has not changed status since it was booked.' };
+  }
+
+  const entered = rows[i - 1];
+  const previous = rows[i].status;
+  const changedAt = new Date(entered.changedAt);
+  const age = now - changedAt.getTime();
+
+  // A step the rules engine took is not a misclick, and the next automation
+  // pass would simply take it again a minute later.
+  if (!entered.changedByAdminId && entered.changedByName === automationActor) {
+    return {
+      ok: false,
+      reason: 'Automation made this change. Reversing it needs an owner override with a reason.',
+    };
+  }
+
+  if (age > UNDO_WINDOW_MS) {
+    const mins = Math.round(UNDO_WINDOW_MS / 60000);
+    return {
+      ok: false,
+      reason: `Undo is only available for ${mins} minutes after a change. Use an owner override with a reason.`,
+    };
+  }
+
+  return {
+    ok: true,
+    previous,
+    from: current,
+    by: entered.changedByName || 'a member of staff',
+    changedAt,
+    wasUndo: (entered.note ?? '').startsWith(UNDO_NOTE_PREFIX),
+  };
+}

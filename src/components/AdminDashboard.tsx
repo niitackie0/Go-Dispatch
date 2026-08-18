@@ -38,7 +38,8 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Undo2
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -53,13 +54,15 @@ import {
   AdminUser
 } from '../types.js';
 import { can } from '../capabilities.js';
-import { advanceStatus, nextStatuses } from '../transitions.js';
+import { AUTOMATION_ACTOR } from '../brand.js';
+import { advanceStatus, checkUndo, nextStatuses } from '../transitions.js';
 import { quote, formatAmount } from '../pricing.js';
 import type { Capability } from '../capabilities.js';
 import Reports from './Reports.js';
 import SelectModal from './SelectModal.js';
 import StaffManagement from './StaffManagement.js';
 import AccountSecurity from './AccountSecurity.js';
+import Tooltip from './Tooltip.js';
 import { Link } from '../router.js';
 
 interface AdminDashboardProps {
@@ -215,6 +218,23 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   const [paymentsPage, setPaymentsPage] = useState(1);
   const [advancingId, setAdvancingId] = useState<string | null>(null);
   const [copiedRiderLink, setCopiedRiderLink] = useState(false);
+
+  // The payments ledger is filtered here rather than at the API: it is already
+  // loaded in full for the revenue figures, so a round trip per keystroke would
+  // buy nothing.
+  const [paymentSearch, setPaymentSearch] = useState('');
+
+  /**
+   * The step just taken, and the offer to take it back.
+   *
+   * Advancing an order is one click on a table row, and the row under the
+   * pointer is not always the row that was meant. This is where that mistake
+   * gets caught — within a second or two, before anybody has acted on it.
+   */
+  const [undoOffer, setUndoOffer] = useState<
+    { orderId: string; trackingCode: string; from: OrderStatus; to: OrderStatus } | null
+  >(null);
+  const [undoing, setUndoing] = useState(false);
 
   // Helper fetch configurations with authentication header
   const getAuthHeaders = () => ({
@@ -383,6 +403,16 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
       if (!res.ok) throw new Error('Failed to update order status');
       
+      const cameFrom = selectedOrderDetails?.order.status;
+      if (cameFrom && selectedOrderDetails) {
+        setUndoOffer({
+          orderId: selectedOrderId,
+          trackingCode: selectedOrderDetails.order.trackingCode,
+          from: cameFrom,
+          to: newStatus,
+        });
+      }
+
       setStatusNote('');
       // Reload order details & trigger pipeline/stats refetches
       await loadOrderDetails(selectedOrderId);
@@ -407,6 +437,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
         body: JSON.stringify({ status: next }),
       });
       if (!res.ok) throw new Error('Failed to advance order status');
+      setUndoOffer({
+        orderId: order.id,
+        trackingCode: order.trackingCode,
+        from: order.status,
+        to: next,
+      });
       fetchOrders();
       fetchStats();
     } catch (err: any) {
@@ -416,9 +452,78 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     }
   };
 
+  /**
+   * Take back the last status change on an order.
+   *
+   * The server owns the rules — the window, what counts as undoable, and every
+   * side effect that has to come back with the status. This only asks, and
+   * repeats what it says when it refuses.
+   */
+  const undoLastChange = async (orderId: string) => {
+    setUndoing(true);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/undo`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not undo that change.');
+
+      setUndoOffer(null);
+      if (selectedOrderId === orderId) await loadOrderDetails(orderId);
+      fetchOrders();
+      fetchStats();
+      if (activeSubTab === 'payments') fetchPayments();
+    } catch (err: any) {
+      alert(err.message || 'Could not undo that change.');
+    } finally {
+      setUndoing(false);
+    }
+  };
+
+  // The offer is about the step just taken, so it does not outlive the moment
+  // it was made in.
+  useEffect(() => {
+    if (!undoOffer) return;
+    const t = setTimeout(() => setUndoOffer(null), 15_000);
+    return () => clearTimeout(t);
+  }, [undoOffer]);
+
+  /**
+   * Whether the drawer should offer an undo, decided by the same function the
+   * server refuses with — so the button cannot appear for a change the API
+   * would decline to reverse, and the reason shown is the reason it would give.
+   */
+  const drawerUndo = useMemo(() => {
+    if (!selectedOrderDetails) return null;
+    return checkUndo(
+      selectedOrderDetails.history,
+      selectedOrderDetails.order.status,
+      AUTOMATION_ACTOR
+    );
+  }, [selectedOrderDetails]);
+
   // Reset pagination when the underlying lists change
   useEffect(() => { setPipelinePage(1); }, [searchFilter, statusFilter, startDateFilter, endDateFilter]);
-  useEffect(() => { setPaymentsPage(1); }, [payments.length]);
+  useEffect(() => { setPaymentsPage(1); }, [payments.length, paymentSearch]);
+
+  /**
+   * The ledger, narrowed by the search box.
+   *
+   * Matches on everything printed in a row — code, sender, phone, provider
+   * reference, the note — because reconciling a transfer usually starts from
+   * whichever of those the customer quoted down the phone, and finance should
+   * not have to know which column it lives in.
+   */
+  const filteredPayments = useMemo(() => {
+    const q = paymentSearch.trim().toLowerCase();
+    if (!q) return payments;
+    return payments.filter((p) =>
+      [p.trackingCode, p.senderName, p.senderPhone, p.providerReference, p.note, p.provider, p.status]
+        .filter(Boolean)
+        .some((field) => String(field).toLowerCase().includes(q))
+    );
+  }, [payments, paymentSearch]);
 
   // Record Manual Payment / Mark as Paid
   const handleRecordPayment = async (e: React.FormEvent) => {
@@ -609,15 +714,16 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <span className="text-xs font-medium text-slate-500 mt-1 block">Operations console</span>
                 </div>
               )}
-              <button
-                onClick={() => setRailed((v) => !v)}
-                title={railed ? 'Expand sidebar' : 'Collapse sidebar'}
-                aria-label={railed ? 'Expand sidebar' : 'Collapse sidebar'}
-                aria-pressed={railed}
-                className="h-11 w-11 shrink-0 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
-              >
-                {railed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
-              </button>
+              <Tooltip placement="right" label={railed ? 'Expand the sidebar' : 'Collapse the sidebar to icons. Remembered next time.'}>
+                <button
+                  onClick={() => setRailed((v) => !v)}
+                  aria-label={railed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  aria-pressed={railed}
+                  className="h-11 w-11 shrink-0 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+                >
+                  {railed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+                </button>
+              </Tooltip>
             </div>
 
             {/* Section navigation */}
@@ -697,28 +803,30 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
               {/* Quick actions + account */}
               <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                <button
-                  onClick={() => {
-                    fetchStats();
-                    fetchOrders();
-                    fetchPayments();
-                  }}
-                  className="min-h-11 min-w-11 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                  title="Refresh data"
-                >
-                  <Clock className="h-4 w-4" />
-                  <span className="hidden sm:inline">Refresh</span>
-                </button>
+                <Tooltip placement="bottom" label="Reload orders, payments and figures now. They also refresh on their own every 30 seconds.">
+                  <button
+                    onClick={() => {
+                      fetchStats();
+                      fetchOrders();
+                      fetchPayments();
+                    }}
+                    className="min-h-11 min-w-11 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Clock className="h-4 w-4" />
+                    <span className="hidden sm:inline">Refresh</span>
+                  </button>
+                </Tooltip>
 
                 {/* View live customer site */}
-                <Link
-                  to="/"
-                  className="hidden md:flex min-h-11 items-center gap-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-medium transition-colors cursor-pointer"
-                  title="Open the live customer site"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  <span>View site</span>
-                </Link>
+                <Tooltip placement="bottom" label="Open the customer site — what a sender sees when they book.">
+                  <Link
+                    to="/"
+                    className="hidden md:flex min-h-11 items-center gap-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-medium transition-colors cursor-pointer"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    <span>View site</span>
+                  </Link>
+                </Tooltip>
 
                 {/* Signed-in user identity */}
                 <div className="flex items-center gap-2 pl-1">
@@ -732,13 +840,15 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
 
                 {/* Logout */}
-                <button
-                  onClick={onLogout}
-                  title="Sign out"
-                  className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
-                >
-                  <LogOut className="h-5 w-5" />
-                </button>
+                <Tooltip placement="bottom" label="Sign out of the console on this device.">
+                  <button
+                    onClick={onLogout}
+                    aria-label="Sign out"
+                    className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="h-5 w-5" />
+                  </button>
+                </Tooltip>
               </div>
             </div>
 
@@ -1017,14 +1127,16 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       {rows.map((s) => {
                         const isActive = statusFilter === s.key;
                         return (
-                          <button
+                          <Tooltip
                             key={s.key}
+                            label={`Open the dispatch board showing only ${s.label.toLowerCase()} orders`}
+                          >
+                          <button
                             id={`stat_queue_card_${s.key}`}
                             onClick={() => {
                               setStatusFilter(s.key);
                               setActiveSubTab('pipeline');
                             }}
-                            title={`Filter the board by ${s.label}`}
                             className={`group rounded-xl px-3 py-2.5 text-left transition-colors cursor-pointer ${
                               isActive ? 'bg-red-50 ring-1 ring-red-200' : 'hover:bg-slate-50'
                             }`}
@@ -1037,6 +1149,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               {s.count}
                             </span>
                           </button>
+                          </Tooltip>
                         );
                       })}
                     </div>
@@ -1212,9 +1325,17 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                           <th className="px-4 py-3">Route</th>
                           <th className="px-4 py-3">Size</th>
                           <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3">Payment</th>
+                          <th className="px-4 py-3">
+                            <Tooltip placement="bottom" label="Whether the money has landed. Pay-on-delivery orders settle themselves once the parcel is marked delivered.">
+                              <span className="underline decoration-dotted decoration-slate-300 underline-offset-4 cursor-help">Payment</span>
+                            </Tooltip>
+                          </th>
                           <th className="px-4 py-3 text-right">Price</th>
-                          <th className="px-4 py-3 text-right">Action</th>
+                          <th className="px-4 py-3 text-right">
+                            <Tooltip placement="bottom" label="One step forward down the delivery workflow. Backwards is Undo, or an owner override with a reason.">
+                              <span className="underline decoration-dotted decoration-slate-300 underline-offset-4 cursor-help">Action</span>
+                            </Tooltip>
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200">
@@ -1260,23 +1381,23 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               </td>
                               <td className="px-4 py-3 text-right whitespace-nowrap">
                                 {next && canWriteOrders ? (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); advanceOrderStatus(order); }}
-                                    disabled={advancingId === order.id}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 cursor-pointer"
-                                    title={`Advance to ${getStatusLabel(next)}`}
-                                  >
-                                    {advancingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                                    {getStatusLabel(next)}
-                                  </button>
+                                  <Tooltip label={`Move ${order.trackingCode} to ${getStatusLabel(next)}. You can undo it right after.`}>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); advanceOrderStatus(order); }}
+                                      disabled={advancingId === order.id}
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 cursor-pointer"
+                                    >
+                                      {advancingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                                      {getStatusLabel(next)}
+                                    </button>
+                                  </Tooltip>
                                 ) : order.status === 'awaiting_payment' ? (
-                                  <span
-                                    className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600"
-                                    title="Payment-gated — confirms automatically once payment is received"
-                                  >
-                                    <Clock className="h-4 w-4" />
-                                    Auto on payment
-                                  </span>
+                                  <Tooltip label="Nothing to do here. This order confirms itself the moment the payment lands.">
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600">
+                                      <Clock className="h-4 w-4" />
+                                      Auto on payment
+                                    </span>
+                                  </Tooltip>
                                 ) : (
                                   <span className="text-xs text-slate-400">Final</span>
                                 )}
@@ -1324,16 +1445,48 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
         <div className="space-y-6 animate-in fade-in duration-200" id="dash_subtab_payments">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Payments Ledger & Audits</h2>
-              <p className="text-sm text-slate-500 mt-0.5">Historical ledger of all completed, pending, or manual reconciliation transactions.</p>
+              <h2 className="text-lg font-semibold text-slate-900">Payments ledger</h2>
+              <p className="text-sm text-slate-500 mt-0.5">Every transaction recorded against an order, newest first.</p>
             </div>
-            <button
-              onClick={handleExportPaymentsCSV}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white min-h-11 px-4 text-sm font-medium text-slate-700 hover:bg-slate-100 shadow-sm transition-colors self-start cursor-pointer"
-            >
-              <Download className="h-4.5 w-4.5" />
-              <span>Export Accounting CSV</span>
-            </button>
+            <Tooltip label="Downloads the whole ledger, not just this page — including transactions outside the search.">
+              <button
+                onClick={handleExportPaymentsCSV}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white min-h-11 px-4 text-sm font-medium text-slate-700 hover:bg-slate-100 shadow-sm transition-colors self-start cursor-pointer"
+              >
+                <Download className="h-4.5 w-4.5" />
+                <span>Export CSV</span>
+              </button>
+            </Tooltip>
+          </div>
+
+          {/* Finding one transaction. Someone rings about a payment and quotes
+              whichever detail they have to hand — a tracking code, the number
+              they sent from, a MoMo reference — so one box takes all of them. */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              <input
+                id="filter_payment_search"
+                type="search"
+                value={paymentSearch}
+                onChange={(e) => setPaymentSearch(e.target.value)}
+                placeholder="Search code, sender, phone, reference or note"
+                className="w-full min-h-11 rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-colors"
+              />
+            </div>
+            {paymentSearch && (
+              <div className="flex items-center gap-3 text-sm text-slate-500 shrink-0">
+                <span className="tabular-nums">
+                  {filteredPayments.length} of {payments.length}
+                </span>
+                <button
+                  onClick={() => setPaymentSearch('')}
+                  className="min-h-11 px-3 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
           </div>
 
           {loadingPayments ? (
@@ -1346,9 +1499,24 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           ) : (
             /* Payments Table (paginated 10 / page) */
             (() => {
-              const totalPages = Math.max(1, Math.ceil(payments.length / PAGE_SIZE));
+              const totalPages = Math.max(1, Math.ceil(filteredPayments.length / PAGE_SIZE));
               const page = Math.min(paymentsPage, totalPages);
-              const pagePayments = payments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+              const pagePayments = filteredPayments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+              if (filteredPayments.length === 0) {
+                return (
+                  <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center bg-white">
+                    <Search className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                    <p className="text-sm font-medium text-slate-700">
+                      Nothing in the ledger matches "{paymentSearch}"
+                    </p>
+                    <p className="text-sm text-slate-500 mt-1">
+                      A payment only appears here once it has been recorded against an order.
+                    </p>
+                  </div>
+                );
+              }
+
               return (
               <div className="space-y-3">
 
@@ -1451,7 +1619,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1 text-sm text-slate-500">
                 <span>
-                  Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, payments.length)} of {payments.length}
+                  Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, filteredPayments.length)} of {filteredPayments.length}
+                  {paymentSearch && ' matching'}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
@@ -1515,9 +1684,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                    <label htmlFor="input_base_rate" className="block text-sm font-medium text-slate-500">
-                      Flat rate
-                    </label>
+                    <Tooltip label="What every parcel costs up to the included weight, to any region. Distance never changes it.">
+                      <label htmlFor="input_base_rate" className="block w-fit text-sm font-medium text-slate-500 underline decoration-dotted decoration-slate-300 underline-offset-4 cursor-help">
+                        Flat rate
+                      </label>
+                    </Tooltip>
                     <div className="flex items-center gap-1.5 mt-2">
                       <span className="text-sm font-medium text-slate-500">GHS</span>
                       <input
@@ -1534,9 +1705,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   </div>
 
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                    <label htmlFor="input_included_kg" className="block text-sm font-medium text-slate-500">
-                      Covers up to
-                    </label>
+                    <Tooltip label="The weight the flat rate covers. Anything heavier is charged per whole kilo above this.">
+                      <label htmlFor="input_included_kg" className="block w-fit text-sm font-medium text-slate-500 underline decoration-dotted decoration-slate-300 underline-offset-4 cursor-help">
+                        Covers up to
+                      </label>
+                    </Tooltip>
                     <div className="flex items-center gap-1.5 mt-2">
                       <input
                         id="input_included_kg"
@@ -1553,9 +1726,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   </div>
 
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                    <label htmlFor="input_per_extra_kg" className="block text-sm font-medium text-slate-500">
-                      Each extra kg
-                    </label>
+                    <Tooltip label="Charged per whole kilo over the allowance. Part kilos round up — 3.4kg is billed as 4kg.">
+                      <label htmlFor="input_per_extra_kg" className="block w-fit text-sm font-medium text-slate-500 underline decoration-dotted decoration-slate-300 underline-offset-4 cursor-help">
+                        Each extra kg
+                      </label>
+                    </Tooltip>
                     <div className="flex items-center gap-1.5 mt-2">
                       <span className="text-sm font-medium text-slate-500">GHS</span>
                       <input
@@ -1632,6 +1807,44 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
       {activeSubTab === 'account' && (
         <div className="animate-in fade-in duration-200" id="dash_subtab_account">
           <AccountSecurity token={token} user={user} />
+        </div>
+      )}
+
+      {/* ----------------- UNDO OFFER -----------------
+          Sits above the drawer, because the change it is offering to take back
+          can have been made from inside it. Fifteen seconds is long enough to
+          notice a wrong row and short enough that it is gone before it becomes
+          scenery — the server's window stays open for ten minutes either way,
+          reachable from the order's own drawer. */}
+      {undoOffer && canWriteOrders && (
+        <div className="fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-5 pointer-events-none">
+          <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 shadow-2xl animate-in slide-in-from-bottom-2 fade-in duration-200">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-white">
+                <span className="font-mono font-semibold">{undoOffer.trackingCode}</span>
+                {' '}moved to{' '}
+                <span className="font-medium">{getStatusLabel(undoOffer.to)}</span>
+              </p>
+              <p className="text-xs text-slate-400">Was {getStatusLabel(undoOffer.from)}</p>
+            </div>
+
+            <button
+              onClick={() => undoLastChange(undoOffer.orderId)}
+              disabled={undoing}
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 min-h-11 px-3.5 text-sm font-semibold text-white transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {undoing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+              Undo
+            </button>
+
+            <button
+              onClick={() => setUndoOffer(null)}
+              aria-label="Dismiss"
+              className="shrink-0 h-11 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -1713,6 +1926,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                 {selectedOrderDetails.order.riderName || 'Unassigned'}
                               </span>
                             </div>
+                            <Tooltip placement="left" label="Copies a private link for this parcel only. The courier can mark it collected, on the road and delivered without a login. It expires after seven days.">
                             <button
                               onClick={() => {
                                 const link = `${window.location.origin}/rider/${selectedOrderDetails.order.riderToken}`;
@@ -1721,11 +1935,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                 setTimeout(() => setCopiedRiderLink(false), 2000);
                               }}
                               className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 min-h-11 px-3 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
-                              title="Copy the courier's self-service update link"
                             >
                               {copiedRiderLink ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                               {copiedRiderLink ? 'Copied' : 'Copy rider link'}
                             </button>
+                            </Tooltip>
                           </div>
                           <p className="mt-2 text-sm text-slate-400 leading-relaxed">
                             Send this to the courier — they can mark picked up, in transit and delivered themselves,
@@ -1789,6 +2003,36 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       </h3>
 
                       <div className="space-y-3 bg-slate-100/25 rounded-xl p-4 border border-slate-200">
+
+                        {/* Undo, when the last change is still inside the
+                            window. checkUndo() decides, and the server refuses
+                            on the same rules, so this cannot offer a move the
+                            API would decline. */}
+                        {drawerUndo?.ok === true ? (
+                          <div className="pb-3 border-b border-slate-200 mb-3">
+                            <button
+                              onClick={() => undoLastChange(selectedOrderDetails.order.id)}
+                              disabled={undoing}
+                              className="w-full min-h-12 flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+                            >
+                              {undoing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+                              {drawerUndo.wasUndo ? 'Redo' : 'Undo'} — back to {getStatusLabel(drawerUndo.previous)}
+                            </button>
+                            <p className="mt-2 text-xs text-slate-500">
+                              {drawerUndo.wasUndo
+                                ? 'Puts back the step that was undone at '
+                                : `Reverses the step ${drawerUndo.by} took at `}
+                              {drawerUndo.changedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
+                              Any payment and rider it settled moves with it.
+                            </p>
+                          </div>
+                        ) : drawerUndo && drawerUndo.ok === false ? (
+                          <p className="pb-3 border-b border-slate-200 mb-3 text-xs text-slate-500">
+                            <span className="font-medium text-slate-600">Undo unavailable.</span>{' '}
+                            {drawerUndo.reason}
+                          </p>
+                        ) : null}
+
                         {/* Quick sequential next step trigger */}
                         {advanceStatus(selectedOrderDetails.order.status) && (
                           <div className="space-y-2 pb-3 border-b border-slate-200 mb-3">
