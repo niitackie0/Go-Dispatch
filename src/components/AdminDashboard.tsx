@@ -7,7 +7,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Layers,
   Search, 
-  Calendar, 
   Filter, 
   TrendingUp, 
   User, 
@@ -18,7 +17,6 @@ import {
   CheckCircle, 
   ArrowRight, 
   Loader2, 
-  Download, 
   Settings, 
   Clock, 
   X,
@@ -38,7 +36,8 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
-  Undo2
+  Undo2,
+  ChevronUp
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -61,6 +60,7 @@ import SelectModal from './SelectModal.js';
 import StaffManagement from './StaffManagement.js';
 import AccountSecurity from './AccountSecurity.js';
 import Tooltip from './Tooltip.js';
+import DateModal from './DateModal.js';
 
 interface AdminDashboardProps {
   token: string;
@@ -219,6 +219,15 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   // loaded in full for the revenue figures, so a round trip per keystroke would
   // buy nothing.
   const [paymentSearch, setPaymentSearch] = useState('');
+
+  /**
+   * Which ledger row is showing its detail.
+   *
+   * One at a time. The ledger is scanned far more often than it is read, and
+   * eight columns of references and notes is a wall of text -- so a row shows
+   * what identifies it and opens for the rest.
+   */
+  const [openPayment, setOpenPayment] = useState<string | null>(null);
 
   /**
    * The step just taken, and the offer to take it back.
@@ -592,25 +601,6 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     }
   };
 
-  // Trigger payments CSV download
-  const handleExportPaymentsCSV = () => {
-    fetch('/api/payments/export', { headers: getAuthHeaders() })
-      .then(res => {
-        if (!res.ok) throw new Error();
-        return res.blob();
-      })
-      .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'go-dispatch-payments-ledger.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      })
-      .catch(() => alert('Failed to download ledger report CSV.'));
-  };
-
   // Move Order Status to next step sequentially
   const getStatusLabel = (s: OrderStatus) => {
     return STATUS_ORDER.find(item => item.key === s)?.label || s;
@@ -930,7 +920,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               {/* Needs attention — first, because it is the only block on this
                   screen that asks the reader to do something. Everything below
                   is a readout; this is a queue. */}
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="gd-panel">
                 <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-200">
                   <h2 className="text-base font-medium text-slate-900">Needs attention</h2>
                   {overview.attention.length > 0 && (
@@ -988,7 +978,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   money, so it follows the same revenue gate as the cards. */}
               <div className={`grid grid-cols-1 gap-4 ${canSeeRevenue ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="gd-panel p-5">
                   <h3 className="text-sm font-medium text-slate-500">Today</h3>
                   <dl className="mt-3 space-y-2">
                     {([
@@ -1005,7 +995,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
 
                 {canSeeRevenue && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="gd-panel p-5">
                     <h3 className="text-sm font-medium text-slate-500">Outstanding</h3>
                     <p className="mt-3 text-3xl font-medium text-slate-900 tabular-nums tracking-tight">
                       GHS {(overview.outstanding / 100).toFixed(2)}
@@ -1018,7 +1008,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   </div>
                 )}
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="gd-panel p-5">
                   <h3 className="text-sm font-medium text-slate-500">On the road</h3>
                   {overview.riders.length === 0 ? (
                     <p className="mt-3 text-base text-slate-500">No riders carrying parcels.</p>
@@ -1048,7 +1038,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 
                 {/* Today */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="gd-panel p-5">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-medium text-slate-500 block">Revenue today</span>
@@ -1063,7 +1053,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
 
                 {/* Week */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="gd-panel p-5">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-medium text-slate-500 block">Revenue this week</span>
@@ -1078,7 +1068,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
 
                 {/* Month */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="gd-panel p-5">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-medium text-slate-500 block">Revenue this month</span>
@@ -1093,7 +1083,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
 
                 {/* All Time */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="gd-panel p-5">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-medium text-slate-500 block">Collected all time</span>
@@ -1118,7 +1108,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                    .reduce((sum, s) => sum + s.count, 0);
 
                 return (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="gd-panel p-6">
                     {/* Header */}
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                       <div className="flex items-center gap-2">
@@ -1199,25 +1189,25 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
         <div className="space-y-6 animate-in fade-in duration-200" id="dash_subtab_pipeline">
           
           {/* Filters Bar */}
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-md grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+          <div className="gd-panel p-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
             
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-500 mb-1">Search Keywords</label>
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Search</label>
               <div className="relative">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                 <input
                   id="filter_search"
                   type="text"
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
-                  placeholder="Tracking code, sender name, phone..."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white transition-all"
+                  placeholder="Code, name or phone"
+                  className="w-full min-h-12 rounded-2xl border border-slate-200/80 bg-white text-slate-900 pl-10 pr-4 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-500 mb-1">Status</label>
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Status</label>
               <SelectModal
                 id="filter_status"
                 value={statusFilter}
@@ -1228,22 +1218,18 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   { value: '', label: 'All statuses' },
                   ...STATUS_ORDER.map((s) => ({ value: s.key, label: s.label })),
                 ]}
-                className="w-full min-h-12 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-sm text-slate-900 hover:border-slate-300 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-colors cursor-pointer"
+                className="w-full min-h-12 flex items-center justify-between gap-2 rounded-2xl border border-slate-200/80 bg-white px-3.5 text-left text-sm text-slate-900 hover:border-slate-300 focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-colors cursor-pointer"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-500 mb-1">Created Since</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-2.5 h-4.5 w-4.5 text-slate-500" />
-                <input
-                  id="filter_start_date"
-                  type="date"
-                  value={startDateFilter}
-                  onChange={(e) => setStartDateFilter(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 pl-9 pr-3 py-3 text-sm outline-none focus:border-red-500 focus:bg-white transition-all"
-                />
-              </div>
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Booked since</label>
+              <DateModal
+                id="filter_start_date"
+                value={startDateFilter}
+                onChange={setStartDateFilter}
+                title="Show orders booked since"
+              />
             </div>
 
             <button
@@ -1253,9 +1239,9 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 setStartDateFilter('');
                 setEndDateFilter('');
               }}
-              className="w-full min-h-11 text-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium text-sm transition-colors cursor-pointer"
+              className="w-full min-h-12 text-center rounded-2xl border border-slate-200/80 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium text-sm transition-colors cursor-pointer"
             >
-              Clear Filters
+              Clear
             </button>
           </div>
 
@@ -1263,7 +1249,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           {loadingOrders ? (
             <div className="flex py-12 justify-center"><Loader2 className="h-8 w-8 text-red-600 animate-spin" /></div>
           ) : orders.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-500 bg-white">
+            <div className="rounded-3xl border border-dashed border-slate-200 p-12 text-center text-slate-500 bg-white/60">
               <ClipboardList className="h-10 w-10 text-slate-300 mx-auto mb-3" />
               <p className="text-sm font-medium text-slate-700">No dispatch orders match criteria</p>
               <p className="text-sm text-slate-500 mt-1">Try relaxing filters or search queries.</p>
@@ -1287,7 +1273,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         <div
                           key={order.id}
                           onClick={() => setSelectedOrderId(order.id)}
-                          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3 cursor-pointer active:bg-slate-50 transition-colors"
+                          className="gd-panel p-4 space-y-3 cursor-pointer active:bg-slate-50 transition-colors"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
@@ -1358,9 +1344,9 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   </div>
 
                   {/* Tablet and up: the table. */}
-                  <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <div className="hidden md:block overflow-x-auto gd-panel">
                     <table className="w-full text-left text-sm text-slate-700">
-                      <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
+                      <thead className="bg-transparent text-[11px] font-medium uppercase tracking-wider text-slate-400 border-b border-slate-100">
                         <tr>
                           <th className="px-4 py-3">Tracking</th>
                           <th className="px-4 py-3">Route</th>
@@ -1384,7 +1370,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-200">
+                      <tbody className="divide-y divide-slate-100">
                         {pageOrders.map((order) => {
                           const statusTheme = STATUS_ORDER.find(s => s.key === order.status) || STATUS_ORDER[0];
                           const next = advanceStatus(order.status);
@@ -1392,7 +1378,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                             <tr
                               key={order.id}
                               onClick={() => setSelectedOrderId(order.id)}
-                              className="hover:bg-slate-50 cursor-pointer transition-colors"
+                              className="gd-row"
                             >
                               <td className="px-4 py-3 font-mono font-semibold text-slate-900 whitespace-nowrap">
                                 {order.trackingCode}
@@ -1472,7 +1458,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <button
                         onClick={() => setPipelinePage((p) => Math.max(1, p - 1))}
                         disabled={page <= 1}
-                        className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                        className="min-h-11 px-4 rounded-2xl border border-slate-200/80 bg-white font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                       >
                         &lsaquo; Prev
                       </button>
@@ -1480,7 +1466,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <button
                         onClick={() => setPipelinePage((p) => Math.min(totalPages, p + 1))}
                         disabled={page >= totalPages}
-                        className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                        className="min-h-11 px-4 rounded-2xl border border-slate-200/80 bg-white font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                       >
                         Next &rsaquo;
                       </button>
@@ -1502,15 +1488,6 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               <h2 className="text-lg font-semibold text-slate-900">Payments ledger</h2>
               <p className="text-sm text-slate-500 mt-0.5">Every transaction recorded against an order, newest first.</p>
             </div>
-            <Tooltip label="Downloads the whole ledger, not just this page — including transactions outside the search.">
-              <button
-                onClick={handleExportPaymentsCSV}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white min-h-11 px-4 text-sm font-medium text-slate-700 hover:bg-slate-100 shadow-sm transition-colors self-start cursor-pointer"
-              >
-                <Download className="h-4.5 w-4.5" />
-                <span>Export CSV</span>
-              </button>
-            </Tooltip>
           </div>
 
           {/* Finding one transaction. Someone rings about a payment and quotes
@@ -1546,7 +1523,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           {loadingPayments ? (
             <div className="flex py-12 justify-center"><Loader2 className="h-8 w-8 text-red-600 animate-spin" /></div>
           ) : payments.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-500 bg-white">
+            <div className="rounded-3xl border border-dashed border-slate-200 p-12 text-center text-slate-500 bg-white/60">
               <CreditCard className="h-10 w-10 text-slate-300 mx-auto mb-3" />
               <p className="text-sm font-medium text-slate-700">No ledger transactions logged</p>
             </div>
@@ -1559,7 +1536,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
               if (filteredPayments.length === 0) {
                 return (
-                  <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center bg-white">
+                  <div className="rounded-3xl border border-dashed border-slate-200 p-12 text-center bg-white/60">
                     <Search className="h-10 w-10 text-slate-300 mx-auto mb-3" />
                     <p className="text-sm font-medium text-slate-700">
                       Nothing in the ledger matches "{paymentSearch}"
@@ -1574,103 +1551,97 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               return (
               <div className="space-y-3">
 
-              {/* Phones: a card per transaction. Nine columns cannot be read on
-                  a 390px screen, so the ledger stacks instead. */}
-              <div className="md:hidden space-y-3">
-                {pagePayments.map((p) => (
-                  <div key={p.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <span className="font-mono text-base font-semibold text-slate-900 block">{p.trackingCode}</span>
-                        <span className="text-sm text-slate-500">{p.senderName}</span>
-                      </div>
-                      <span className="shrink-0 text-lg font-semibold text-slate-900 tabular-nums">
-                        {p.currency} {(p.amount / 100).toFixed(2)}
-                      </span>
+              {/* One list at every width.
+                  The ledger used to be a nine-column table on desktop and a
+                  separate stack of cards on a phone -- two markups saying the
+                  same thing, drifting apart. A row now carries only what
+                  identifies a transaction: who paid, how much, and whether it
+                  landed. Everything else -- the reference, the note, who
+                  recorded it, the method -- is one tap away, because those are
+                  read when reconciling one payment, not when scanning fifty. */}
+              <div className="gd-panel overflow-hidden">
+                {pagePayments.map((p, i) => {
+                  const open = openPayment === p.id;
+                  const settled = p.paidAt ?? p.createdAt;
+                  return (
+                    <div key={p.id} className={i > 0 ? 'border-t border-slate-100' : ''}>
+                      <button
+                        onClick={() => setOpenPayment(open ? null : p.id)}
+                        aria-expanded={open}
+                        data-open={open}
+                        className="gd-row w-full min-h-16 flex items-center gap-4 px-4 sm:px-5 py-3.5 text-left"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-mono text-sm font-semibold text-slate-900">
+                            {p.trackingCode}
+                          </span>
+                          <span className="block truncate text-sm text-slate-500">{p.senderName}</span>
+                        </span>
+
+                        <span className="shrink-0 text-right">
+                          <span className="block text-base font-semibold text-slate-900 tabular-nums">
+                            {p.currency} {(p.amount / 100).toFixed(2)}
+                          </span>
+                          <span className="block text-xs text-slate-400 tabular-nums">
+                            {new Date(settled).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                          </span>
+                        </span>
+
+                        <span
+                          className={`shrink-0 h-2.5 w-2.5 rounded-full ${
+                            p.status === 'success' ? 'bg-emerald-500' :
+                            p.status === 'failed' ? 'bg-red-500' : 'bg-amber-400'
+                          }`}
+                          title={p.status}
+                        />
+
+                        {open
+                          ? <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
+                          : <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />}
+                      </button>
+
+                      {open && (
+                        <dl className="gd-reveal grid grid-cols-2 gap-x-4 gap-y-3.5 border-t border-slate-100 bg-slate-50/50 px-4 sm:px-5 py-4 text-sm">
+                          <div>
+                            <dt className="text-xs uppercase tracking-wider text-slate-400">Paid by</dt>
+                            <dd className="mt-0.5 text-slate-900">{p.senderName}</dd>
+                            <dd className="font-mono text-xs text-slate-500">{p.senderPhone}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs uppercase tracking-wider text-slate-400">Method</dt>
+                            <dd className="mt-0.5 capitalize text-slate-900">{p.provider}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs uppercase tracking-wider text-slate-400">State</dt>
+                            <dd className="mt-0.5 capitalize text-slate-900">{p.status}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs uppercase tracking-wider text-slate-400">Settled</dt>
+                            <dd className="mt-0.5 text-slate-900 tabular-nums">
+                              {new Date(settled).toLocaleString(undefined, {
+                                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                              })}
+                            </dd>
+                          </div>
+                          <div className="col-span-2">
+                            <dt className="text-xs uppercase tracking-wider text-slate-400">Reference</dt>
+                            <dd className="mt-0.5 break-all font-mono text-xs text-slate-700">
+                              {p.providerReference || 'None recorded'}
+                            </dd>
+                          </div>
+                          {p.note && (
+                            <div className="col-span-2">
+                              <dt className="text-xs uppercase tracking-wider text-slate-400">Note</dt>
+                              <dd className="mt-0.5 text-slate-700">{p.note}</dd>
+                            </div>
+                          )}
+                        </dl>
+                      )}
                     </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
-                        p.status === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
-                        p.status === 'failed' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
-                        'bg-amber-500/10 border-amber-500/20 text-amber-600'
-                      }`}>
-                        {p.status}
-                      </span>
-                      <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
-                        p.provider === 'momo' ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-slate-100 border-slate-300 text-slate-700'
-                      }`}>
-                        {p.provider}
-                      </span>
-                      <span className="ml-auto text-sm text-slate-500">
-                        {p.paidAt ? new Date(p.paidAt).toLocaleDateString() : new Date(p.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-
-                    {p.note && <p className="text-sm text-slate-500">{p.note}</p>}
-
-                    <p className="text-xs text-slate-400 font-mono break-all">
-                      {p.providerReference ? `Ref ${p.providerReference}` : 'No provider reference'}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <table className="w-full text-left text-sm text-slate-700 border-collapse">
-                <thead className="bg-slate-50 font-semibold uppercase tracking-wide text-slate-500 text-xs border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-3">Order</th>
-                    <th className="px-4 py-3">Sender</th>
-                    <th className="px-4 py-3 text-right">Amount</th>
-                    <th className="px-4 py-3">Method</th>
-                    <th className="px-4 py-3">Reference</th>
-                    <th className="px-4 py-3">State</th>
-                    <th className="px-4 py-3">Notes</th>
-                    <th className="px-4 py-3">Settled</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {pagePayments.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-mono font-semibold text-slate-900 whitespace-nowrap">{p.trackingCode}</td>
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-slate-900 block">{p.senderName}</span>
-                        <span className="text-xs text-slate-500 block font-mono">{p.senderPhone}</span>
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-900 tabular-nums whitespace-nowrap">
-                        {p.currency} {(p.amount / 100).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
-                          p.provider === 'momo' ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-slate-100 border-slate-300 text-slate-700'
-                        }`}>
-                          {p.provider}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500 max-w-[140px] truncate" title={p.providerReference || undefined}>
-                        {p.providerReference || '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
-                          p.status === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
-                          p.status === 'failed' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
-                          'bg-amber-500/10 border-amber-500/20 text-amber-600'
-                        }`}>
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-500 max-w-[200px] truncate" title={p.note}>
-                        {p.note || <span className="text-slate-400">—</span>}
-                      </td>
-                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
-                        {p.paidAt ? new Date(p.paidAt).toLocaleDateString() : new Date(p.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              </div>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1 text-sm text-slate-500">
                 <span>
                   Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, filteredPayments.length)} of {filteredPayments.length}
@@ -1680,7 +1651,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <button
                     onClick={() => setPaymentsPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                    className="min-h-11 px-4 rounded-2xl border border-slate-200/80 bg-white font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                   >
                     &lsaquo; Prev
                   </button>
@@ -1688,7 +1659,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <button
                     onClick={() => setPaymentsPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
-                    className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                    className="min-h-11 px-4 rounded-2xl border border-slate-200/80 bg-white font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                   >
                     Next &rsaquo;
                   </button>
@@ -1895,85 +1866,235 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
         </div>
       )}
 
-      {/* ----------------- ORDER DETAIL RIGHT-SIDEBAR INSPECTOR (DRAWER) ----------------- */}
+      {/* ----------------- THE ORDER SCREEN -----------------
+          Everything known about one parcel, which is far more than anybody
+          needs at once. So it opens showing the four things that answer "what
+          is this and what do I do with it" -- route, money, status, next step
+          -- and keeps contacts, specs, payment history and the audit trail
+          folded behind their own headings.
+
+          Built on <details>, so the folds need no state of their own, survive
+          a background refresh mid-read, and can be found by find-in-page. */}
       {selectedOrderId && (
         <div className="fixed inset-0 z-50 overflow-hidden" id="order_inspector_panel">
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/65 backdrop-blur-xs transition-opacity" onClick={() => setSelectedOrderId(null)}></div>
-          
-          <div className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
-            <div className="w-screen max-w-lg bg-white border-l border-slate-200 shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300">
-              
-              {/* Drawer Header */}
-              <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="text-sm text-slate-500 block">Order</span>
-                  <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-1.5 mt-0.5">
-                    {selectedOrderDetails?.order.trackingCode ?? ''}
-                  </h2>
+          <div
+            className="absolute inset-0 bg-slate-900/30 backdrop-blur-[3px]"
+            onClick={() => setSelectedOrderId(null)}
+          />
+
+          <div className="absolute inset-y-0 right-0 flex max-w-full sm:pl-10">
+            <div className="flex h-full w-screen max-w-lg flex-col bg-[var(--wp-bg)] shadow-[0_0_60px_-12px_rgba(26,17,19,0.4)] animate-in slide-in-from-right duration-300">
+
+              {loadingOrderDetails || !selectedOrderDetails ? (
+                <div className="flex h-full items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-red-600" />
                 </div>
-                <button
-                  id="btn_close_inspector"
-                  onClick={() => setSelectedOrderId(null)}
-                  className="h-11 w-11 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Drawer Content */}
-              <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-                
-                {loadingOrderDetails || !selectedOrderDetails ? (
-                  <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 text-red-600 animate-spin" /></div>
-                ) : (
-                  <>
-                    {/* General Specs Ticket Card */}
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-4">
-                      {/* The tracking code is in the drawer header, so this row
-                          carries the price alone rather than repeating it. */}
-                      <div className="pb-3 border-b border-dashed border-slate-200">
-                        <span className="text-sm text-slate-500 block">Price</span>
-                        <span className="text-xl font-medium text-slate-900 tabular-nums">
-                          {selectedOrderDetails.order.currency} {(selectedOrderDetails.order.priceAmount / 100).toFixed(2)}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-slate-500 block">Status</span>
-                          <span className={`inline-block font-semibold capitalize mt-0.5 rounded px-2 py-0.5 text-xs tracking-wider ${
-                            STATUS_ORDER.find(s => s.key === selectedOrderDetails.order.status)?.bg || 'bg-slate-100'
+              ) : (
+                <>
+                  {/* Header: what it is, and where it stands. */}
+                  <div className="shrink-0 bg-white px-5 py-4 border-b border-slate-100">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-mono text-lg font-semibold text-slate-900">
+                          {selectedOrderDetails.order.trackingCode}
+                        </p>
+                        <p className="mt-1 flex items-center gap-2 text-sm">
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                            STATUS_ORDER.find((x) => x.key === selectedOrderDetails.order.status)?.bg ?? 'bg-slate-100'
                           } ${
-                            STATUS_ORDER.find(s => s.key === selectedOrderDetails.order.status)?.text || 'text-slate-700'
+                            STATUS_ORDER.find((x) => x.key === selectedOrderDetails.order.status)?.text ?? 'text-slate-700'
                           }`}>
-                            {selectedOrderDetails.order.status.replace('_', ' ')}
+                            {getStatusLabel(selectedOrderDetails.order.status)}
                           </span>
-                        </div>
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                            selectedOrderDetails.order.paymentStatus === 'paid'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-amber-50 text-amber-700'
+                          }`}>
+                            {selectedOrderDetails.order.paymentStatus === 'paid' ? 'Paid' : 'Payment due'}
+                          </span>
+                        </p>
+                      </div>
+                      <button
+                        id="btn_close_inspector"
+                        onClick={() => setSelectedOrderId(null)}
+                        aria-label="Close"
+                        className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
 
+                  <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+
+                    {/* The route and the price: the two things always wanted. */}
+                    <div className="gd-panel p-5">
+                      <p className="text-xs font-medium uppercase tracking-wider text-slate-400">From</p>
+                      <p className="mt-1 text-[15px] leading-snug text-slate-900">
+                        {selectedOrderDetails.order.pickupAddress}
+                      </p>
+                      <p className="mt-3 text-xs font-medium uppercase tracking-wider text-slate-400">To</p>
+                      <p className="mt-1 text-[15px] leading-snug text-slate-900">
+                        {selectedOrderDetails.order.dropoffAddress}
+                      </p>
+
+                      <div className="mt-4 flex items-end justify-between border-t border-slate-100 pt-4">
                         <div>
-                          <span className="text-slate-500 block">Payment</span>
-                          <span className={`inline-block font-semibold uppercase mt-0.5 rounded border px-2 py-0.5 text-xs tracking-wider ${
-                            selectedOrderDetails.order.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
-                            'bg-amber-500/10 border-amber-500/20 text-amber-600'
-                          }`}>
-                            {selectedOrderDetails.order.paymentStatus}
-                          </span>
+                          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Price</p>
+                          <p className="text-xl font-semibold text-slate-900 tabular-nums">
+                            {selectedOrderDetails.order.currency}{' '}
+                            {(selectedOrderDetails.order.priceAmount / 100).toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Collection</p>
+                          <p className="text-sm text-slate-700">
+                            {formatPickup(selectedOrderDetails.order.scheduledPickupAt)}
+                          </p>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Assigned courier + shareable self-service link */}
+                    {/* Next step. The only block that acts, so it stays open. */}
+                    {canWriteOrders && (
+                      <div className="gd-panel p-5 space-y-3">
+                        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Next step</p>
+
+                        {drawerUndo?.ok === true && (
+                          <button
+                            onClick={() => undoLastChange(selectedOrderDetails.order.id)}
+                            disabled={undoing}
+                            className="w-full min-h-12 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+                          >
+                            {undoing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+                            {drawerUndo.wasUndo ? 'Redo' : 'Undo'} — back to {getStatusLabel(drawerUndo.previous)}
+                          </button>
+                        )}
+
+                        {advanceStatus(selectedOrderDetails.order.status) && (
+                          <button
+                            id="btn_trigger_next_status"
+                            onClick={() => handleUpdateStatus(advanceStatus(selectedOrderDetails.order.status)!)}
+                            disabled={submittingStatus}
+                            className="btn-aurora w-full min-h-14 flex items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white cursor-pointer disabled:opacity-60"
+                          >
+                            {submittingStatus ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
+                            Move to {getStatusLabel(advanceStatus(selectedOrderDetails.order.status)!)}
+                          </button>
+                        )}
+
+                        {(() => {
+                          const legal = nextStatuses(selectedOrderDetails.order.status).filter(
+                            (k) => k !== advanceStatus(selectedOrderDetails.order.status)
+                          );
+                          if (legal.length === 0) return null;
+                          return (
+                            <details className="group">
+                              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-slate-500 hover:text-slate-800 [&::-webkit-details-marker]:hidden">
+                                Other moves
+                                <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                              </summary>
+                              <div className="gd-reveal pt-2 space-y-2">
+                                <div className="grid grid-cols-2 gap-2">
+                                  {legal.map((key) => (
+                                    <button
+                                      key={key}
+                                      disabled={submittingStatus}
+                                      onClick={() => handleUpdateStatus(key)}
+                                      className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+                                    >
+                                      {getStatusLabel(key)}
+                                    </button>
+                                  ))}
+                                </div>
+                                <input
+                                  id="input_status_note"
+                                  type="text"
+                                  value={statusNote}
+                                  onChange={(e) => setStatusNote(e.target.value)}
+                                  placeholder="Note for the record (optional)"
+                                  className="w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
+                                />
+                              </div>
+                            </details>
+                          );
+                        })()}
+
+                        {nextStatuses(selectedOrderDetails.order.status).length === 0 && (
+                          <p className="text-sm text-slate-500">
+                            This order is {getStatusLabel(selectedOrderDetails.order.status).toLowerCase()} and cannot change further.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Everything below is reference, so everything below folds. */}
+                    <div className="gd-panel divide-y divide-slate-100 overflow-hidden">
+
+                      <details className="group">
+                        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50/70 transition-colors [&::-webkit-details-marker]:hidden">
+                          Sender and recipient
+                          <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="gd-reveal space-y-4 border-t border-slate-100 bg-slate-50/40 px-5 py-4 text-sm">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Sender</p>
+                            <p className="mt-0.5 font-medium text-slate-900">{selectedOrderDetails.order.senderName}</p>
+                            <a href={`tel:${selectedOrderDetails.order.senderPhone}`} className="font-mono text-sm text-red-700">
+                              {selectedOrderDetails.order.senderPhone}
+                            </a>
+                            {selectedOrderDetails.order.pickupNotes && (
+                              <p className="mt-1 text-slate-600">Landmark: {selectedOrderDetails.order.pickupNotes}</p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Recipient</p>
+                            <p className="mt-0.5 font-medium text-slate-900">{selectedOrderDetails.order.recipientName}</p>
+                            <a href={`tel:${selectedOrderDetails.order.recipientPhone}`} className="font-mono text-sm text-red-700">
+                              {selectedOrderDetails.order.recipientPhone}
+                            </a>
+                            {selectedOrderDetails.order.dropoffNotes && (
+                              <p className="mt-1 text-slate-600">Landmark: {selectedOrderDetails.order.dropoffNotes}</p>
+                            )}
+                          </div>
+                        </div>
+                      </details>
+
+                      <details className="group">
+                        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50/70 transition-colors [&::-webkit-details-marker]:hidden">
+                          Parcel
+                          <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <dl className="gd-reveal grid grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-100 bg-slate-50/40 px-5 py-4 text-sm">
+                          <div>
+                            <dt className="text-xs uppercase tracking-wider text-slate-400">Size</dt>
+                            <dd className="mt-0.5 capitalize text-slate-900">{selectedOrderDetails.order.packageSize}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs uppercase tracking-wider text-slate-400">Weight</dt>
+                            <dd className="mt-0.5 text-slate-900 tabular-nums">{selectedOrderDetails.order.packageWeightKg} kg</dd>
+                          </div>
+                          <div className="col-span-2">
+                            <dt className="text-xs uppercase tracking-wider text-slate-400">Contents</dt>
+                            <dd className="mt-0.5 text-slate-900">{selectedOrderDetails.order.packageDescription}</dd>
+                          </div>
+                        </dl>
+                      </details>
+
                       {selectedOrderDetails.order.riderToken && (
-                        <div className="mt-4 pt-4 border-t border-dashed border-slate-200">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <span className="text-slate-500 font-medium block text-xs">Assigned courier</span>
-                              <span className="flex items-center gap-1.5 mt-0.5 text-sm font-medium text-slate-900">
-                                <Truck className="h-3.5 w-3.5 text-red-600" />
+                        <details className="group">
+                          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50/70 transition-colors [&::-webkit-details-marker]:hidden">
+                            <span className="flex items-center gap-2">
+                              Courier
+                              <span className="text-slate-400">·</span>
+                              <span className="font-normal text-slate-500">
                                 {selectedOrderDetails.order.riderName || 'Unassigned'}
                               </span>
-                            </div>
-                            <Tooltip placement="left" label="Copies a private link for this parcel only. The courier can mark it collected, on the road and delivered without a login. It expires after seven days.">
+                            </span>
+                            <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
+                          </summary>
+                          <div className="gd-reveal border-t border-slate-100 bg-slate-50/40 px-5 py-4">
                             <button
                               onClick={() => {
                                 const link = `${window.location.origin}/rider/${selectedOrderDetails.order.riderToken}`;
@@ -1981,256 +2102,112 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                 setCopiedRiderLink(true);
                                 setTimeout(() => setCopiedRiderLink(false), 2000);
                               }}
-                              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 min-h-11 px-3 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
+                              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                             >
-                              {copiedRiderLink ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                              {copiedRiderLink ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
                               {copiedRiderLink ? 'Copied' : 'Copy rider link'}
                             </button>
-                            </Tooltip>
-                          </div>
-                          <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                            Send this to the courier — they can mark picked up, in transit and delivered themselves,
-                            without a dashboard login.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Coordinates & Customer info */}
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">Sender and recipient</h3>
-                      
-                      <div className="space-y-3.5 bg-white rounded-xl border border-slate-200 p-4 text-xs text-slate-700">
-                        {/* Sender */}
-                        <div className="flex gap-2.5 pb-3 border-b border-slate-200">
-                          <User className="h-4.5 w-4.5 text-slate-500 shrink-0" />
-                          <div>
-                            <span className="text-slate-500 block font-medium text-xs uppercase">Sender</span>
-                            <span className="font-semibold text-slate-900 block mt-0.5">{selectedOrderDetails.order.senderName}</span>
-                            <span className="text-slate-500 font-mono text-xs block mt-0.5">{selectedOrderDetails.order.senderPhone}</span>
-                            <span className="text-slate-700 block mt-1"><strong className="text-slate-500">Pickup:</strong> {selectedOrderDetails.order.pickupAddress}</span>
-                            {selectedOrderDetails.order.pickupNotes && (
-                              <span className="block italic text-xs text-slate-500 mt-1">Landmark: {selectedOrderDetails.order.pickupNotes}</span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Recipient */}
-                        <div className="flex gap-2.5">
-                          <User className="h-4.5 w-4.5 text-slate-500 shrink-0" />
-                          <div>
-                            <span className="text-slate-500 block font-medium text-xs uppercase">Recipient</span>
-                            <span className="font-semibold text-slate-900 block mt-0.5">{selectedOrderDetails.order.recipientName}</span>
-                            <span className="text-slate-500 font-mono text-xs block mt-0.5">{selectedOrderDetails.order.recipientPhone}</span>
-                            <span className="text-slate-700 block mt-1"><strong className="text-slate-500">Dropoff:</strong> {selectedOrderDetails.order.dropoffAddress}</span>
-                            {selectedOrderDetails.order.dropoffNotes && (
-                              <span className="block italic text-xs text-slate-500 mt-1">Landmark: {selectedOrderDetails.order.dropoffNotes}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Specifications */}
-                    <div className="space-y-3">
-                      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">Parcel specs</h3>
-                      <div className="bg-white rounded-xl border border-slate-200 p-4 text-xs text-slate-700 space-y-2">
-                        <p><strong className="text-slate-500">Size:</strong> <span className="capitalize font-semibold text-slate-900">{selectedOrderDetails.order.packageSize}</span></p>
-                        <p><strong className="text-slate-500">Weight:</strong> <span className="font-semibold text-slate-900">{selectedOrderDetails.order.packageWeightKg} kg</span></p>
-                        <p><strong className="text-slate-500">Description:</strong> <span className="text-slate-700">{selectedOrderDetails.order.packageDescription}</span></p>
-                        <p><strong className="text-slate-500">Pickup:</strong> <span className="text-slate-700">{new Date(selectedOrderDetails.order.scheduledPickupAt).toLocaleString()}</span></p>
-                      </div>
-                    </div>
-
-                    {/* CONTROL BOX: Transition workflow status — write roles only */}
-                    {canWriteOrders && (
-                    <div className="space-y-4 border-t border-slate-200 pt-6">
-                      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
-                        <Edit2 className="h-4 w-4 text-red-600" /> Workflow Transition Pipeline
-                      </h3>
-
-                      <div className="space-y-3 bg-slate-100/25 rounded-xl p-4 border border-slate-200">
-
-                        {/* Undo, when the last change is still inside the
-                            window. checkUndo() decides, and the server refuses
-                            on the same rules, so this cannot offer a move the
-                            API would decline. */}
-                        {drawerUndo?.ok === true ? (
-                          <div className="pb-3 border-b border-slate-200 mb-3">
-                            <button
-                              onClick={() => undoLastChange(selectedOrderDetails.order.id)}
-                              disabled={undoing}
-                              className="w-full min-h-12 flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
-                            >
-                              {undoing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
-                              {drawerUndo.wasUndo ? 'Redo' : 'Undo'} — back to {getStatusLabel(drawerUndo.previous)}
-                            </button>
-                            <p className="mt-2 text-xs text-slate-500">
-                              {drawerUndo.wasUndo
-                                ? 'Puts back the step that was undone at '
-                                : `Reverses the step ${drawerUndo.by} took at `}
-                              {drawerUndo.changedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
-                              Any payment and rider it settled moves with it.
+                            <p className="mt-2.5 text-sm leading-relaxed text-slate-500">
+                              Send this to the courier. They can mark it collected, on the road and
+                              delivered without a login. It stops working after seven days.
                             </p>
                           </div>
-                        ) : drawerUndo && drawerUndo.ok === false ? (
-                          <p className="pb-3 border-b border-slate-200 mb-3 text-xs text-slate-500">
-                            <span className="font-medium text-slate-600">Undo unavailable.</span>{' '}
-                            {drawerUndo.reason}
-                          </p>
-                        ) : null}
+                        </details>
+                      )}
 
-                        {/* Quick sequential next step trigger */}
-                        {advanceStatus(selectedOrderDetails.order.status) && (
-                          <div className="space-y-2 pb-3 border-b border-slate-200 mb-3">
-                            <span className="text-xs text-slate-500 font-medium block">Fast Next Step:</span>
-                            <button
-                              id="btn_trigger_next_status"
-                              onClick={() => handleUpdateStatus(advanceStatus(selectedOrderDetails.order.status)!)}
-                              disabled={submittingStatus}
-                              className="w-full text-center min-h-12 px-4 rounded-xl btn-aurora text-white font-semibold text-base shadow-md shadow-red-500/20 transition-colors flex items-center justify-center space-x-1 cursor-pointer"
-                            >
-                              <span>Move to "{getStatusLabel(advanceStatus(selectedOrderDetails.order.status)!)}"</span>
-                              <ArrowRight className="h-4 w-4" />
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Only the moves the server will actually accept. The
-                            table is shared with the API, so this list cannot
-                            drift from what is permitted. */}
-                        {(() => {
-                          const legal = nextStatuses(selectedOrderDetails.order.status);
-                          if (legal.length === 0) {
-                            return (
-                              <p className="text-sm text-slate-500">
-                                This order is {getStatusLabel(selectedOrderDetails.order.status).toLowerCase()} and cannot change further.
-                              </p>
-                            );
-                          }
-                          return (
-                            <div className="grid grid-cols-2 gap-2">
-                              {legal.map((key) => (
-                                <button
-                                  key={key}
-                                  disabled={submittingStatus}
-                                  onClick={() => handleUpdateStatus(key)}
-                                  className="min-h-11 px-3 rounded-lg border text-center transition-colors font-medium text-sm bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer disabled:opacity-50"
-                                >
-                                  {getStatusLabel(key)}
-                                </button>
-                              ))}
-                            </div>
-                          );
-                        })()}
-
-                        {/* Optional status log notes */}
-                        <div className="pt-2">
-                          <label className="block text-sm text-slate-500 mb-1 font-medium">Workflow Log Note (Who, what landmark/action)</label>
-                          <input
-                            id="input_status_note"
-                            type="text"
-                            value={statusNote}
-                            onChange={(e) => setStatusNote(e.target.value)}
-                            placeholder="e.g. Courier Kwesi assigned; package verified intact"
-                            className="w-full min-h-11 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-900 px-3 py-2.5 outline-none focus:border-red-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    )}
-
-                    {/* CONTROL BOX: Mark payment as paid manually — finance/owner only */}
-                    {canRecordPayment && selectedOrderDetails.order.paymentStatus !== 'paid' && (
-                      <div className="space-y-4 border-t border-slate-200 pt-6">
-                        <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
-                          <CreditCard className="h-4 w-4 text-emerald-600" /> Manual Payment reconciliation
-                        </h3>
-
-                        <form onSubmit={handleRecordPayment} className="space-y-3 bg-emerald-950/10 rounded-xl p-4 border border-emerald-800/30">
-                          <span className="text-xs text-emerald-600 font-medium block leading-relaxed">
-                            Log a manually confirmed MTN MoMo transfer, banking deposit, or cash transaction to unlock metrics.
-                          </span>
-
-                          <div className="grid grid-cols-2 gap-3 text-xs">
-                            <div>
-                              <label className="block text-sm text-slate-500 mb-1">Received Amount (GHS)</label>
-                              <input
-                                id="input_reconcile_amount"
-                                type="number"
-                                step="0.01"
-                                required
-                                value={paymentAmount}
-                                onChange={(e) => setPaymentAmount(e.target.value)}
-                                className="w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 outline-none text-slate-900 font-semibold focus:border-red-500"
-                              />
+                      {canRecordPayment && selectedOrderDetails.order.paymentStatus !== 'paid' && (
+                        <details className="group">
+                          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50/70 transition-colors [&::-webkit-details-marker]:hidden">
+                            Record a payment
+                            <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
+                          </summary>
+                          <form onSubmit={handleRecordPayment} className="gd-reveal space-y-3 border-t border-slate-100 bg-slate-50/40 px-5 py-4">
+                            <p className="text-sm text-slate-500">
+                              For money already received — mobile money, a transfer, or cash.
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1">Amount</label>
+                                <input
+                                  id="input_reconcile_amount"
+                                  type="number"
+                                  step="0.01"
+                                  required
+                                  value={paymentAmount}
+                                  onChange={(e) => setPaymentAmount(e.target.value)}
+                                  className="w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1">Reference</label>
+                                <input
+                                  id="input_reconcile_ref"
+                                  type="text"
+                                  value={paymentRef}
+                                  onChange={(e) => setPaymentRef(e.target.value)}
+                                  placeholder="Optional"
+                                  className="w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 font-mono text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                                />
+                              </div>
                             </div>
                             <div>
-                              <label className="block text-sm text-slate-500 mb-1">Provider Reference (Optional)</label>
+                              <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1">Note</label>
                               <input
-                                id="input_reconcile_ref"
+                                id="input_reconcile_note"
                                 type="text"
-                                value={paymentRef}
-                                onChange={(e) => setPaymentRef(e.target.value)}
-                                placeholder="e.g. TX-882012"
-                                className="w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 outline-none font-mono text-sm text-slate-900 focus:border-red-500"
+                                required
+                                value={paymentNote}
+                                onChange={(e) => setPaymentNote(e.target.value)}
+                                placeholder="e.g. MoMo screenshot seen on dispatch WhatsApp"
+                                className="w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                               />
                             </div>
-                          </div>
+                            <button
+                              id="btn_confirm_reconcile"
+                              type="submit"
+                              disabled={submittingPayment}
+                              className="w-full min-h-12 flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors cursor-pointer disabled:opacity-60"
+                            >
+                              {submittingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                              Record it
+                            </button>
+                          </form>
+                        </details>
+                      )}
 
-                          <div>
-                            <label className="block text-sm text-slate-500 mb-1">Internal Audit Ledger Notes</label>
-                            <input
-                              id="input_reconcile_note"
-                              type="text"
-                              required
-                              value={paymentNote}
-                              onChange={(e) => setPaymentNote(e.target.value)}
-                              placeholder="e.g. Verified momo screenshot on dispatch WhatsApp"
-                              className="w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none text-slate-900 focus:border-red-500"
-                            />
-                          </div>
-
-                          <button
-                            id="btn_confirm_reconcile"
-                            type="submit"
-                            disabled={submittingPayment}
-                            className="w-full text-center min-h-12 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 font-semibold text-base shadow-lg shadow-emerald-600/10 transition-colors flex items-center justify-center space-x-1 cursor-pointer"
-                          >
-                            {submittingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <span>Record Ledger Payment & Clear pending</span>}
-                          </button>
-                        </form>
-                      </div>
-                    )}
-
-                    {/* Historical Status Timeline & Payment History logs */}
-                    <div className="space-y-4 border-t border-slate-200 pt-6">
-                      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                        <Clock className="h-4.5 w-4.5" /> Event Timeline History ({selectedOrderDetails.history.length})
-                      </h3>
-
-                      <div className="space-y-3 pl-3 border-l-2 border-slate-200">
-                        {selectedOrderDetails.history.map((log) => (
-                          <div key={log.id} className="relative pl-4 text-xs font-sans text-slate-500 space-y-1">
-                            <div className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-slate-300 border border-white"></div>
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold text-slate-900 capitalize">{log.status.replace('_', ' ')}</span>
-                              <span className="text-xs text-slate-500 font-mono">{new Date(log.changedAt).toLocaleString()}</span>
-                            </div>
-                            <p className="text-slate-600 leading-relaxed">{log.note}</p>
-                            {log.changedByName && (
-                              <span className="block text-xs text-slate-500 font-medium">Logged by: {log.changedByName}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                      <details className="group">
+                        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50/70 transition-colors [&::-webkit-details-marker]:hidden">
+                          <span className="flex items-center gap-2">
+                            History
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs tabular-nums text-slate-500">
+                              {selectedOrderDetails.history.length}
+                            </span>
+                          </span>
+                          <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <ol className="gd-reveal border-t border-slate-100 bg-slate-50/40 px-5 py-4 space-y-3.5">
+                          {selectedOrderDetails.history.map((log) => (
+                            <li key={log.id} className="text-sm">
+                              <div className="flex items-baseline justify-between gap-3">
+                                <span className="font-medium text-slate-900">{getStatusLabel(log.status)}</span>
+                                <span className="shrink-0 font-mono text-xs text-slate-400 tabular-nums">
+                                  {new Date(log.changedAt).toLocaleString(undefined, {
+                                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                                  })}
+                                </span>
+                              </div>
+                              <p className="mt-0.5 leading-relaxed text-slate-600">{log.note}</p>
+                              {log.changedByName && (
+                                <p className="text-xs text-slate-400">by {log.changedByName}</p>
+                              )}
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
                     </div>
-
-                  </>
-                )}
-
-              </div>
-
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
