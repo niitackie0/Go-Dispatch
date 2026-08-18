@@ -19,7 +19,8 @@ Step-by-step for the two rotations: **docs/rotating-credentials.md**.
 
 - [ ] **Roll the Arkesel API key** — **S**
   Same problem, same fix: it arrived over chat. Arkesel dashboard → new key →
-  `SMS_API_KEY` in `.env`. Do it before switching sending on, not after.
+  `SMS_API_KEY` in `.env`, then `npm run sms:check` to confirm it landed.
+  Do it before switching sending on, not after.
 
 - [ ] **Add a second owner when there is somebody to add** — **S**
   `annanrichard26@gmail.com` is now the only owner, and the app refuses to
