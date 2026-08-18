@@ -4,23 +4,12 @@ Ordered by priority. Effort: **S** ≈ under an hour · **M** ≈ half a day · 
 
 ---
 
-## P0 — Security, do these first
+## P0 — Security
 
-Small jobs, real exposure. Three are yours; the tooling for them is built.
+Both rotations are done and verified; the old Arkesel key is confirmed dead.
+The one item left here is not urgent, it just has no owner yet.
 
-Step-by-step for the two rotations: **docs/rotating-credentials.md**.
-
-- [ ] **Rotate the Neon database password** — **S**
-  Both connection strings were pasted into a chat, so that credential is in a
-  transcript. Neon Console → Roles → `neondb_owner` → Reset password, then
-  update `DATABASE_URL` and `DIRECT_URL` in `.env` (the pooled host ends in
-  `-pooler`, the direct one does not — see `.env.example`). Confirm it worked
-  with `npm run admin list`, which fails loudly if it cannot connect.
-
-- [ ] **Roll the Arkesel API key** — **S**
-  Same problem, same fix: it arrived over chat. Arkesel dashboard → new key →
-  `SMS_API_KEY` in `.env`, then `npm run sms:check` to confirm it landed.
-  Do it before switching sending on, not after.
+Method, if either credential is ever exposed again: **docs/rotating-credentials.md**.
 
 - [ ] **Add a second owner when there is somebody to add** — **S**
   `annanrichard26@gmail.com` is now the only owner, and the app refuses to
@@ -41,6 +30,21 @@ flyer. The console and the customer site have both had the mobile and type pass.
   reads as the old product, and it is the one screen used one-handed, outdoors,
   in sunlight. Wants large type, high contrast and few, obvious controls.
 
+- [x] **Console redesign** — **L** — *board, orders, payments, sign-in, motion*
+  Urgency-sorted board, detail behind one reveal, bottom sheets, a date modal,
+  ten to a page, one type ramp, and a motion vocabulary that says what changed.
+
+- [ ] **Overview screen** — **M**
+  The last console page still on the old panels — everything around it moved and
+  it did not. It is also the screen a live map of who is carrying what would
+  suit, if that is worth building.
+
+- [ ] **Decide between `support` and `dispatcher`** — **S**
+  They hold identical capabilities (see the note at the top of
+  `src/capabilities.ts`). Two names for one job is a question every new hire
+  asks and nobody can answer. No account holds either role yet, so retiring one
+  costs nothing today and costs a migration later.
+
 ---
 
 ## P2 — Before this goes live
@@ -52,18 +56,14 @@ flyer. The console and the customer site have both had the mobile and type pass.
   worker drains the outbox every 30s with backoff, giving up after five
   attempts. It stays OFF until `SMS_PROVIDER=arkesel` is set.
 
-  Before setting it:
-  1. **Clear the stale queue.** Three confirmations from the 16 Aug test
-     bookings are still pending to a real number, and would send the moment it
-     is enabled. `npm run sms:outbox` lists them.
-  2. **Register the sender ID** "GO DISPATCH" with Arkesel. Until it is
-     approved, messages arrive from a shortcode, so every template carries a
-     13-character "GO DISPATCH: " prefix to say who it is from. Once approved,
-     flip `SMS_SENDER_ID_REGISTERED` in `src/brand.ts` and every message gets
-     those characters back.
+  One thing to do first: **register the sender ID** "GO DISPATCH" with Arkesel.
+  Until it is approved, messages arrive from a shortcode, so every template
+  carries a 13-character "GO DISPATCH: " prefix to say who it is from. Once
+  approved, flip `SMS_SENDER_ID_REGISTERED` in `src/brand.ts` and every message
+  gets those characters back.
 
-  Also outstanding: the API key was pasted into a chat, so roll it in the
-  Arkesel dashboard before real customer traffic runs through it.
+  The queue is clean — `npm run sms:outbox` reads 0 pending — so nothing old
+  fires the moment it is switched on. Check it again before you flip it.
 
 - [ ] **Deployment** — **L**
   Nothing is hosted yet. Needs a host, env vars set (including `ADMIN_PATH` and
@@ -117,8 +117,9 @@ flyer. The console and the customer site have both had the mobile and type pass.
   Removed from `dev` deliberately, not because it was wrong. It is the most
   self-contained thing in the codebase — six touchpoints, nothing else depends
   on it — and it is the sort of thing a business asks for once they have a few
-  months of data and an accountant. Nothing operational was lost: the payments
-  ledger keeps its own **Export CSV**.
+  months of data and an accountant. Since then the payments ledger's own
+  **Export CSV** has gone too, button and route both, so this branch is now the
+  only way anything leaves the system as a file.
 
   The **redesigned courier screen** is parked on the same branch: one leg at a
   time, an address at 30px, and a Navigate button that opens Maps. The base
@@ -190,3 +191,8 @@ flyer. The console and the customer site have both had the mobile and type pass.
 - SMS decided and built: six events, one billed segment each, Arkesel wired but
   switched off — see docs/sms-messages.md
 - `.env.example` written, and `npm run admin` for staff accounts from a terminal
+- Neon password rotated and the Arkesel key rolled; the old key confirmed revoked
+- Console redesigned end to end: a board that reads by urgency and carries the
+  courier on every row, detail hidden until asked for, sheets instead of dialogs,
+  a date modal, ten to a page, one type ramp, 16px on every field, a patterned
+  sign-in and a motion vocabulary that only ever says what just changed
