@@ -38,7 +38,6 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
-  FileSpreadsheet,
   Undo2
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -58,7 +57,6 @@ import { AUTOMATION_ACTOR } from '../brand.js';
 import { advanceStatus, checkUndo, nextStatuses } from '../transitions.js';
 import { quote, formatAmount } from '../pricing.js';
 import type { Capability } from '../capabilities.js';
-import Reports from './Reports.js';
 import SelectModal from './SelectModal.js';
 import StaffManagement from './StaffManagement.js';
 import AccountSecurity from './AccountSecurity.js';
@@ -84,7 +82,7 @@ const STATUS_ORDER: { key: OrderStatus; label: string; bg: string; text: string;
   { key: 'cancelled', label: 'Cancelled', bg: 'bg-rose-500/10 border border-rose-500/20', text: 'text-rose-600', dot: 'bg-rose-500' },
 ];
 
-type SubTab = 'overview' | 'pipeline' | 'payments' | 'reports' | 'pricing' | 'staff' | 'account';
+type SubTab = 'overview' | 'pipeline' | 'payments' | 'pricing' | 'staff' | 'account';
 
 /**
  * The console's sections, in sidebar order.
@@ -103,7 +101,6 @@ const NAV_ITEMS: {
   { key: 'overview', label: 'Overview', title: 'Overview', icon: TrendingUp },
   { key: 'pipeline', label: 'Dispatch board', title: 'Dispatch board', icon: Layers },
   { key: 'payments', label: 'Payments', title: 'Payments ledger', icon: CreditCard, capability: 'payments:read' },
-  { key: 'reports', label: 'Reports', title: 'Reports', icon: FileSpreadsheet, capability: 'orders:read' },
   { key: 'pricing', label: 'Pricing', title: 'Pricing', icon: Settings, capability: 'pricing:write' },
   { key: 'staff', label: 'Staff accounts', title: 'Staff accounts', icon: Users, capability: 'staff:manage' },
   { key: 'account', label: 'My account', title: 'My account', icon: ShieldCheck },
@@ -1644,13 +1641,6 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               );
             })()
           )}
-        </div>
-      )}
-
-      {/* ----------------- SUB TAB: REPORTS ----------------- */}
-      {activeSubTab === 'reports' && (
-        <div id="dash_subtab_reports">
-          <Reports token={token} user={user} />
         </div>
       )}
 
