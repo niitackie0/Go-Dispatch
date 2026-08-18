@@ -142,7 +142,7 @@ function FooterPattern() {
         </g>
 
         <pattern id="gd-footer-pattern" width="190" height="130" patternUnits="userSpaceOnUse">
-          <use href="#gd-glyphs" opacity="0.16" />
+          <use href="#gd-glyphs" opacity="0.07" />
         </pattern>
       </defs>
 
@@ -401,7 +401,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       <footer className="mt-auto relative overflow-hidden bg-gradient-to-b from-slate-950 to-black text-white">
         <FooterPattern />
 
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-9">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-9">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
 
             <div className="flex items-center gap-3">
@@ -414,14 +414,15 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
               </span>
             </div>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-2.5">
               <a
                 href={`tel:${CONTACT_PHONE_E164}`}
-                className="inline-flex items-center gap-2 min-h-11 shrink-0 whitespace-nowrap rounded-full bg-red-600 hover:bg-red-500 px-5 text-base font-medium tabular-nums transition-colors"
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 min-h-12 sm:min-h-11 shrink-0 whitespace-nowrap rounded-full bg-red-600 hover:bg-red-500 px-5 text-base font-medium tabular-nums transition-colors"
               >
                 <Phone className="h-4 w-4" />
                 {CONTACT_PHONE}
               </a>
+              <div className="flex items-center gap-2.5">
               {SOCIAL.filter((s) => s.url).map((s) => (
                 <a
                   key={s.name}
@@ -434,17 +435,20 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                   <SocialIcon name={s.name} />
                 </a>
               ))}
+              </div>
             </div>
           </div>
 
-          <div className="relative mt-7 pt-6 border-t border-white/10 grid gap-6 sm:grid-cols-2">
+          <div className="relative mt-6 pt-6 border-t border-white/10 grid gap-6 sm:grid-cols-2">
             <div>
               <h3 className="text-sm font-medium text-white/40">Opening hours</h3>
               <dl className="mt-2 space-y-1">
+                {/* Rows run full width on a phone. Capped at max-w-xs they
+                    stopped dead mid-screen and read as a broken column. */}
                 {OPENING_HOURS.map((h) => (
-                  <div key={h.days} className="flex items-baseline justify-between gap-4 max-w-xs">
-                    <dt className="text-base text-white/70">{h.days}</dt>
-                    <dd className={`text-base tabular-nums ${h.hours === 'Closed' ? 'text-white/35' : 'text-white'}`}>
+                  <div key={h.days} className="flex items-baseline justify-between gap-4 max-w-none sm:max-w-xs">
+                    <dt className="text-sm text-white/70">{h.days}</dt>
+                    <dd className={`text-sm tabular-nums ${h.hours === 'Closed' ? 'text-white/40' : 'text-white'}`}>
                       {h.hours}
                     </dd>
                   </div>
@@ -453,18 +457,18 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             </div>
             <div>
               <h3 className="text-sm font-medium text-white/40">Find us</h3>
-              <p className="mt-2 text-base text-white/70">
+              <p className="mt-2 text-sm text-white/70">
                 {OFFICE_ADDRESS}
                 <br />
                 <span className="text-white/45">{OFFICE_LANDMARK}</span>
               </p>
-              <p className="mt-3 text-base text-white/70">
+              <p className="mt-3 text-sm text-white/70">
                 A rider collects from anywhere in Accra — you do not need to come in.
               </p>
             </div>
           </div>
 
-          <div className="relative mt-7 pt-5 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="relative mt-6 pt-5 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-1 gap-y-0 text-sm text-white/55">
               {[
                 { to: '/book', label: 'Book' },
@@ -480,7 +484,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                 </React.Fragment>
               ))}
             </nav>
-            <p className="text-base text-white/35">
+            <p className="text-sm text-white/45">
               &copy; 2026 GO DISPATCH · Safe · Fast · Reliable
             </p>
           </div>
