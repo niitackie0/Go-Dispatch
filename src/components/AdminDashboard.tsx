@@ -1996,7 +1996,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   disabled={submittingStatus}
                   // 56px is a thumb target on a phone. With a mouse it is just
                   // a loud slab, so it comes down to 48 from sm up.
-                  className="btn-aurora w-full min-h-14 sm:min-h-12 flex items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white cursor-pointer disabled:opacity-60"
+                  className="btn-aurora w-full min-h-14 sm:min-h-12 flex items-center justify-center gap-2 rounded-2xl text-base sm:text-sm font-semibold text-white cursor-pointer disabled:opacity-60"
                 >
                   {submittingStatus ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
                   Move to {getStatusLabel(advanceStatus(selectedOrderDetails.order.status)!)}
@@ -2025,14 +2025,14 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               {/* Where it goes, and when. */}
               <div className="rounded-2xl bg-slate-50 p-4">
                 <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Collect from</p>
-                <p className="mt-1 text-base leading-snug text-slate-900">
+                <p className="mt-1 text-sm leading-snug text-slate-900">
                   {selectedOrderDetails.order.pickupAddress}
                 </p>
                 {selectedOrderDetails.order.pickupNotes && (
                   <p className="text-sm text-slate-500">{selectedOrderDetails.order.pickupNotes}</p>
                 )}
                 <p className="mt-3 text-xs font-medium uppercase tracking-wider text-slate-400">Deliver to</p>
-                <p className="mt-1 text-base leading-snug text-slate-900">
+                <p className="mt-1 text-sm leading-snug text-slate-900">
                   {selectedOrderDetails.order.dropoffAddress}
                 </p>
                 {selectedOrderDetails.order.dropoffNotes && (
@@ -2051,7 +2051,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 p-4">
                   <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Sender</p>
-                  <p className="mt-1 font-medium text-slate-900">{selectedOrderDetails.order.senderName}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedOrderDetails.order.senderName}</p>
                   <a href={`tel:${selectedOrderDetails.order.senderPhone}`}
                      className="mt-1.5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-red-700">
                     <Phone className="h-4 w-4" />
@@ -2060,7 +2060,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
                 <div className="rounded-2xl border border-slate-200 p-4">
                   <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Recipient</p>
-                  <p className="mt-1 font-medium text-slate-900">{selectedOrderDetails.order.recipientName}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedOrderDetails.order.recipientName}</p>
                   <a href={`tel:${selectedOrderDetails.order.recipientPhone}`}
                      className="mt-1.5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-red-700">
                     <Phone className="h-4 w-4" />

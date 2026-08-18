@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface SheetProps {
@@ -37,6 +38,16 @@ interface SheetProps {
  *
  * The scrim, the escape key, the locked background scroll and the close button
  * are common to both, so there is still only one thing to learn.
+ *
+ * IT RENDERS INTO <body>, and that is load-bearing rather than tidy. The
+ * console's section wrapper carries the gd-enter entrance animation, which
+ * means a transform -- and a transformed ancestor becomes the containing block
+ * for every `position: fixed` descendant, as well as its own stacking context.
+ * Left in the tree, this panel was measured against that wrapper instead of
+ * the viewport, and the sticky header at z-30 painted straight over the top of
+ * it: the title and the close button both disappeared underneath. Tooltip
+ * portals for a related reason. Anything that must escape the page's own
+ * layout has to leave the page's own tree.
  */
 export default function Sheet({ open, onClose, title, subtitle, children, footer }: SheetProps) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -59,7 +70,7 @@ export default function Sheet({ open, onClose, title, subtitle, children, footer
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     // Bottom-aligned on a phone, right-aligned from sm up. One element, two
     // anchors — the panel below simply fills whichever it is given.
     <div className="fixed inset-0 z-50 flex flex-col justify-end sm:flex-row sm:justify-end">
@@ -103,7 +114,7 @@ export default function Sheet({ open, onClose, title, subtitle, children, footer
 
         <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-4 pt-2 sm:pt-5">
           <div className="min-w-0">
-            <div id={titleId} className="text-lg font-semibold text-slate-900">
+            <div id={titleId} className="text-base font-semibold text-slate-900">
               {title}
             </div>
             {subtitle && <div className="mt-1 text-sm text-slate-500">{subtitle}</div>}
@@ -124,6 +135,7 @@ export default function Sheet({ open, onClose, title, subtitle, children, footer
           <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-4">{footer}</div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
