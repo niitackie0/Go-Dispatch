@@ -1994,7 +1994,9 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   id="btn_trigger_next_status"
                   onClick={() => handleUpdateStatus(advanceStatus(selectedOrderDetails.order.status)!)}
                   disabled={submittingStatus}
-                  className="btn-aurora w-full min-h-14 flex items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white cursor-pointer disabled:opacity-60"
+                  // 56px is a thumb target on a phone. With a mouse it is just
+                  // a loud slab, so it comes down to 48 from sm up.
+                  className="btn-aurora w-full min-h-14 sm:min-h-12 flex items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white cursor-pointer disabled:opacity-60"
                 >
                   {submittingStatus ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
                   Move to {getStatusLabel(advanceStatus(selectedOrderDetails.order.status)!)}

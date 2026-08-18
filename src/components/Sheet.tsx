@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 
 interface SheetProps {
@@ -12,25 +12,35 @@ interface SheetProps {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   children: React.ReactNode;
-  /** Pinned to the bottom, outside the scroll — for the one action that matters. */
+  /** Pinned outside the scroll — for the one action that matters. */
   footer?: React.ReactNode;
 }
 
 /**
  * The console's one way of showing a single thing in detail.
  *
- * It rises from the bottom over the list, which does not move. That is the
- * whole point: the previous attempt grew the row in place, so everything below
- * jumped down the page and you lost the row you were reading. Here the list
- * stays exactly where it was and dims, and closing puts you back with nothing
- * to re-find.
+ * It takes two shapes, because a phone and a 1080p monitor are not the same
+ * problem wearing different widths.
  *
- * The same shape as the status and date pickers, so every "show me more" in
- * the console now behaves identically, and a phone gets a full-height sheet
- * rather than a 512px panel squeezed in from the side.
+ * ON A PHONE it rises from the bottom, full width. Detail arrives from the
+ * direction the thumb is, the list underneath does not move, and closing puts
+ * you back with nothing to re-find. The grab handle is the convention that
+ * says which way it came from and which way it goes back.
+ *
+ * ON A DESKTOP it arrives from the right and stands full height beside the
+ * board, which stays visible and in place. This is the correction to what was
+ * here before: a bottom sheet stretched onto a wide screen becomes a tall
+ * column parked over the middle of the work, covering the very list you are
+ * moving through — and it kept a grab handle promising a drag that no mouse
+ * can perform. Dispatch is a two-panel job. Scan the board, open one parcel,
+ * act, go to the next; the board should never leave the screen to do it.
+ *
+ * The scrim, the escape key, the locked background scroll and the close button
+ * are common to both, so there is still only one thing to learn.
  */
 export default function Sheet({ open, onClose, title, subtitle, children, footer }: SheetProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -50,9 +60,21 @@ export default function Sheet({ open, onClose, title, subtitle, children, footer
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+    // Bottom-aligned on a phone, right-aligned from sm up. One element, two
+    // anchors — the panel below simply fills whichever it is given.
+    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:flex-row sm:justify-end">
+      {/* On a phone the sheet covers most of the screen, so the scrim is doing
+          real work: it hides a list you cannot see anyway and says the page
+          behind is not currently yours.
+
+          On a desktop it would undo the entire point of a side sheet. The
+          board is deliberately still on screen so you keep your place in it —
+          dimming and blurring it into illegibility leaves you with the cost of
+          showing it and none of the benefit. So it thins to a wash: enough to
+          push the board back a layer, not enough to stop you reading it. It
+          still fills the viewport, so clicking away still closes. */}
       <div
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] animate-in fade-in duration-200"
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] animate-in fade-in duration-200 sm:bg-slate-900/10 sm:backdrop-blur-none"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -61,17 +83,29 @@ export default function Sheet({ open, onClose, title, subtitle, children, footer
         ref={panelRef}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative mx-auto flex max-h-[92dvh] w-full flex-col rounded-t-3xl bg-white shadow-[0_-20px_60px_-16px_rgba(26,17,19,0.4)] outline-none animate-in slide-in-from-bottom-6 duration-250 sm:mb-5 sm:max-w-2xl sm:rounded-3xl"
+        className="
+          relative flex w-full flex-col bg-white outline-none
+          max-h-[92dvh] rounded-t-3xl
+          shadow-[0_-20px_60px_-16px_rgba(26,17,19,0.4)]
+          animate-in slide-in-from-bottom-6 duration-250
+          sm:h-full sm:max-h-none sm:w-[min(34rem,100vw)]
+          sm:rounded-none sm:rounded-l-3xl
+          sm:shadow-[-24px_0_60px_-24px_rgba(26,17,19,0.4)]
+          sm:slide-in-from-bottom-0 sm:slide-in-from-right-8
+        "
       >
-        {/* The grab handle says "this came from the bottom and goes back there". */}
-        <div className="shrink-0 pt-3 pb-1">
+        {/* Only meaningful where a thumb can act on it. */}
+        <div className="shrink-0 pt-3 pb-1 sm:hidden">
           <div className="mx-auto h-1 w-10 rounded-full bg-slate-200" aria-hidden="true" />
         </div>
 
-        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-4 pt-2">
+        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-4 pt-2 sm:pt-5">
           <div className="min-w-0">
-            <div className="text-lg font-semibold text-slate-900">{title}</div>
+            <div id={titleId} className="text-lg font-semibold text-slate-900">
+              {title}
+            </div>
             {subtitle && <div className="mt-1 text-sm text-slate-500">{subtitle}</div>}
           </div>
           <button
@@ -87,9 +121,7 @@ export default function Sheet({ open, onClose, title, subtitle, children, footer
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">{children}</div>
 
         {footer && (
-          <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-4 rounded-b-none sm:rounded-b-3xl">
-            {footer}
-          </div>
+          <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-4">{footer}</div>
         )}
       </div>
     </div>
