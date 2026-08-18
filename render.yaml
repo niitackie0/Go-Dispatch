@@ -19,8 +19,9 @@ services:
     runtime: node
     plan: starter # Not `free`: it sleeps, and a courier hitting a cold start
                   # at the door waits 50 seconds. See docs/deploying.md.
-    region: frankfurt # Nearest Render region to Ghana, and the same one the
-                      # Neon project should sit in.
+    region: frankfurt # Render has five regions and none of them is London, so
+                      # this cannot match the Neon project. Frankfurt is the
+                      # only European one. See docs/deploying.md on the hop.
     # STOP. As of the day this file was written, `main` is still the initial
     # commit and 59 behind `dev` -- deploying it would ship the scaffolding
     # this product was built out of. Merge dev -> staging -> main first.

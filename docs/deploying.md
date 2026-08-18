@@ -41,10 +41,22 @@ seconds to wake. That cost lands on a courier standing at a customer's door
 with a parcel in one hand, and on the customer refreshing a tracking page that
 appears to be broken.
 
-**Frankfurt**, because it is Render's nearest region to Ghana. Put the Neon
-project in the same region if it is not already — every request the app makes
-crosses that gap, and a page that makes four queries pays the round trip four
-times.
+**Frankfurt**, because Render has five regions — Oregon, Ohio, Virginia,
+Frankfurt, Singapore — and none of them is London. The Neon project *is* in
+London, so the app and its database cannot be co-located.
+
+That is fine, and worth understanding rather than worrying about. The distance
+that dominates is Accra to Europe, roughly 5,000km either way; London to
+Frankfurt adds something like 10–15ms per query on top. A page issuing four
+sequential queries pays it four times, so keep an eye on N+1 queries — the hop
+turns a sloppy loop into a visible delay much sooner than a co-located database
+would.
+
+If you ever want them in the same place, Neon cannot move a project between
+regions: it means a new project in Frankfurt and a dump/restore into it. The
+cheapest moment for that is while the database still holds two accounts and a
+handful of test orders. It gets expensive the day it holds a month of real
+deliveries.
 
 ---
 
