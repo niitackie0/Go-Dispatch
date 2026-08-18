@@ -104,26 +104,6 @@ flyer. The console and the customer site have both had the mobile and type pass.
 
 ---
 
-## Parked, and sellable
-
-- **Reports pack** — *lifted out of `dev`, lives on `feature-reports-pack`*
-  The Reports tab and `/api/reports`: a date range, a summary of orders,
-  delivered, cancelled and revenue for it, and three server-generated CSVs
-  (payments, orders, a daily summary) built from the whole range rather than
-  from whatever the console had loaded.
-
-  Removed from `dev` deliberately, not because it was wrong. It is the most
-  self-contained thing in the codebase — six touchpoints, nothing else depends
-  on it — and it is the sort of thing a business asks for once they have a few
-  months of data and an accountant. Nothing operational was lost: the payments
-  ledger keeps its own **Export CSV**.
-
-  To put it back: `git merge feature-reports-pack`. The branch carries a revert
-  of the removal, so the merge restores the files, the router mount and the nav
-  entry in one step. Rebase it onto `dev` first if the console has moved on.
-
----
-
 ## P3 — Deferred, deliberately
 
 - [ ] **Automated MoMo payments** — **L** — *parked by you*

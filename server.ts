@@ -15,6 +15,7 @@ import { ordersRouter } from './src/server/routes/orders.js';
 import { paymentsRouter } from './src/server/routes/payments.js';
 import { pricingRouter } from './src/server/routes/pricing.js';
 import { bookingsRouter } from './src/server/routes/bookings.js';
+import { reportsRouter } from './src/server/routes/reports.js';
 import { riderRouter } from './src/server/routes/rider.js';
 import { ridersRouter } from './src/server/routes/riders.js';
 import { statsRouter } from './src/server/routes/stats.js';
@@ -32,6 +33,7 @@ app.use('/api/orders', ordersRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/bookings', bookingsRouter);
+app.use('/api/reports', reportsRouter);
 app.use('/api/riders', ridersRouter);
 app.use('/api/rider', riderRouter);
 
