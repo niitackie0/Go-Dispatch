@@ -37,7 +37,7 @@ restarted, so do it when nobody is booking.
    `.env` instead: the password is the part between `:` and `@`.
 
    ```
-   postgresql://neondb_owner:THIS_PART@ep-something-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require
+   postgresql://neondb_owner:THIS_PART@ep-something-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=verify-full
    ```
 
 6. Update **both** lines in `.env`. They share the same password and differ only
