@@ -36,7 +36,7 @@ Step-by-step for the two rotations: **docs/rotating-credentials.md**.
 The visual direction is settled: the GO DISPATCH red and white from the printed
 flyer. The console and the customer site have both had the mobile and type pass.
 
-- [ ] **Rider view** — **M**
+- [x] **Rider view** — **M** — *done, parked on `feature-reports-pack`*
   The only screen that never got a proper pass. It inherited the red but still
   reads as the old product, and it is the one screen used one-handed, outdoors,
   in sunlight. Wants large type, high contrast and few, obvious controls.
@@ -120,7 +120,11 @@ flyer. The console and the customer site have both had the mobile and type pass.
   months of data and an accountant. Nothing operational was lost: the payments
   ledger keeps its own **Export CSV**.
 
-  To put it back: `git merge feature-reports-pack`. The branch carries a revert
+  The **redesigned courier screen** is parked on the same branch: one leg at a
+  time, an address at 30px, and a Navigate button that opens Maps. The base
+  product keeps the working original.
+
+  To put both back: `git merge feature-reports-pack`. The branch carries a revert
   of the removal, so the merge restores the files, the router mount and the nav
   entry in one step. Rebase it onto `dev` first if the console has moved on.
 

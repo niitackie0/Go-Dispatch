@@ -65,9 +65,6 @@ riderRouter.get('/:token', async (req, res) => {
     recipientPhone: order.recipientPhone,
     dropoffAddress: order.dropoffAddress,
     dropoffNotes: order.dropoffNotes ?? undefined,
-    // Sent so the courier's Navigate link can name the region. "Asokwa" alone
-    // finds three places in Ghana; "Asokwa, Ashanti" finds one.
-    destinationRegion: order.destinationRegion ?? undefined,
     packageSize: order.packageSize,
     packageWeightKg: order.packageWeightKg.toNumber(),
     packageDescription: order.packageDescription,
