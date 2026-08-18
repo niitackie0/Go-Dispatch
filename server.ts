@@ -9,6 +9,8 @@ import type { NextFunction, Request, Response } from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { runAutomations } from './src/server/automations.js';
+import { drainOutbox, outboxSummary } from './src/server/outbox.js';
+import { smsEnabled, smsProviderName } from './src/server/smsProvider.js';
 import { adminsRouter } from './src/server/routes/admins.js';
 import { authRouter } from './src/server/routes/auth.js';
 import { ordersRouter } from './src/server/routes/orders.js';
@@ -59,6 +61,33 @@ setInterval(() => {
     })
     .catch((err) => console.error('[automation] tick failed', err));
 }, AUTOMATION_TICK_MS);
+
+/**
+ * Outbox tick — sends the notifications the rules queued.
+ *
+ * Separate from the automation tick on purpose: automation only ever touches
+ * our own database and can safely run every minute forever, while this one
+ * talks to a paid third party and sends things to customers that cannot be
+ * unsent. It stays dormant until SMS_PROVIDER is set in .env.
+ */
+const OUTBOX_TICK_MS = 30 * 1000;
+if (smsEnabled()) {
+  outboxSummary()
+    .then((summary) => console.log(`[outbox] sending is ON via ${smsProviderName()} — ${summary}`))
+    .catch(() => {});
+
+  setInterval(() => {
+    drainOutbox()
+      .then((r) => {
+        if (r.sent || r.failed || r.retrying) {
+          console.log(`[outbox] sent ${r.sent}, retrying ${r.retrying}, failed ${r.failed}`);
+        }
+      })
+      .catch((err) => console.error('[outbox] drain failed', err));
+  }, OUTBOX_TICK_MS);
+} else {
+  console.log('[outbox] sending is OFF. Messages queue up; set SMS_PROVIDER in .env to send them.');
+}
 
 // VITE MIDDLEWARE INTERACTION (For dev environment) OR STATIC SERVE (For prod)
 async function startServer() {

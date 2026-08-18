@@ -32,6 +32,25 @@ export const CONTACT_PHONE_E164 = '+233540304994';
 
 export const WHATSAPP_URL = 'https://wa.me/233540304994';
 
+/**
+ * The alphanumeric sender ID customers should see an SMS arrive from.
+ *
+ * Eleven characters is the GSM limit for one, and "GO DISPATCH" is exactly
+ * eleven. It has to be registered with the provider (Arkesel, Hubtel or
+ * mNotify) before it works.
+ */
+export const SMS_SENDER_ID = 'GO DISPATCH';
+
+/**
+ * Whether that registration has come through.
+ *
+ * While false, messages arrive from a shortcode and have to name us in the
+ * body, which costs 13 characters of a 160-character message every time. Flip
+ * this the day the sender ID is approved and every template gets those
+ * characters back — nothing else needs to change.
+ */
+export const SMS_SENDER_ID_REGISTERED = false;
+
 export const OFFICE_ADDRESS = 'Adabraka, Accra';
 export const OFFICE_LANDMARK = 'Closer to Odorna Clinic';
 

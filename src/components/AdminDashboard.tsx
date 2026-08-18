@@ -617,6 +617,40 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     return STATUS_ORDER.find(item => item.key === s)?.label || s;
   };
 
+  /**
+   * The collection slot, said the way a dispatcher would: "Today 9:00am".
+   *
+   * A bare date is the one thing a board like this must not print — the whole
+   * job is knowing what is due now, and "18/08/2026 09:00" makes the reader do
+   * the arithmetic on every row.
+   */
+  const formatPickup = (iso: string) => {
+    const at = new Date(iso);
+    const time = at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const days = Math.floor((at.getTime() - midnight.getTime()) / 86_400_000);
+
+    if (days === 0) return `Today ${time}`;
+    if (days === 1) return `Tomorrow ${time}`;
+    if (days === -1) return `Yesterday ${time}`;
+    return `${at.toLocaleDateString([], { day: 'numeric', month: 'short' })} ${time}`;
+  };
+
+  /** Short date for the line that says when the booking came in. */
+  const formatBooked = (iso: string) =>
+    new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short' });
+
+  /**
+   * A collection whose slot has passed while the parcel is still sitting here.
+   * Nothing about the status says this — an order can be perfectly "confirmed"
+   * and two days late.
+   */
+  const isLateForPickup = (order: Order) =>
+    new Date(order.scheduledPickupAt).getTime() < Date.now() &&
+    ['requested', 'awaiting_payment', 'confirmed', 'queued'].includes(order.status);
+
   /** "3d", "6h", "45m" — how long something has been sitting. */
   const formatAge = (iso: string) => {
     const mins = Math.max(0, (Date.now() - new Date(iso).getTime()) / 60000);
@@ -1277,6 +1311,15 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                           </div>
 
                           <div className="flex items-center gap-2 text-sm">
+                            <Clock className={`h-4 w-4 shrink-0 ${isLateForPickup(order) ? 'text-red-600' : 'text-slate-400'}`} />
+                            <span className={isLateForPickup(order) ? 'font-medium text-red-600' : 'text-slate-700'}>
+                              {formatPickup(order.scheduledPickupAt)}
+                            </span>
+                            <span className="text-slate-300">·</span>
+                            <span className="text-slate-500">Booked {formatBooked(order.createdAt)}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-sm">
                             <span className="capitalize text-slate-600">{order.packageSize}</span>
                             <span className="text-slate-300">·</span>
                             <span className="font-medium text-slate-900 tabular-nums">
@@ -1320,6 +1363,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         <tr>
                           <th className="px-4 py-3">Tracking</th>
                           <th className="px-4 py-3">Route</th>
+                          <th className="px-4 py-3">
+                            <Tooltip placement="bottom" label="When we collect from the sender, and when the booking came in. Red means the slot has passed and the parcel is still with the sender.">
+                              <span className="underline decoration-dotted decoration-slate-300 underline-offset-4 cursor-help">Collection</span>
+                            </Tooltip>
+                          </th>
                           <th className="px-4 py-3">Size</th>
                           <th className="px-4 py-3">Status</th>
                           <th className="px-4 py-3">
@@ -1357,6 +1405,14 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               <td className="px-4 py-3 max-w-[220px]">
                                 <span className="block text-slate-800 truncate">{order.pickupAddress}</span>
                                 <span className="block text-slate-500 truncate">&rarr; {order.dropoffAddress}</span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className={isLateForPickup(order) ? 'font-medium text-red-600' : 'text-slate-800'}>
+                                  {formatPickup(order.scheduledPickupAt)}
+                                </span>
+                                <span className="block text-xs text-slate-400">
+                                  Booked {formatBooked(order.createdAt)}
+                                </span>
                               </td>
                               <td className="px-4 py-3 capitalize text-slate-700">{order.packageSize}</td>
                               <td className="px-4 py-3">

@@ -12,7 +12,9 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:fixtures": "tsx prisma/fixtures.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "sms:preview": "tsx scripts/sms-preview.ts",
+    "sms:outbox": "tsx scripts/sms-drain.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.1.0",

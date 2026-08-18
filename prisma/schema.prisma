@@ -370,10 +370,16 @@ model PricingConfig {
 /// told.
 enum NotificationEvent {
   booking_confirmed
+  /// Retired: folded into booking_confirmed, which now says payment was
+  /// received when it has been. Kept so rows written before that still read.
   payment_received
+  /// Weighing changed the price. Only queued when it actually changed.
+  price_confirmed
   rider_assigned
   out_for_delivery
   delivered
+  /// Silence when a parcel is cancelled is the worst gap in the outbox.
+  cancelled
 }
 
 enum NotificationStatus {
@@ -404,6 +410,9 @@ model Notification {
 
   status   NotificationStatus @default(pending)
   attempts Int                @default(0)
+  /// When the worker may try again after a failure. Null means "as soon as
+  /// possible" for a pending row, and nothing at all for a settled one.
+  nextAttemptAt DateTime? @db.Timestamptz(3)
   /// Provider message id once sending exists; also the idempotency handle.
   providerReference String?
   lastError         String?
@@ -415,5 +424,7 @@ model Notification {
   /// double-tapped button must not text the customer twice.
   @@unique([orderId, event])
   @@index([status, createdAt])
+  /// The worker's own query: pending rows that are due.
+  @@index([status, nextAttemptAt])
   @@map("notifications")
 }

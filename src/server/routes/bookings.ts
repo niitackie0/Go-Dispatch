@@ -177,9 +177,15 @@ bookingsRouter.post('/', async (req, res) => {
         },
       });
 
-      await queueNotification(tx, 'booking_confirmed', order);
       orders.push(order);
     }
+
+    // One confirmation for the visit, carrying the reference that finds every
+    // parcel in it — not one text per tracking code, all in the same second.
+    await queueNotification(tx, 'booking_confirmed', orders[0], {
+      bookingReference: booking.reference,
+      parcelCount: orders.length,
+    });
 
     return { booking, orders };
   });
@@ -262,6 +268,14 @@ bookingsRouter.patch('/parcels/:id/weight', requireAdmin, requirePermission('ord
         changedByName: req.admin!.name,
       },
     });
+
+    // The terms page promises we get in touch before dispatching a parcel that
+    // weighed more than declared, rather than charging the difference quietly.
+    // This is that promise, and it is only worth a message when the figure
+    // actually moved — "your price is unchanged" is a text nobody needs.
+    if (priced !== was) {
+      await queueNotification(tx, 'price_confirmed', order, { previousAmount: was });
+    }
 
     return order;
   });

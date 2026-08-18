@@ -50,14 +50,25 @@ flyer. The console and the customer site have both had the mobile and type pass.
 
 ## P2 — Before this goes live
 
-- [ ] **Send the queued notifications** — **M** — *needs a provider account*
-  The outbox is built: the five trigger points write to a `notifications` table,
-  deduplicated per order per event, rendered at write time, and queued inside the
-  same transaction as the change that caused them. Nothing sends yet.
-  What is left is the sender. Pick a Ghanaian provider — **Arkesel, Hubtel or
-  mNotify** — for cost and for a registered sender ID, so messages arrive from
-  "GO DISPATCH" rather than a random number. Then a worker that drains
-  `status = pending`, retries with backoff, and records `providerReference`.
+- [ ] **Turn SMS sending on** — **S** — *two steps, both yours*
+  The sender is built and the account is confirmed: Arkesel, 466 credits, key in
+  `.env`. Six events earn a message (see the header of
+  `src/server/notifications.ts`), every template fits one billed segment, and a
+  worker drains the outbox every 30s with backoff, giving up after five
+  attempts. It stays OFF until `SMS_PROVIDER=arkesel` is set.
+
+  Before setting it:
+  1. **Clear the stale queue.** Three confirmations from the 16 Aug test
+     bookings are still pending to a real number, and would send the moment it
+     is enabled. `npm run sms:outbox` lists them.
+  2. **Register the sender ID** "GO DISPATCH" with Arkesel. Until it is
+     approved, messages arrive from a shortcode, so every template carries a
+     13-character "GO DISPATCH: " prefix to say who it is from. Once approved,
+     flip `SMS_SENDER_ID_REGISTERED` in `src/brand.ts` and every message gets
+     those characters back.
+
+  Also outstanding: the API key was pasted into a chat, so roll it in the
+  Arkesel dashboard before real customer traffic runs through it.
 
 - [ ] **Deployment** — **L**
   Nothing is hosted yet. Needs a host, env vars set (including `ADMIN_PATH` and
