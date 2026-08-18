@@ -42,7 +42,19 @@ services:
     # so for a few seconds the schema is ahead of the code still serving. Write
     # migrations that the previous version can survive -- add columns, do not
     # rename them out from under it -- and that window costs nothing.
-    buildCommand: npm ci && npm run build && npm run release
+    # `npm install`, not `npm ci`, and this is not laziness.
+    #
+    # rollup, esbuild and lightningcss each ship their compiled binary as a
+    # per-platform optional dependency. npm records in package-lock.json only
+    # the ones it actually installed -- so a lockfile written on Windows names
+    # the Windows binaries and nothing else. `npm ci` installs exactly the lock
+    # and nothing else, so on Render's Linux box the build reaches `vite build`
+    # and dies with "Cannot find module @rollup/rollup-linux-x64-gnu".
+    #
+    # `npm install` still honours every version pinned in the lockfile; it just
+    # also resolves the optional binaries for the platform it is running on.
+    # (npm/cli#4828 -- open for years, unlikely to move.)
+    buildCommand: npm install && npm run build && npm run release
     startCommand: npm start
 
     healthCheckPath: /api/health
