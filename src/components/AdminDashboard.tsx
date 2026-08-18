@@ -231,6 +231,17 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   const [openPayment, setOpenPayment] = useState<string | null>(null);
 
   /**
+   * Whether the filter controls are showing, below sm.
+   *
+   * On a phone the filter panel filled the whole first screen, so the board it
+   * filters began below the fold: the answer was hidden by the question. The
+   * search box stays -- it is the one people reach for -- and the rest folds
+   * behind a button that says how many filters are on, so a narrowed board is
+   * never a mystery.
+   */
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  /**
    * How much every row shows.
    *
    * One switch for the whole list rather than a control per row: somebody
@@ -1274,7 +1285,10 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
         <div className="space-y-6 animate-in fade-in duration-200" id="dash_subtab_pipeline">
           
           {/* Filters Bar */}
-          <div className="gd-panel p-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+          {(() => {
+            const activeFilters = [statusFilter, startDateFilter].filter(Boolean).length;
+            return (
+          <div className="gd-panel p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5 sm:gap-3 items-end">
             
             <div className="md:col-span-2">
               <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Search</label>
@@ -1291,7 +1305,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               </div>
             </div>
 
-            <div>
+            {/* Below sm these three fold away behind the button underneath. */}
+            <div className={`${filtersOpen ? 'block' : 'hidden'} sm:block`}>
               <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Status</label>
               <SelectModal
                 id="filter_status"
@@ -1307,7 +1322,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               />
             </div>
 
-            <div>
+            <div className={`${filtersOpen ? 'block' : 'hidden'} sm:block`}>
               <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Booked since</label>
               <DateModal
                 id="filter_start_date"
@@ -1324,11 +1339,28 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 setStartDateFilter('');
                 setEndDateFilter('');
               }}
-              className="w-full min-h-12 text-center rounded-2xl border border-slate-200/80 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium text-sm transition-colors cursor-pointer"
+              className={`${filtersOpen ? 'block' : 'hidden'} sm:block w-full min-h-12 text-center rounded-2xl border border-slate-200/80 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium text-[13px] transition-colors cursor-pointer`}
             >
-              Clear
+              Clear filters
+            </button>
+
+            {/* Phone only: the way in and out of the folded controls. */}
+            <button
+              onClick={() => setFiltersOpen((v) => !v)}
+              aria-expanded={filtersOpen}
+              className="sm:hidden flex min-h-11 w-full items-center justify-center gap-2 text-[13px] font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+            >
+              {filtersOpen ? 'Fewer filters' : 'More filters'}
+              {activeFilters > 0 && (
+                <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                  {activeFilters} on
+                </span>
+              )}
+              <ChevronDown className={`h-4 w-4 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
             </button>
           </div>
+            );
+          })()}
 
           {/* Loader/Grid */}
           {loadingOrders ? (
@@ -1349,14 +1381,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                   {/* One switch for the whole list. */}
                   <div className="flex items-center justify-between px-1">
-                    <p className="text-sm text-slate-500">
-                      Most overdue first
-                    </p>
+                    <p className="text-[13px] text-slate-500">Most overdue first</p>
                     <button
                       onClick={() => setFullDetail((v) => !v)}
                       role="switch"
                       aria-checked={fullDetail}
-                      className="flex items-center gap-2.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                      className="flex items-center gap-2 min-h-11 text-[13px] font-medium text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
                     >
                       Full detail
                       <span className={`relative h-6 w-10 rounded-full transition-colors ${fullDetail ? 'bg-red-600' : 'bg-slate-300'}`}>
@@ -1380,70 +1410,81 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         <button
                           key={order.id}
                           onClick={() => setSelectedOrderId(order.id)}
-                          className={`gd-row w-full flex flex-wrap items-center gap-x-4 gap-y-2 px-4 sm:px-5 py-3.5 text-left ${
+                          className={`gd-row w-full px-4 sm:px-5 py-3 text-left ${
                             i > 0 ? 'border-t border-slate-100' : ''
                           }`}
                         >
-                          {/* When, in words. The only column that demands anything. */}
-                          <span className={`w-[104px] shrink-0 text-sm font-semibold leading-tight ${
-                            late ? 'text-red-600' : settled ? 'text-slate-400' : 'text-slate-900'
-                          }`}>
-                            {formatDue(order)}
-                          </span>
-
-                          {/* Who is carrying it. */}
-                          <span
-                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                              unassigned
-                                ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
-                                : order.riderName
-                                  ? 'bg-slate-100 text-slate-600'
-                                  : 'bg-slate-50 text-slate-300'
-                            }`}
-                            title={order.riderName || 'No rider assigned'}
-                          >
-                            {order.riderName ? initials(order.riderName) : '?'}
-                          </span>
-
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-mono text-sm font-semibold text-slate-900">
-                              {order.trackingCode}
+                          {/* A phone reads this top-to-bottom: when, then what,
+                              then who. A laptop reads it left-to-right. Same
+                              markup, because two markups drift. */}
+                          <span className="flex items-start gap-3">
+                            {/* Who is carrying it. */}
+                            <span
+                              className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                                unassigned
+                                  ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
+                                  : order.riderName
+                                    ? 'bg-slate-100 text-slate-600'
+                                    : 'bg-slate-50 text-slate-300'
+                              }`}
+                              title={order.riderName || 'No rider assigned'}
+                            >
+                              {order.riderName ? initials(order.riderName) : '?'}
                             </span>
-                            <span className="block truncate text-sm text-slate-500">
-                              {order.riderName ? (
-                                <>{order.riderName} <span className="text-slate-300">·</span> </>
-                              ) : (
-                                <span className="font-medium text-red-600">Unassigned <span className="text-slate-300">·</span> </span>
+
+                            <span className="min-w-0 flex-1">
+                              {/* Line one: when it is due, and where it stands.
+                                  On a phone these are the two facts that decide
+                                  whether the row is worth opening. */}
+                              <span className="flex items-center justify-between gap-2">
+                                <span className={`text-[13px] font-semibold leading-tight ${
+                                  late ? 'text-red-600' : settled ? 'text-slate-400' : 'text-slate-900'
+                                }`}>
+                                  {formatDue(order)}
+                                </span>
+                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${theme.bg} ${theme.text}`}>
+                                  {theme.label}
+                                </span>
+                              </span>
+
+                              {/* Line two: which parcel. */}
+                              <span className="mt-0.5 block font-mono text-[13px] font-semibold text-slate-900">
+                                {order.trackingCode}
+                              </span>
+
+                              {/* Line three: who and where to. */}
+                              <span className="block truncate text-[13px] text-slate-500">
+                                {order.riderName ? (
+                                  <>{order.riderName} <span className="text-slate-300">·</span> </>
+                                ) : (
+                                  <span className="font-medium text-red-600">Unassigned <span className="text-slate-300">·</span> </span>
+                                )}
+                                to {order.destinationRegion || order.dropoffAddress}
+                              </span>
+
+                              {/* What the switch adds, on every row at once. */}
+                              {fullDetail && (
+                                <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-[12px] text-slate-500">
+                                  <span>{order.packageWeightKg}kg</span>
+                                  <span className="font-medium text-slate-900 tabular-nums">
+                                    {order.currency} {(order.priceAmount / 100).toFixed(2)}
+                                  </span>
+                                  <span className={order.paymentStatus === 'paid' ? 'text-emerald-700' : 'text-amber-700'}>
+                                    {order.paymentStatus === 'paid' ? 'Paid' : 'Payment due'}
+                                  </span>
+                                  <span className="hidden sm:inline truncate">{order.pickupAddress}</span>
+                                  <span className="text-slate-400">Booked {formatBooked(order.createdAt)}</span>
+                                </span>
                               )}
-                              to {order.destinationRegion || order.dropoffAddress}
                             </span>
                           </span>
-
-                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${theme.bg} ${theme.text}`}>
-                            {theme.label}
-                          </span>
-
-                          {/* What the switch adds, on every row at once. */}
-                          {fullDetail && (
-                            <span className="w-full flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-100 pt-2.5 text-sm text-slate-500">
-                              <span>{order.packageWeightKg}kg</span>
-                              <span className="font-medium text-slate-900 tabular-nums">
-                                {order.currency} {(order.priceAmount / 100).toFixed(2)}
-                              </span>
-                              <span className={order.paymentStatus === 'paid' ? 'text-emerald-700' : 'text-amber-700'}>
-                                {order.paymentStatus === 'paid' ? 'Paid' : 'Payment due'}
-                              </span>
-                              <span className="truncate">{order.pickupAddress}</span>
-                              <span className="ml-auto text-slate-400">Booked {formatBooked(order.createdAt)}</span>
-                            </span>
-                          )}
                         </button>
                       );
                     })}
                   </div>
 
                   {/* Pager */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1 text-sm text-slate-500">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-1 text-[13px] text-slate-500">
                     <span>
                       Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, boardOrders.length)} of {boardOrders.length}
                     </span>
@@ -1451,7 +1492,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <button
                         onClick={() => setPipelinePage((p) => Math.max(1, p - 1))}
                         disabled={page <= 1}
-                        className="min-h-11 px-4 rounded-2xl border border-slate-200/80 bg-white font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                        className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                       >
                         &lsaquo; Prev
                       </button>
@@ -1459,7 +1500,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <button
                         onClick={() => setPipelinePage((p) => Math.min(totalPages, p + 1))}
                         disabled={page >= totalPages}
-                        className="min-h-11 px-4 rounded-2xl border border-slate-200/80 bg-white font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                        className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                       >
                         Next &rsaquo;
                       </button>
@@ -1545,7 +1586,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               <div className="space-y-3">
 
               <div className="flex items-center justify-between px-1">
-                <p className="text-sm text-slate-500">Newest first</p>
+                <p className="text-[13px] text-slate-500">Newest first</p>
                 <button
                   onClick={() => setFullDetail((v) => !v)}
                   role="switch"
@@ -1582,14 +1623,14 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         title={p.status}
                       />
                       <span className="min-w-0 flex-1">
-                        <span className="block font-mono text-sm font-semibold text-slate-900">{p.trackingCode}</span>
-                        <span className="block truncate text-sm text-slate-500">{p.senderName}</span>
+                        <span className="block font-mono text-[13px] font-semibold text-slate-900">{p.trackingCode}</span>
+                        <span className="block truncate text-[13px] text-slate-500">{p.senderName}</span>
                       </span>
                       <span className="shrink-0 text-right">
-                        <span className="block text-base font-semibold text-slate-900 tabular-nums">
+                        <span className="block text-[15px] font-semibold text-slate-900 tabular-nums">
                           {p.currency} {(p.amount / 100).toFixed(2)}
                         </span>
-                        <span className="block text-xs text-slate-400 tabular-nums">
+                        <span className="block text-[11px] text-slate-400 tabular-nums">
                           {new Date(settled).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
                         </span>
                       </span>
@@ -1607,7 +1648,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 })}
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1 text-sm text-slate-500">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-1 text-[13px] text-slate-500">
                 <span>
                   Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, filteredPayments.length)} of {filteredPayments.length}
                   {paymentSearch && ' matching'}
@@ -1616,7 +1657,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <button
                     onClick={() => setPaymentsPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    className="min-h-11 px-4 rounded-2xl border border-slate-200/80 bg-white font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                    className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                   >
                     &lsaquo; Prev
                   </button>
@@ -1624,7 +1665,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <button
                     onClick={() => setPaymentsPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
-                    className="min-h-11 px-4 rounded-2xl border border-slate-200/80 bg-white font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                    className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                   >
                     Next &rsaquo;
                   </button>

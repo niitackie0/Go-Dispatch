@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+import PasswordField from './PasswordField.js';
 import {
   AlertCircle,
   Check,
@@ -198,50 +199,33 @@ export default function AccountSecurity({ token, user }: AccountSecurityProps) {
           Change password
         </div>
 
-        <label className="block">
-          <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-semibold">
-            Current password
-          </span>
-          <input
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            className="mt-1 w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-red-400"
-          />
-        </label>
+        <PasswordField
+          label="Current password"
+          value={currentPassword}
+          onChange={setCurrentPassword}
+          required
+          autoComplete="current-password"
+        />
 
         <div className="grid sm:grid-cols-2 gap-3">
-          <label className="block">
-            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-semibold">
-              New password
-            </span>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              minLength={MIN_PASSWORD_LENGTH}
-              autoComplete="new-password"
-              className="mt-1 w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-red-400"
-            />
-          </label>
+          <PasswordField
+            label="New password"
+            value={newPassword}
+            onChange={setNewPassword}
+            required
+            minLength={MIN_PASSWORD_LENGTH}
+            autoComplete="new-password"
+            hint={`At least ${MIN_PASSWORD_LENGTH} characters`}
+          />
 
-          <label className="block">
-            <span className="text-xs font-mono uppercase tracking-widest text-slate-500 font-semibold">
-              Confirm new password
-            </span>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength={MIN_PASSWORD_LENGTH}
-              autoComplete="new-password"
-              className="mt-1 w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-red-400"
-            />
-          </label>
+          <PasswordField
+            label="Confirm new password"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            required
+            minLength={MIN_PASSWORD_LENGTH}
+            autoComplete="new-password"
+          />
         </div>
 
         <p className="text-sm text-slate-500">
