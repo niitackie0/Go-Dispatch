@@ -5,7 +5,6 @@
 
 import React, { useState } from 'react';
 import { Lock, Mail, Loader2, AlertCircle, Truck, ArrowLeft, Layers, CreditCard, TrendingUp } from 'lucide-react';
-import { Link } from '../router.js';
 import type { AdminUser } from '../types.js';
 
 interface AdminLoginProps {
@@ -58,7 +57,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
         <div className="absolute -bottom-24 -left-16 h-[360px] w-[360px] rounded-full bg-white/15 blur-[90px]" aria-hidden="true" />
 
         <div className="relative">
-          <Link to="/" className="inline-flex items-center gap-2.5">
+          <a href="/" className="inline-flex items-center gap-2.5">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur border border-white/30">
               <Truck className="h-5 w-5" />
             </div>
@@ -66,7 +65,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
               <span className="block text-lg font-semibold font-display">GO DISPATCH</span>
               <span className="block text-xs font-mono uppercase tracking-[0.18em] text-white/70 mt-0.5">Operations Console</span>
             </div>
-          </Link>
+          </a>
         </div>
 
         <div className="relative max-w-md">
@@ -102,10 +101,10 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
       {/* ---------- Right: sign-in form ---------- */}
       <div className="flex flex-col items-center justify-center px-4 py-12 sm:px-8">
         <div className="w-full max-w-md">
-          <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-red-700 transition-colors mb-8">
+          <a href="/" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-red-700 transition-colors mb-8">
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back to waypoint site
-          </Link>
+            Back to the GO DISPATCH site
+          </a>
 
           {/* Mobile brand */}
           <div className="lg:hidden flex items-center gap-2.5 mb-8">
@@ -144,7 +143,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="staff@waypoint.com"
+                  placeholder="you@example.com"
                   className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 pl-10 pr-4 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 placeholder-slate-400 shadow-sm transition-all"
                 />
               </div>

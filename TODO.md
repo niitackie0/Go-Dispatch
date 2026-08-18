@@ -38,11 +38,6 @@ flyer. The console and the customer site have both had the mobile and type pass.
   reads as the old product, and it is the one screen used one-handed, outdoors,
   in sunlight. Wants large type, high contrast and few, obvious controls.
 
-- [ ] **Split admin into its own bundle at a private path** — **M**
-  Today admin code ships to every customer and sits at the guessable `/admin`.
-  New `admin.html` Vite entry + `src/AdminApp.tsx`, path from `ADMIN_PATH` in
-  `.env` (default `/ops`).
-
 ---
 
 ## P2 — Before this goes live
@@ -178,6 +173,8 @@ flyer. The console and the customer site have both had the mobile and type pass.
 - Repriced by weight — GHS 50 to 3kg, GHS 10 per extra kilo rounded up — with
   one shared implementation the form quotes from and the server charges by
 - Demo staff accounts deleted and the order ledger wiped clean
+- Console split into its own bundle at `ADMIN_PATH` (default `/ops`): customers no
+  longer download it, and /admin and /admin.html are refused
 - The exposed `admin@waypoint.com` owner deleted: old brand, transcript password
   and 61 live sessions retired in one step, audit trail kept its attribution
 - Undo on the delivery workflow: one step, ten minutes, side effects reversed with it

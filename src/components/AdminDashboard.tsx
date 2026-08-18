@@ -61,7 +61,6 @@ import SelectModal from './SelectModal.js';
 import StaffManagement from './StaffManagement.js';
 import AccountSecurity from './AccountSecurity.js';
 import Tooltip from './Tooltip.js';
-import { Link } from '../router.js';
 
 interface AdminDashboardProps {
   token: string;
@@ -604,7 +603,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'waypoint_payments_ledger.csv';
+        a.download = 'go-dispatch-payments-ledger.csv';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -850,13 +849,15 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                 {/* View live customer site */}
                 <Tooltip placement="bottom" label="Open the customer site — what a sender sees when they book.">
-                  <Link
-                    to="/"
+                  {/* A real link, not a router one: the customer site is a
+                      different bundle now, so this has to be a page load. */}
+                  <a
+                    href="/"
                     className="hidden md:flex min-h-11 items-center gap-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-medium transition-colors cursor-pointer"
                   >
                     <ExternalLink className="h-4 w-4" />
                     <span>View site</span>
-                  </Link>
+                  </a>
                 </Tooltip>
 
                 {/* Signed-in user identity */}

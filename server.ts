@@ -6,6 +6,7 @@
 import 'dotenv/config';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
+import fs from 'fs';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { runAutomations } from './src/server/automations.js';
@@ -23,6 +24,15 @@ import { statsRouter } from './src/server/routes/stats.js';
 
 const app = express();
 const PORT = 3000;
+
+/**
+ * Where the operations console lives.
+ *
+ * Not a secret -- the console is protected by a password, not by its address --
+ * but /admin is the first thing any scanner tries, and there is no reason to
+ * hand it a login form to hammer. Set ADMIN_PATH in .env to move it.
+ */
+const ADMIN_PATH = process.env.ADMIN_PATH || '/ops';
 
 app.use(express.json());
 
@@ -96,10 +106,52 @@ async function startServer() {
       server: { middlewareMode: true },
       appType: 'spa',
     });
+
+    // Vite's dev server resolves a URL to any HTML file sitting at the project
+    // root, so /admin and /admin.html both reach the console however ADMIN_PATH
+    // is set. Blocked here so development matches production, where the same
+    // two addresses are refused.
+    app.use((req, res, next) => {
+      const requested = req.path.toLowerCase().replace(/\/$/, '');
+      const isEntryByFilename = requested === '/admin.html' || requested === '/index.html';
+      const isOldAdminPath = requested === '/admin' && ADMIN_PATH.toLowerCase() !== '/admin';
+      if (isEntryByFilename || isOldAdminPath) {
+        res.status(404).send('Not found');
+        return;
+      }
+      next();
+    });
+
+    // Registered before vite's middleware, whose SPA fallback would otherwise
+    // answer this path with the customer app.
+    app.get(ADMIN_PATH, async (req, res, next) => {
+      try {
+        const template = await fs.promises.readFile(path.resolve('admin.html'), 'utf-8');
+        const html = await vite.transformIndexHtml(req.originalUrl, template);
+        res.status(200).set({ 'Content-Type': 'text/html', 'X-Robots-Tag': 'noindex, nofollow' }).end(html);
+      } catch (err) {
+        vite.ssrFixStacktrace(err as Error);
+        next(err);
+      }
+    });
+
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+
+    // The console is reachable at ADMIN_PATH and nowhere else. Without this,
+    // express.static would happily serve the same page at /admin.html, and
+    // moving the path would have bought nothing.
+    app.get('/admin.html', (_req, res) => {
+      res.status(404).send('Not found');
+    });
+
+    app.get(ADMIN_PATH, (_req, res) => {
+      res.set('X-Robots-Tag', 'noindex, nofollow').sendFile(path.join(distPath, 'admin.html'));
+    });
+
+    app.use(express.static(distPath, { index: false }));
+
     app.get('*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
@@ -107,6 +159,8 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`GO DISPATCH server listening on http://localhost:${PORT}`);
+    console.log(`  customer site  http://localhost:${PORT}/`);
+    console.log(`  console        http://localhost:${PORT}${ADMIN_PATH}`);
   });
 }
 

@@ -48,7 +48,7 @@ paymentsRouter.get('/export', requireAdmin, requirePermission('payments:read'), 
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader(
     'Content-Disposition',
-    'attachment; filename=waypoint_payments_export.csv'
+    'attachment; filename=go-dispatch-payments-export.csv'
   );
   res.status(200).send(rows.join('\n') + '\n');
 });
