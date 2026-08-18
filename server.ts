@@ -10,6 +10,8 @@ import fs from 'fs';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { runAutomations } from './src/server/automations.js';
+import { prisma } from './src/server/prisma.js';
+import { securityHeaders, trustProxyHops } from './src/server/security.js';
 import { drainOutbox, outboxSummary } from './src/server/outbox.js';
 import { smsEnabled, smsProviderName } from './src/server/smsProvider.js';
 import { adminsRouter } from './src/server/routes/admins.js';
@@ -34,7 +36,43 @@ const PORT = 3000;
  */
 const ADMIN_PATH = process.env.ADMIN_PATH || '/ops';
 
-app.use(express.json());
+/**
+ * Whether X-Forwarded-For can be believed. Off unless declared -- see
+ * src/server/security.ts for why neither default is safe to assume.
+ */
+const proxyHops = trustProxyHops();
+if (proxyHops === false) {
+  app.disable('trust proxy');
+} else {
+  app.set('trust proxy', proxyHops);
+}
+
+app.use(securityHeaders);
+
+// A body limit, said out loud. Express defaults to 100kb; the largest thing
+// anyone legitimately posts here is a twenty-parcel booking, which is nowhere
+// near it.
+app.use(express.json({ limit: '64kb' }));
+
+/**
+ * Health check.
+ *
+ * Answers only if the database answers. A health check that returns 200 while
+ * Postgres is unreachable will keep a broken instance in the load balancer and
+ * tell the uptime monitor everything is fine, which is worse than having none.
+ *
+ * The query is a literal with nothing interpolated into it -- the one piece of
+ * raw SQL in the codebase, and it stays that way.
+ */
+app.get('/api/health', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[health] database unreachable', err);
+    res.status(503).json({ ok: false, error: 'Database unreachable' });
+  }
+});
 
 // API
 app.use('/api/auth', authRouter);

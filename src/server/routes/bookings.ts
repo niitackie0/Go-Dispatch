@@ -15,6 +15,7 @@ import { isRegion, REGION_NAMES } from '../../regions.js';
 import { quote, sizeForWeight } from '../../pricing.js';
 import { currentRule } from './pricing.js';
 import { queueNotification } from '../notifications.js';
+import { publicReadLimit, publicWriteLimit } from '../rateLimit.js';
 
 export const bookingsRouter = asyncRouter();
 
@@ -42,7 +43,7 @@ function bookingReference(): string {
   return `GDB-${crypto.randomInt(1000, 10000)}-${crypto.randomInt(100, 1000)}`;
 }
 
-bookingsRouter.post('/', async (req, res) => {
+bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
   const {
     senderName,
     senderPhone,
@@ -291,7 +292,7 @@ bookingsRouter.patch('/parcels/:id/weight', requireAdmin, requirePermission('ord
 /* ---------------------------------------------------------------------------
    A sender's whole booking, by reference. Public: the reference is the secret.
    --------------------------------------------------------------------------- */
-bookingsRouter.get('/:reference', async (req, res) => {
+bookingsRouter.get('/:reference', publicReadLimit, async (req, res) => {
   const booking = await prisma.booking.findUnique({
     where: { reference: req.params.reference.trim().toUpperCase() },
     include: { orders: { include: { rider: true }, orderBy: { createdAt: 'asc' } } },
