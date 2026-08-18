@@ -14,6 +14,13 @@ import type { AdminRole } from './types.js';
  * server will refuse — and no second copy to drift out of step.
  *
  * This file must stay free of server-only imports so it can be bundled.
+ *
+ * NOTE ON dispatcher AND support: they now hold exactly the same capabilities.
+ * Support was read-only, but the job as it is actually done is moving parcels
+ * through their statuses and telling riders where to go, which is dispatch.
+ * Two names for one set of powers is a trap -- somebody will eventually assume
+ * they differ -- so one of them should go. Now is the cheapest moment: no
+ * account holds either.
  */
 export type Capability =
   | 'orders:read'
@@ -40,8 +47,10 @@ export const CAPABILITIES: Record<AdminRole, readonly Capability[]> = {
   dispatcher: ['orders:read', 'orders:write', 'riders:read'],
   // Reconciles money. Can read orders for context but cannot dispatch them.
   finance: ['orders:read', 'payments:read', 'payments:write', 'revenue:read'],
-  // Answers customer calls. Reads only.
-  support: ['orders:read', 'riders:read'],
+  // Answers the phone AND works the board: moves parcels through their
+  // statuses and passes jobs to riders. Identical to dispatcher on purpose --
+  // see the note above about the two names.
+  support: ['orders:read', 'orders:write', 'riders:read'],
 };
 
 export function can(role: AdminRole | undefined, capability: Capability): boolean {

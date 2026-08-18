@@ -8,6 +8,8 @@ Ordered by priority. Effort: **S** ≈ under an hour · **M** ≈ half a day · 
 
 Small jobs, real exposure. Three are yours; the tooling for them is built.
 
+Step-by-step for the two rotations: **docs/rotating-credentials.md**.
+
 - [ ] **Rotate the Neon database password** — **S**
   Both connection strings were pasted into a chat, so that credential is in a
   transcript. Neon Console → Roles → `neondb_owner` → Reset password, then

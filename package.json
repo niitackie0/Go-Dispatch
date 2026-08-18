@@ -14,6 +14,7 @@
     "db:fixtures": "tsx prisma/fixtures.ts",
     "db:studio": "prisma studio",
     "sms:preview": "tsx scripts/sms-preview.ts",
+    "sms:check": "tsx scripts/sms-check.ts",
     "sms:outbox": "tsx scripts/sms-drain.ts",
     "admin": "tsx scripts/admin.ts"
   },
