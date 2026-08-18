@@ -61,6 +61,7 @@ import StaffManagement from './StaffManagement.js';
 import AccountSecurity from './AccountSecurity.js';
 import Tooltip from './Tooltip.js';
 import DateModal from './DateModal.js';
+import Sheet from './Sheet.js';
 
 interface AdminDashboardProps {
   token: string;
@@ -228,6 +229,21 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
    * what identifies it and opens for the rest.
    */
   const [openPayment, setOpenPayment] = useState<string | null>(null);
+
+  /**
+   * How much every row shows.
+   *
+   * One switch for the whole list rather than a control per row: somebody
+   * reconciling fifteen payments wants all fifteen thickened at once, and
+   * somebody triaging the board wants none of them. Remembered, because it is
+   * a working style rather than a per-visit decision.
+   */
+  const [fullDetail, setFullDetail] = useState(() => {
+    try { return localStorage.getItem('gd_full_detail') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('gd_full_detail', fullDetail ? '1' : '0'); } catch { /* private mode */ }
+  }, [fullDetail]);
 
   /**
    * The step just taken, and the offer to take it back.
@@ -508,6 +524,42 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     );
   }, [selectedOrderDetails]);
 
+  /**
+   * The board, in the order the work actually wants doing.
+   *
+   * Newest-first is how a database returns rows, not how a day runs: it put a
+   * parcel booked ten minutes ago above one whose collection slot passed two
+   * days back. So live parcels come first, most overdue at the top, then the
+   * ones still ahead of their slot in the order they fall due, and finished
+   * work last.
+   */
+  const boardOrders = useMemo(() => {
+    const finished = (o: Order) => o.status === 'delivered' || o.status === 'cancelled';
+    const due = (o: Order) => new Date(o.scheduledPickupAt).getTime();
+    const now = Date.now();
+
+    return [...orders].sort((a, b) => {
+      if (finished(a) !== finished(b)) return finished(a) ? 1 : -1;
+      if (finished(a)) return due(b) - due(a);
+
+      const aLate = due(a) < now;
+      const bLate = due(b) < now;
+      if (aLate !== bLate) return aLate ? -1 : 1;
+      // Overdue: worst first. Upcoming: soonest first.
+      return aLate ? due(a) - due(b) : due(a) - due(b);
+    });
+  }, [orders]);
+
+  /** Initials for the courier chip. Two letters is all the room there is. */
+  const initials = (name?: string) =>
+    (name || '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0])
+      .join('')
+      .toUpperCase() || '?';
+
   // Reset pagination when the underlying lists change
   useEffect(() => { setPipelinePage(1); }, [searchFilter, statusFilter, startDateFilter, endDateFilter]);
   useEffect(() => { setPaymentsPage(1); }, [payments.length, paymentSearch]);
@@ -625,6 +677,39 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     if (days === 1) return `Tomorrow ${time}`;
     if (days === -1) return `Yesterday ${time}`;
     return `${at.toLocaleDateString([], { day: 'numeric', month: 'short' })} ${time}`;
+  };
+
+  /**
+   * The collection slot as a dispatcher would say it out loud.
+   *
+   * An overdue parcel says how overdue -- "2 days late" -- because that is the
+   * fact being acted on. A date and a time is what a database knows; it makes
+   * the reader work out the answer on every row.
+   */
+  const formatDue = (order: Order) => {
+    const at = new Date(order.scheduledPickupAt);
+    const time = at
+      .toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      .toLowerCase()
+      .replace(' ', '');
+
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const days = Math.floor((at.getTime() - midnight.getTime()) / 86_400_000);
+    const settled = order.status === 'delivered' || order.status === 'cancelled';
+
+    if (settled) {
+      if (days === 0) return `Today ${time}`;
+      if (days === -1) return `Yesterday`;
+      return at.toLocaleDateString([], { day: 'numeric', month: 'short' });
+    }
+
+    if (days <= -2) return `${Math.abs(days)} days late`;
+    if (days === -1) return 'Yesterday';
+    if (days === 0) return at.getTime() < Date.now() ? `Late, ${time}` : `Today ${time}`;
+    if (days === 1) return `Tomorrow ${time}`;
+    if (days < 7) return `${at.toLocaleDateString([], { weekday: 'short' })} ${time}`;
+    return at.toLocaleDateString([], { day: 'numeric', month: 'short' });
   };
 
   /** Short date for the line that says when the booking came in. */
@@ -1255,204 +1340,112 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               <p className="text-sm text-slate-500 mt-1">Try relaxing filters or search queries.</p>
             </div>
           ) : (
-            /* Orders table (paginated 10 / page) */
             (() => {
-              const totalPages = Math.max(1, Math.ceil(orders.length / PAGE_SIZE));
+              const totalPages = Math.max(1, Math.ceil(boardOrders.length / PAGE_SIZE));
               const page = Math.min(pipelinePage, totalPages);
-              const pageOrders = orders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+              const pageOrders = boardOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
               return (
                 <div className="space-y-3">
-                  {/* Phones: one card per order, so status, price and the
-                      Advance button stay on screen. The table below needs
-                      ~900px of width and put Advance out of reach on a phone. */}
-                  <div className="md:hidden space-y-3">
-                    {pageOrders.map((order) => {
-                      const statusTheme = STATUS_ORDER.find(s => s.key === order.status) || STATUS_ORDER[0];
-                      const next = advanceStatus(order.status);
-                      return (
-                        <div
-                          key={order.id}
-                          onClick={() => setSelectedOrderId(order.id)}
-                          className="gd-panel p-4 space-y-3 cursor-pointer active:bg-slate-50 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <span className="font-mono text-base font-semibold text-slate-900">{order.trackingCode}</span>
-                              {order.riderName && (
-                                <span className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
-                                  <Truck className="h-4 w-4 text-red-500 shrink-0" />
-                                  {order.riderName}
-                                </span>
-                              )}
-                            </div>
-                            <span className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-semibold ${statusTheme.bg} ${statusTheme.text}`}>
-                              {statusTheme.label}
-                            </span>
-                          </div>
 
-                          {/* Full addresses — no truncation, this is the screen
-                              a rider or dispatcher actually reads them from. */}
-                          <div className="text-sm space-y-1">
-                            <p className="text-slate-800">{order.pickupAddress}</p>
-                            <p className="text-slate-500">&rarr; {order.dropoffAddress}</p>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-sm">
-                            <Clock className={`h-4 w-4 shrink-0 ${isLateForPickup(order) ? 'text-red-600' : 'text-slate-400'}`} />
-                            <span className={isLateForPickup(order) ? 'font-medium text-red-600' : 'text-slate-700'}>
-                              {formatPickup(order.scheduledPickupAt)}
-                            </span>
-                            <span className="text-slate-300">·</span>
-                            <span className="text-slate-500">Booked {formatBooked(order.createdAt)}</span>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="capitalize text-slate-600">{order.packageSize}</span>
-                            <span className="text-slate-300">·</span>
-                            <span className="font-medium text-slate-900 tabular-nums">
-                              {order.currency} {(order.priceAmount / 100).toFixed(2)}
-                            </span>
-                            <span className={`ml-auto rounded-md border px-2 py-0.5 text-xs font-medium capitalize ${
-                              order.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
-                              order.paymentStatus === 'refunded' ? 'bg-red-50 border-red-200 text-red-600' :
-                              'bg-amber-500/10 border-amber-500/20 text-amber-600'
-                            }`}>
-                              {order.paymentStatus}
-                            </span>
-                          </div>
-
-                          {next && canWriteOrders ? (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); advanceOrderStatus(order); }}
-                              disabled={advancingId === order.id}
-                              className="w-full min-h-12 flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 text-base font-semibold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 cursor-pointer"
-                            >
-                              {advancingId === order.id
-                                ? <Loader2 className="h-5 w-5 animate-spin" />
-                                : <ArrowRight className="h-5 w-5" />}
-                              Advance to {getStatusLabel(next)}
-                            </button>
-                          ) : order.status === 'awaiting_payment' ? (
-                            <p className="flex items-center gap-2 text-sm font-medium text-orange-600">
-                              <Clock className="h-4 w-4 shrink-0" />
-                              Confirms automatically on payment
-                            </p>
-                          ) : null}
-                        </div>
-                      );
-                    })}
+                  {/* One switch for the whole list. */}
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-sm text-slate-500">
+                      Most overdue first
+                    </p>
+                    <button
+                      onClick={() => setFullDetail((v) => !v)}
+                      role="switch"
+                      aria-checked={fullDetail}
+                      className="flex items-center gap-2.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                    >
+                      Full detail
+                      <span className={`relative h-6 w-10 rounded-full transition-colors ${fullDetail ? 'bg-red-600' : 'bg-slate-300'}`}>
+                        <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-all ${fullDetail ? 'left-5' : 'left-1'}`} />
+                      </span>
+                    </button>
                   </div>
 
-                  {/* Tablet and up: the table. */}
-                  <div className="hidden md:block overflow-x-auto gd-panel">
-                    <table className="w-full text-left text-sm text-slate-700">
-                      <thead className="bg-transparent text-[11px] font-medium uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                        <tr>
-                          <th className="px-4 py-3">Tracking</th>
-                          <th className="px-4 py-3">Route</th>
-                          <th className="px-4 py-3">
-                            <Tooltip placement="bottom" label="When we collect from the sender, and when the booking came in. Red means the slot has passed and the parcel is still with the sender.">
-                              <span className="underline decoration-dotted decoration-slate-300 underline-offset-4 cursor-help">Collection</span>
-                            </Tooltip>
-                          </th>
-                          <th className="px-4 py-3">Size</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3">
-                            <Tooltip placement="bottom" label="Whether the money has landed. Pay-on-delivery orders settle themselves once the parcel is marked delivered.">
-                              <span className="underline decoration-dotted decoration-slate-300 underline-offset-4 cursor-help">Payment</span>
-                            </Tooltip>
-                          </th>
-                          <th className="px-4 py-3 text-right">Price</th>
-                          <th className="px-4 py-3 text-right">
-                            <Tooltip placement="bottom" label="One step forward down the delivery workflow. Backwards is Undo, or an owner override with a reason.">
-                              <span className="underline decoration-dotted decoration-slate-300 underline-offset-4 cursor-help">Action</span>
-                            </Tooltip>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {pageOrders.map((order) => {
-                          const statusTheme = STATUS_ORDER.find(s => s.key === order.status) || STATUS_ORDER[0];
-                          const next = advanceStatus(order.status);
-                          return (
-                            <tr
-                              key={order.id}
-                              onClick={() => setSelectedOrderId(order.id)}
-                              className="gd-row"
-                            >
-                              <td className="px-4 py-3 font-mono font-semibold text-slate-900 whitespace-nowrap">
-                                {order.trackingCode}
-                                {order.riderName && (
-                                  <span className="mt-0.5 flex items-center gap-1 font-sans text-xs font-medium text-slate-500">
-                                    <Truck className="h-3.5 w-3.5 text-red-500" />
-                                    {order.riderName}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 max-w-[220px]">
-                                <span className="block text-slate-800 truncate">{order.pickupAddress}</span>
-                                <span className="block text-slate-500 truncate">&rarr; {order.dropoffAddress}</span>
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap">
-                                <span className={isLateForPickup(order) ? 'font-medium text-red-600' : 'text-slate-800'}>
-                                  {formatPickup(order.scheduledPickupAt)}
-                                </span>
-                                <span className="block text-xs text-slate-400">
-                                  Booked {formatBooked(order.createdAt)}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 capitalize text-slate-700">{order.packageSize}</td>
-                              <td className="px-4 py-3">
-                                <span className={`inline-block px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${statusTheme.bg} ${statusTheme.text}`}>
-                                  {statusTheme.label}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className={`inline-block rounded-md border px-2 py-0.5 text-xs font-medium capitalize ${
-                                  order.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
-                                  order.paymentStatus === 'refunded' ? 'bg-red-50 border-red-200 text-red-600' :
-                                  'bg-amber-500/10 border-amber-500/20 text-amber-600'
-                                }`}>
-                                  {order.paymentStatus}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-right font-medium text-slate-900 whitespace-nowrap tabular-nums">
+                  {/* One list at every width. The courier rides on every row --
+                      "who has this" is the question a ringing phone usually
+                      asks -- and a parcel nobody is carrying says so in red,
+                      because that is a gap in the plan rather than a state. */}
+                  <div className="gd-panel overflow-hidden">
+                    {pageOrders.map((order, i) => {
+                      const theme = STATUS_ORDER.find((x) => x.key === order.status) || STATUS_ORDER[0];
+                      const late = isLateForPickup(order);
+                      const settled = order.status === 'delivered' || order.status === 'cancelled';
+                      const unassigned = !order.riderName && !settled;
+
+                      return (
+                        <button
+                          key={order.id}
+                          onClick={() => setSelectedOrderId(order.id)}
+                          className={`gd-row w-full flex flex-wrap items-center gap-x-4 gap-y-2 px-4 sm:px-5 py-3.5 text-left ${
+                            i > 0 ? 'border-t border-slate-100' : ''
+                          }`}
+                        >
+                          {/* When, in words. The only column that demands anything. */}
+                          <span className={`w-[104px] shrink-0 text-sm font-semibold leading-tight ${
+                            late ? 'text-red-600' : settled ? 'text-slate-400' : 'text-slate-900'
+                          }`}>
+                            {formatDue(order)}
+                          </span>
+
+                          {/* Who is carrying it. */}
+                          <span
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                              unassigned
+                                ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
+                                : order.riderName
+                                  ? 'bg-slate-100 text-slate-600'
+                                  : 'bg-slate-50 text-slate-300'
+                            }`}
+                            title={order.riderName || 'No rider assigned'}
+                          >
+                            {order.riderName ? initials(order.riderName) : '?'}
+                          </span>
+
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-mono text-sm font-semibold text-slate-900">
+                              {order.trackingCode}
+                            </span>
+                            <span className="block truncate text-sm text-slate-500">
+                              {order.riderName ? (
+                                <>{order.riderName} <span className="text-slate-300">·</span> </>
+                              ) : (
+                                <span className="font-medium text-red-600">Unassigned <span className="text-slate-300">·</span> </span>
+                              )}
+                              to {order.destinationRegion || order.dropoffAddress}
+                            </span>
+                          </span>
+
+                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${theme.bg} ${theme.text}`}>
+                            {theme.label}
+                          </span>
+
+                          {/* What the switch adds, on every row at once. */}
+                          {fullDetail && (
+                            <span className="w-full flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-100 pt-2.5 text-sm text-slate-500">
+                              <span>{order.packageWeightKg}kg</span>
+                              <span className="font-medium text-slate-900 tabular-nums">
                                 {order.currency} {(order.priceAmount / 100).toFixed(2)}
-                              </td>
-                              <td className="px-4 py-3 text-right whitespace-nowrap">
-                                {next && canWriteOrders ? (
-                                  <Tooltip label={`Move ${order.trackingCode} to ${getStatusLabel(next)}. You can undo it right after.`}>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); advanceOrderStatus(order); }}
-                                      disabled={advancingId === order.id}
-                                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 cursor-pointer"
-                                    >
-                                      {advancingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                                      {getStatusLabel(next)}
-                                    </button>
-                                  </Tooltip>
-                                ) : order.status === 'awaiting_payment' ? (
-                                  <Tooltip label="Nothing to do here. This order confirms itself the moment the payment lands.">
-                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600">
-                                      <Clock className="h-4 w-4" />
-                                      Auto on payment
-                                    </span>
-                                  </Tooltip>
-                                ) : (
-                                  <span className="text-xs text-slate-400">Final</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                              </span>
+                              <span className={order.paymentStatus === 'paid' ? 'text-emerald-700' : 'text-amber-700'}>
+                                {order.paymentStatus === 'paid' ? 'Paid' : 'Payment due'}
+                              </span>
+                              <span className="truncate">{order.pickupAddress}</span>
+                              <span className="ml-auto text-slate-400">Booked {formatBooked(order.createdAt)}</span>
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Pager */}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1 text-sm text-slate-500">
                     <span>
-                      Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, orders.length)} of {orders.length}
+                      Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, boardOrders.length)} of {boardOrders.length}
                     </span>
                     <div className="flex items-center gap-2">
                       <button
@@ -1551,93 +1544,65 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               return (
               <div className="space-y-3">
 
-              {/* One list at every width.
-                  The ledger used to be a nine-column table on desktop and a
-                  separate stack of cards on a phone -- two markups saying the
-                  same thing, drifting apart. A row now carries only what
-                  identifies a transaction: who paid, how much, and whether it
-                  landed. Everything else -- the reference, the note, who
-                  recorded it, the method -- is one tap away, because those are
-                  read when reconciling one payment, not when scanning fifty. */}
+              <div className="flex items-center justify-between px-1">
+                <p className="text-sm text-slate-500">Newest first</p>
+                <button
+                  onClick={() => setFullDetail((v) => !v)}
+                  role="switch"
+                  aria-checked={fullDetail}
+                  className="flex items-center gap-2.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                >
+                  Full detail
+                  <span className={`relative h-6 w-10 rounded-full transition-colors ${fullDetail ? 'bg-red-600' : 'bg-slate-300'}`}>
+                    <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-all ${fullDetail ? 'left-5' : 'left-1'}`} />
+                  </span>
+                </button>
+              </div>
+
+              {/* The same list mechanics as the board: a row says who and how
+                  much, the switch thickens every row at once, and the whole
+                  transaction opens in a sheet rather than pushing the list
+                  down the page. */}
               <div className="gd-panel overflow-hidden">
                 {pagePayments.map((p, i) => {
-                  const open = openPayment === p.id;
                   const settled = p.paidAt ?? p.createdAt;
                   return (
-                    <div key={p.id} className={i > 0 ? 'border-t border-slate-100' : ''}>
-                      <button
-                        onClick={() => setOpenPayment(open ? null : p.id)}
-                        aria-expanded={open}
-                        data-open={open}
-                        className="gd-row w-full min-h-16 flex items-center gap-4 px-4 sm:px-5 py-3.5 text-left"
-                      >
-                        <span className="min-w-0 flex-1">
-                          <span className="block font-mono text-sm font-semibold text-slate-900">
-                            {p.trackingCode}
-                          </span>
-                          <span className="block truncate text-sm text-slate-500">{p.senderName}</span>
+                    <button
+                      key={p.id}
+                      onClick={() => setOpenPayment(p.id)}
+                      className={`gd-row w-full flex flex-wrap items-center gap-x-4 gap-y-2 px-4 sm:px-5 py-3.5 text-left ${
+                        i > 0 ? 'border-t border-slate-100' : ''
+                      }`}
+                    >
+                      <span
+                        className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                          p.status === 'success' ? 'bg-emerald-500' :
+                          p.status === 'failed' ? 'bg-red-500' : 'bg-amber-400'
+                        }`}
+                        title={p.status}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-mono text-sm font-semibold text-slate-900">{p.trackingCode}</span>
+                        <span className="block truncate text-sm text-slate-500">{p.senderName}</span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block text-base font-semibold text-slate-900 tabular-nums">
+                          {p.currency} {(p.amount / 100).toFixed(2)}
                         </span>
-
-                        <span className="shrink-0 text-right">
-                          <span className="block text-base font-semibold text-slate-900 tabular-nums">
-                            {p.currency} {(p.amount / 100).toFixed(2)}
-                          </span>
-                          <span className="block text-xs text-slate-400 tabular-nums">
-                            {new Date(settled).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-                          </span>
+                        <span className="block text-xs text-slate-400 tabular-nums">
+                          {new Date(settled).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
                         </span>
+                      </span>
 
-                        <span
-                          className={`shrink-0 h-2.5 w-2.5 rounded-full ${
-                            p.status === 'success' ? 'bg-emerald-500' :
-                            p.status === 'failed' ? 'bg-red-500' : 'bg-amber-400'
-                          }`}
-                          title={p.status}
-                        />
-
-                        {open
-                          ? <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
-                          : <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />}
-                      </button>
-
-                      {open && (
-                        <dl className="gd-reveal grid grid-cols-2 gap-x-4 gap-y-3.5 border-t border-slate-100 bg-slate-50/50 px-4 sm:px-5 py-4 text-sm">
-                          <div>
-                            <dt className="text-xs uppercase tracking-wider text-slate-400">Paid by</dt>
-                            <dd className="mt-0.5 text-slate-900">{p.senderName}</dd>
-                            <dd className="font-mono text-xs text-slate-500">{p.senderPhone}</dd>
-                          </div>
-                          <div>
-                            <dt className="text-xs uppercase tracking-wider text-slate-400">Method</dt>
-                            <dd className="mt-0.5 capitalize text-slate-900">{p.provider}</dd>
-                          </div>
-                          <div>
-                            <dt className="text-xs uppercase tracking-wider text-slate-400">State</dt>
-                            <dd className="mt-0.5 capitalize text-slate-900">{p.status}</dd>
-                          </div>
-                          <div>
-                            <dt className="text-xs uppercase tracking-wider text-slate-400">Settled</dt>
-                            <dd className="mt-0.5 text-slate-900 tabular-nums">
-                              {new Date(settled).toLocaleString(undefined, {
-                                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-                              })}
-                            </dd>
-                          </div>
-                          <div className="col-span-2">
-                            <dt className="text-xs uppercase tracking-wider text-slate-400">Reference</dt>
-                            <dd className="mt-0.5 break-all font-mono text-xs text-slate-700">
-                              {p.providerReference || 'None recorded'}
-                            </dd>
-                          </div>
-                          {p.note && (
-                            <div className="col-span-2">
-                              <dt className="text-xs uppercase tracking-wider text-slate-400">Note</dt>
-                              <dd className="mt-0.5 text-slate-700">{p.note}</dd>
-                            </div>
-                          )}
-                        </dl>
+                      {fullDetail && (
+                        <span className="w-full flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-100 pt-2.5 text-sm text-slate-500">
+                          <span className="capitalize">{p.provider}</span>
+                          <span className="font-mono text-xs">{p.providerReference || 'No reference'}</span>
+                          <span className="font-mono text-xs">{p.senderPhone}</span>
+                          {p.note && <span className="truncate">{p.note}</span>}
+                        </span>
                       )}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -1866,351 +1831,303 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
         </div>
       )}
 
-      {/* ----------------- THE ORDER SCREEN -----------------
-          Everything known about one parcel, which is far more than anybody
-          needs at once. So it opens showing the four things that answer "what
-          is this and what do I do with it" -- route, money, status, next step
-          -- and keeps contacts, specs, payment history and the audit trail
-          folded behind their own headings.
-
-          Built on <details>, so the folds need no state of their own, survive
-          a background refresh mid-read, and can be found by find-in-page. */}
-      {selectedOrderId && (
-        <div className="fixed inset-0 z-50 overflow-hidden" id="order_inspector_panel">
-          <div
-            className="absolute inset-0 bg-slate-900/30 backdrop-blur-[3px]"
-            onClick={() => setSelectedOrderId(null)}
-          />
-
-          <div className="absolute inset-y-0 right-0 flex max-w-full sm:pl-10">
-            <div className="flex h-full w-screen max-w-lg flex-col bg-[var(--wp-bg)] shadow-[0_0_60px_-12px_rgba(26,17,19,0.4)] animate-in slide-in-from-right duration-300">
-
-              {loadingOrderDetails || !selectedOrderDetails ? (
-                <div className="flex h-full items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-red-600" />
+      {/* One transaction, in full. */}
+      {(() => {
+        const p = payments.find((x) => x.id === openPayment);
+        if (!p) return null;
+        const settled = p.paidAt ?? p.createdAt;
+        return (
+          <Sheet
+            open
+            onClose={() => setOpenPayment(null)}
+            title={<span className="font-mono">{p.trackingCode}</span>}
+            subtitle={`${p.currency} ${(p.amount / 100).toFixed(2)} · ${p.status}`}
+          >
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
+              <div>
+                <dt className="text-xs uppercase tracking-wider text-slate-400">Paid by</dt>
+                <dd className="mt-0.5 text-slate-900">{p.senderName}</dd>
+                <dd className="font-mono text-xs text-slate-500">{p.senderPhone}</dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wider text-slate-400">Method</dt>
+                <dd className="mt-0.5 capitalize text-slate-900">{p.provider}</dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wider text-slate-400">Settled</dt>
+                <dd className="mt-0.5 text-slate-900 tabular-nums">
+                  {new Date(settled).toLocaleString(undefined, {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                  })}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wider text-slate-400">Recorded by</dt>
+                <dd className="mt-0.5 text-slate-900">{p.recordedByAdminId ? 'Staff' : 'Automation'}</dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="text-xs uppercase tracking-wider text-slate-400">Reference</dt>
+                <dd className="mt-0.5 break-all font-mono text-xs text-slate-700">
+                  {p.providerReference || 'None recorded'}
+                </dd>
+              </div>
+              {p.note && (
+                <div className="col-span-2">
+                  <dt className="text-xs uppercase tracking-wider text-slate-400">Note</dt>
+                  <dd className="mt-0.5 text-slate-700">{p.note}</dd>
                 </div>
-              ) : (
-                <>
-                  {/* Header: what it is, and where it stands. */}
-                  <div className="shrink-0 bg-white px-5 py-4 border-b border-slate-100">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-mono text-lg font-semibold text-slate-900">
-                          {selectedOrderDetails.order.trackingCode}
-                        </p>
-                        <p className="mt-1 flex items-center gap-2 text-sm">
-                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            STATUS_ORDER.find((x) => x.key === selectedOrderDetails.order.status)?.bg ?? 'bg-slate-100'
-                          } ${
-                            STATUS_ORDER.find((x) => x.key === selectedOrderDetails.order.status)?.text ?? 'text-slate-700'
-                          }`}>
-                            {getStatusLabel(selectedOrderDetails.order.status)}
-                          </span>
-                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            selectedOrderDetails.order.paymentStatus === 'paid'
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : 'bg-amber-50 text-amber-700'
-                          }`}>
-                            {selectedOrderDetails.order.paymentStatus === 'paid' ? 'Paid' : 'Payment due'}
-                          </span>
-                        </p>
-                      </div>
-                      <button
-                        id="btn_close_inspector"
-                        onClick={() => setSelectedOrderId(null)}
-                        aria-label="Close"
-                        className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
-                      >
-                        <X className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-
-                    {/* The route and the price: the two things always wanted. */}
-                    <div className="gd-panel p-5">
-                      <p className="text-xs font-medium uppercase tracking-wider text-slate-400">From</p>
-                      <p className="mt-1 text-[15px] leading-snug text-slate-900">
-                        {selectedOrderDetails.order.pickupAddress}
-                      </p>
-                      <p className="mt-3 text-xs font-medium uppercase tracking-wider text-slate-400">To</p>
-                      <p className="mt-1 text-[15px] leading-snug text-slate-900">
-                        {selectedOrderDetails.order.dropoffAddress}
-                      </p>
-
-                      <div className="mt-4 flex items-end justify-between border-t border-slate-100 pt-4">
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Price</p>
-                          <p className="text-xl font-semibold text-slate-900 tabular-nums">
-                            {selectedOrderDetails.order.currency}{' '}
-                            {(selectedOrderDetails.order.priceAmount / 100).toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Collection</p>
-                          <p className="text-sm text-slate-700">
-                            {formatPickup(selectedOrderDetails.order.scheduledPickupAt)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Next step. The only block that acts, so it stays open. */}
-                    {canWriteOrders && (
-                      <div className="gd-panel p-5 space-y-3">
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Next step</p>
-
-                        {drawerUndo?.ok === true && (
-                          <button
-                            onClick={() => undoLastChange(selectedOrderDetails.order.id)}
-                            disabled={undoing}
-                            className="w-full min-h-12 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
-                          >
-                            {undoing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
-                            {drawerUndo.wasUndo ? 'Redo' : 'Undo'} — back to {getStatusLabel(drawerUndo.previous)}
-                          </button>
-                        )}
-
-                        {advanceStatus(selectedOrderDetails.order.status) && (
-                          <button
-                            id="btn_trigger_next_status"
-                            onClick={() => handleUpdateStatus(advanceStatus(selectedOrderDetails.order.status)!)}
-                            disabled={submittingStatus}
-                            className="btn-aurora w-full min-h-14 flex items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white cursor-pointer disabled:opacity-60"
-                          >
-                            {submittingStatus ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
-                            Move to {getStatusLabel(advanceStatus(selectedOrderDetails.order.status)!)}
-                          </button>
-                        )}
-
-                        {(() => {
-                          const legal = nextStatuses(selectedOrderDetails.order.status).filter(
-                            (k) => k !== advanceStatus(selectedOrderDetails.order.status)
-                          );
-                          if (legal.length === 0) return null;
-                          return (
-                            <details className="group">
-                              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-slate-500 hover:text-slate-800 [&::-webkit-details-marker]:hidden">
-                                Other moves
-                                <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                              </summary>
-                              <div className="gd-reveal pt-2 space-y-2">
-                                <div className="grid grid-cols-2 gap-2">
-                                  {legal.map((key) => (
-                                    <button
-                                      key={key}
-                                      disabled={submittingStatus}
-                                      onClick={() => handleUpdateStatus(key)}
-                                      className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
-                                    >
-                                      {getStatusLabel(key)}
-                                    </button>
-                                  ))}
-                                </div>
-                                <input
-                                  id="input_status_note"
-                                  type="text"
-                                  value={statusNote}
-                                  onChange={(e) => setStatusNote(e.target.value)}
-                                  placeholder="Note for the record (optional)"
-                                  className="w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
-                                />
-                              </div>
-                            </details>
-                          );
-                        })()}
-
-                        {nextStatuses(selectedOrderDetails.order.status).length === 0 && (
-                          <p className="text-sm text-slate-500">
-                            This order is {getStatusLabel(selectedOrderDetails.order.status).toLowerCase()} and cannot change further.
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Everything below is reference, so everything below folds. */}
-                    <div className="gd-panel divide-y divide-slate-100 overflow-hidden">
-
-                      <details className="group">
-                        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50/70 transition-colors [&::-webkit-details-marker]:hidden">
-                          Sender and recipient
-                          <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
-                        </summary>
-                        <div className="gd-reveal space-y-4 border-t border-slate-100 bg-slate-50/40 px-5 py-4 text-sm">
-                          <div>
-                            <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Sender</p>
-                            <p className="mt-0.5 font-medium text-slate-900">{selectedOrderDetails.order.senderName}</p>
-                            <a href={`tel:${selectedOrderDetails.order.senderPhone}`} className="font-mono text-sm text-red-700">
-                              {selectedOrderDetails.order.senderPhone}
-                            </a>
-                            {selectedOrderDetails.order.pickupNotes && (
-                              <p className="mt-1 text-slate-600">Landmark: {selectedOrderDetails.order.pickupNotes}</p>
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Recipient</p>
-                            <p className="mt-0.5 font-medium text-slate-900">{selectedOrderDetails.order.recipientName}</p>
-                            <a href={`tel:${selectedOrderDetails.order.recipientPhone}`} className="font-mono text-sm text-red-700">
-                              {selectedOrderDetails.order.recipientPhone}
-                            </a>
-                            {selectedOrderDetails.order.dropoffNotes && (
-                              <p className="mt-1 text-slate-600">Landmark: {selectedOrderDetails.order.dropoffNotes}</p>
-                            )}
-                          </div>
-                        </div>
-                      </details>
-
-                      <details className="group">
-                        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50/70 transition-colors [&::-webkit-details-marker]:hidden">
-                          Parcel
-                          <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
-                        </summary>
-                        <dl className="gd-reveal grid grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-100 bg-slate-50/40 px-5 py-4 text-sm">
-                          <div>
-                            <dt className="text-xs uppercase tracking-wider text-slate-400">Size</dt>
-                            <dd className="mt-0.5 capitalize text-slate-900">{selectedOrderDetails.order.packageSize}</dd>
-                          </div>
-                          <div>
-                            <dt className="text-xs uppercase tracking-wider text-slate-400">Weight</dt>
-                            <dd className="mt-0.5 text-slate-900 tabular-nums">{selectedOrderDetails.order.packageWeightKg} kg</dd>
-                          </div>
-                          <div className="col-span-2">
-                            <dt className="text-xs uppercase tracking-wider text-slate-400">Contents</dt>
-                            <dd className="mt-0.5 text-slate-900">{selectedOrderDetails.order.packageDescription}</dd>
-                          </div>
-                        </dl>
-                      </details>
-
-                      {selectedOrderDetails.order.riderToken && (
-                        <details className="group">
-                          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50/70 transition-colors [&::-webkit-details-marker]:hidden">
-                            <span className="flex items-center gap-2">
-                              Courier
-                              <span className="text-slate-400">·</span>
-                              <span className="font-normal text-slate-500">
-                                {selectedOrderDetails.order.riderName || 'Unassigned'}
-                              </span>
-                            </span>
-                            <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
-                          </summary>
-                          <div className="gd-reveal border-t border-slate-100 bg-slate-50/40 px-5 py-4">
-                            <button
-                              onClick={() => {
-                                const link = `${window.location.origin}/rider/${selectedOrderDetails.order.riderToken}`;
-                                navigator.clipboard.writeText(link);
-                                setCopiedRiderLink(true);
-                                setTimeout(() => setCopiedRiderLink(false), 2000);
-                              }}
-                              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                            >
-                              {copiedRiderLink ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-                              {copiedRiderLink ? 'Copied' : 'Copy rider link'}
-                            </button>
-                            <p className="mt-2.5 text-sm leading-relaxed text-slate-500">
-                              Send this to the courier. They can mark it collected, on the road and
-                              delivered without a login. It stops working after seven days.
-                            </p>
-                          </div>
-                        </details>
-                      )}
-
-                      {canRecordPayment && selectedOrderDetails.order.paymentStatus !== 'paid' && (
-                        <details className="group">
-                          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50/70 transition-colors [&::-webkit-details-marker]:hidden">
-                            Record a payment
-                            <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
-                          </summary>
-                          <form onSubmit={handleRecordPayment} className="gd-reveal space-y-3 border-t border-slate-100 bg-slate-50/40 px-5 py-4">
-                            <p className="text-sm text-slate-500">
-                              For money already received — mobile money, a transfer, or cash.
-                            </p>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1">Amount</label>
-                                <input
-                                  id="input_reconcile_amount"
-                                  type="number"
-                                  step="0.01"
-                                  required
-                                  value={paymentAmount}
-                                  onChange={(e) => setPaymentAmount(e.target.value)}
-                                  className="w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1">Reference</label>
-                                <input
-                                  id="input_reconcile_ref"
-                                  type="text"
-                                  value={paymentRef}
-                                  onChange={(e) => setPaymentRef(e.target.value)}
-                                  placeholder="Optional"
-                                  className="w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 font-mono text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1">Note</label>
-                              <input
-                                id="input_reconcile_note"
-                                type="text"
-                                required
-                                value={paymentNote}
-                                onChange={(e) => setPaymentNote(e.target.value)}
-                                placeholder="e.g. MoMo screenshot seen on dispatch WhatsApp"
-                                className="w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                              />
-                            </div>
-                            <button
-                              id="btn_confirm_reconcile"
-                              type="submit"
-                              disabled={submittingPayment}
-                              className="w-full min-h-12 flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors cursor-pointer disabled:opacity-60"
-                            >
-                              {submittingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                              Record it
-                            </button>
-                          </form>
-                        </details>
-                      )}
-
-                      <details className="group">
-                        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50/70 transition-colors [&::-webkit-details-marker]:hidden">
-                          <span className="flex items-center gap-2">
-                            History
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs tabular-nums text-slate-500">
-                              {selectedOrderDetails.history.length}
-                            </span>
-                          </span>
-                          <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
-                        </summary>
-                        <ol className="gd-reveal border-t border-slate-100 bg-slate-50/40 px-5 py-4 space-y-3.5">
-                          {selectedOrderDetails.history.map((log) => (
-                            <li key={log.id} className="text-sm">
-                              <div className="flex items-baseline justify-between gap-3">
-                                <span className="font-medium text-slate-900">{getStatusLabel(log.status)}</span>
-                                <span className="shrink-0 font-mono text-xs text-slate-400 tabular-nums">
-                                  {new Date(log.changedAt).toLocaleString(undefined, {
-                                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-                                  })}
-                                </span>
-                              </div>
-                              <p className="mt-0.5 leading-relaxed text-slate-600">{log.note}</p>
-                              {log.changedByName && (
-                                <p className="text-xs text-slate-400">by {log.changedByName}</p>
-                              )}
-                            </li>
-                          ))}
-                        </ol>
-                      </details>
-                    </div>
-                  </div>
-                </>
               )}
+            </dl>
+          </Sheet>
+        );
+      })()}
+
+      {/* ----------------- THE ORDER SCREEN -----------------
+          One parcel, in a sheet that rises over the board. The board does not
+          move while it is open and is exactly where it was when it closes.
+
+          Nothing folds. The side panel was 512px wide and had to hide five
+          sections to fit; a sheet is as tall as the screen, so everything is
+          simply there, in the order somebody works through it: what and where,
+          then the action, then who to ring, then the record. */}
+      {selectedOrderId && (
+        <Sheet
+          open
+          onClose={() => setSelectedOrderId(null)}
+          title={
+            loadingOrderDetails || !selectedOrderDetails
+              ? 'Loading'
+              : <span className="font-mono">{selectedOrderDetails.order.trackingCode}</span>
+          }
+          subtitle={
+            selectedOrderDetails && (
+              <span className="flex flex-wrap items-center gap-2">
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  STATUS_ORDER.find((x) => x.key === selectedOrderDetails.order.status)?.bg ?? 'bg-slate-100'
+                } ${
+                  STATUS_ORDER.find((x) => x.key === selectedOrderDetails.order.status)?.text ?? 'text-slate-700'
+                }`}>
+                  {getStatusLabel(selectedOrderDetails.order.status)}
+                </span>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  selectedOrderDetails.order.paymentStatus === 'paid'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-amber-50 text-amber-700'
+                }`}>
+                  {selectedOrderDetails.order.paymentStatus === 'paid' ? 'Paid' : 'Payment due'}
+                </span>
+                <span className="text-slate-400">
+                  {selectedOrderDetails.order.currency}{' '}
+                  {(selectedOrderDetails.order.priceAmount / 100).toFixed(2)}
+                </span>
+              </span>
+            )
+          }
+          footer={
+            canWriteOrders && selectedOrderDetails && advanceStatus(selectedOrderDetails.order.status) ? (
+              <div className="space-y-2">
+                <button
+                  id="btn_trigger_next_status"
+                  onClick={() => handleUpdateStatus(advanceStatus(selectedOrderDetails.order.status)!)}
+                  disabled={submittingStatus}
+                  className="btn-aurora w-full min-h-14 flex items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white cursor-pointer disabled:opacity-60"
+                >
+                  {submittingStatus ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
+                  Move to {getStatusLabel(advanceStatus(selectedOrderDetails.order.status)!)}
+                </button>
+                {drawerUndo?.ok === true && (
+                  <button
+                    onClick={() => undoLastChange(selectedOrderDetails.order.id)}
+                    disabled={undoing}
+                    className="w-full min-h-11 flex items-center justify-center gap-2 rounded-2xl text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {undoing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+                    {drawerUndo.wasUndo ? 'Redo' : 'Undo'} — back to {getStatusLabel(drawerUndo.previous)}
+                  </button>
+                )}
+              </div>
+            ) : null
+          }
+        >
+          {loadingOrderDetails || !selectedOrderDetails ? (
+            <div className="flex h-40 items-center justify-center">
+              <Loader2 className="h-7 w-7 animate-spin text-red-600" />
             </div>
-          </div>
-        </div>
+          ) : (
+            <div className="space-y-6">
+
+              {/* Where it goes, and when. */}
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Collect from</p>
+                <p className="mt-1 text-[15px] leading-snug text-slate-900">
+                  {selectedOrderDetails.order.pickupAddress}
+                </p>
+                {selectedOrderDetails.order.pickupNotes && (
+                  <p className="text-sm text-slate-500">{selectedOrderDetails.order.pickupNotes}</p>
+                )}
+                <p className="mt-3 text-xs font-medium uppercase tracking-wider text-slate-400">Deliver to</p>
+                <p className="mt-1 text-[15px] leading-snug text-slate-900">
+                  {selectedOrderDetails.order.dropoffAddress}
+                </p>
+                {selectedOrderDetails.order.dropoffNotes && (
+                  <p className="text-sm text-slate-500">{selectedOrderDetails.order.dropoffNotes}</p>
+                )}
+                <p className="mt-3 border-t border-slate-200 pt-3 text-sm text-slate-600">
+                  Collection {formatPickup(selectedOrderDetails.order.scheduledPickupAt)}
+                  <span className="text-slate-300"> · </span>
+                  {selectedOrderDetails.order.packageWeightKg}kg
+                  <span className="text-slate-300"> · </span>
+                  {selectedOrderDetails.order.packageDescription}
+                </p>
+              </div>
+
+              {/* Who to ring. Both numbers, because either end can go wrong. */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Sender</p>
+                  <p className="mt-1 font-medium text-slate-900">{selectedOrderDetails.order.senderName}</p>
+                  <a href={`tel:${selectedOrderDetails.order.senderPhone}`}
+                     className="mt-1.5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-red-700">
+                    <Phone className="h-4 w-4" />
+                    {selectedOrderDetails.order.senderPhone}
+                  </a>
+                </div>
+                <div className="rounded-2xl border border-slate-200 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Recipient</p>
+                  <p className="mt-1 font-medium text-slate-900">{selectedOrderDetails.order.recipientName}</p>
+                  <a href={`tel:${selectedOrderDetails.order.recipientPhone}`}
+                     className="mt-1.5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-red-700">
+                    <Phone className="h-4 w-4" />
+                    {selectedOrderDetails.order.recipientPhone}
+                  </a>
+                </div>
+              </div>
+
+              {/* The courier, and the link they work from. */}
+              {selectedOrderDetails.order.riderToken && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 p-4">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Courier</p>
+                    <p className="mt-1 flex items-center gap-2 font-medium text-slate-900">
+                      <Truck className="h-4 w-4 text-red-600" />
+                      {selectedOrderDetails.order.riderName || 'Unassigned'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const link = `${window.location.origin}/rider/${selectedOrderDetails.order.riderToken}`;
+                      navigator.clipboard.writeText(link);
+                      setCopiedRiderLink(true);
+                      setTimeout(() => setCopiedRiderLink(false), 2000);
+                    }}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    {copiedRiderLink ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                    {copiedRiderLink ? 'Copied' : 'Copy rider link'}
+                  </button>
+                </div>
+              )}
+
+              {/* Moves the Advance button does not cover. */}
+              {canWriteOrders && nextStatuses(selectedOrderDetails.order.status).filter(
+                (k) => k !== advanceStatus(selectedOrderDetails.order.status)
+              ).length > 0 && (
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Other moves</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {nextStatuses(selectedOrderDetails.order.status)
+                      .filter((k) => k !== advanceStatus(selectedOrderDetails.order.status))
+                      .map((key) => (
+                        <button
+                          key={key}
+                          disabled={submittingStatus}
+                          onClick={() => handleUpdateStatus(key)}
+                          className="min-h-11 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {getStatusLabel(key)}
+                        </button>
+                      ))}
+                  </div>
+                  <input
+                    id="input_status_note"
+                    type="text"
+                    value={statusNote}
+                    onChange={(e) => setStatusNote(e.target.value)}
+                    placeholder="Note for the record (optional)"
+                    className="mt-2 w-full min-h-11 rounded-xl border border-slate-200 px-3.5 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
+                  />
+                </div>
+              )}
+
+              {/* Money owed, and the way to settle it. */}
+              {canRecordPayment && selectedOrderDetails.order.paymentStatus !== 'paid' && (
+                <form onSubmit={handleRecordPayment} className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-3">
+                  <p className="text-xs font-medium uppercase tracking-wider text-emerald-800">Record a payment</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      id="input_reconcile_amount"
+                      type="number" step="0.01" required
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder="Amount"
+                      className="min-h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                    />
+                    <input
+                      id="input_reconcile_ref"
+                      type="text"
+                      value={paymentRef}
+                      onChange={(e) => setPaymentRef(e.target.value)}
+                      placeholder="Reference"
+                      className="min-h-11 rounded-xl border border-emerald-200 bg-white px-3 font-mono text-sm text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                    />
+                  </div>
+                  <input
+                    id="input_reconcile_note"
+                    type="text" required
+                    value={paymentNote}
+                    onChange={(e) => setPaymentNote(e.target.value)}
+                    placeholder="What was seen — a MoMo screenshot, cash counted"
+                    className="w-full min-h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                  />
+                  <button
+                    id="btn_confirm_reconcile"
+                    type="submit"
+                    disabled={submittingPayment}
+                    className="w-full min-h-12 flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors cursor-pointer disabled:opacity-60"
+                  >
+                    {submittingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                    Record it
+                  </button>
+                </form>
+              )}
+
+              {/* What has happened, newest first. */}
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+                  History
+                </p>
+                <ol className="mt-2 space-y-3.5">
+                  {selectedOrderDetails.history.map((log) => (
+                    <li key={log.id} className="text-sm">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="font-medium text-slate-900">{getStatusLabel(log.status)}</span>
+                        <span className="shrink-0 font-mono text-xs text-slate-400 tabular-nums">
+                          {new Date(log.changedAt).toLocaleString(undefined, {
+                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 leading-relaxed text-slate-600">{log.note}</p>
+                      {log.changedByName && (
+                        <p className="text-xs text-slate-400">by {log.changedByName}</p>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+          )}
+        </Sheet>
       )}
 
           </div>
