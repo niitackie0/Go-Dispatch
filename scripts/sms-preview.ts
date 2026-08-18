@@ -102,6 +102,13 @@ const cases: { event: NotificationEvent; to: string; when: string; order?: Parti
     },
   },
   {
+    event: 'booking_confirmed',
+    to: 'sender',
+    when: 'WORST CASE: a company name in the name field',
+    order: { senderName: 'Ghana Commercial Enterprises Limited' },
+    context: { bookingReference: 'GDB-4821-330', parcelCount: 12 },
+  },
+  {
     event: 'delivered',
     to: 'sender',
     when: 'cash collected at the door',

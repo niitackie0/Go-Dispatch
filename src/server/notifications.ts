@@ -149,33 +149,33 @@ function render(
       // Several parcels in one visit is one message with the reference that
       // finds them all, not one message per tracking code.
       if (context.bookingReference && (context.parcelCount ?? 1) > 1) {
-        return `Booked: ${context.parcelCount} parcels. Reference ${context.bookingReference} tracks them all. We weigh each one and confirm the price then. Call ${phone}.`;
+        return `your ${context.parcelCount} parcels are booked. Reference ${context.bookingReference} tracks them all. Prices confirm when we weigh each one. Call ${phone}.`;
       }
       if (order.paymentStatus === 'paid') {
-        return `Payment received, and your parcel is booked. Your code is ${code}. Track it with that code or call ${phone}.`;
+        return `payment received and your parcel is booked. Code ${code}. Track it with that code or call ${phone}.`;
       }
       if (order.paymentTiming === 'prepaid') {
-        return `Booked. Your code is ${code}. We collect once your payment lands. Call ${phone} if you need a hand.`;
+        return `your parcel is booked. Code ${code}. We collect once your payment lands. Call ${phone} if you need a hand.`;
       }
-      return `Booked. Your code is ${code}. Payment is due on delivery. Track it with that code or call ${phone}.`;
+      return `your parcel is booked. Code ${code}. Payment is due on delivery. Track it with that code or call ${phone}.`;
     }
 
     // Retained so old rows still render. No longer queued.
     case 'payment_received':
-      return `Payment received for ${code}. Thank you.`;
+      return `payment received for ${code}. Thank you.`;
 
     case 'price_confirmed': {
       const was = context.previousAmount;
       const weight = kg(order.actualWeightKg);
       const weighed = weight ? `${code} weighed ${weight}kg.` : `${code} has been weighed.`;
       return was !== undefined
-        ? `${weighed} The price is ${amount}, not the ${formatAmount(was, order.currency)} estimated. Call ${phone} if that is a problem.`
+        ? `${weighed} The price is ${amount}, not the ${formatAmount(was, order.currency)} estimated. Call ${phone}.`
         : `${weighed} The price is ${amount}. Call ${phone} if that is a problem.`;
     }
 
     case 'rider_assigned': {
       const rider = order.riderName ? firstName(order.riderName) : null;
-      if (!rider) return `A rider is on the way to collect ${code}. He will call you when he arrives.`;
+      if (!rider) return `a rider is on the way to collect ${code}. He will call you when he arrives.`;
       return order.riderPhone
         ? `${rider} is on the way to collect ${code}. He will call when he arrives. His number is ${order.riderPhone}.`
         : `${rider} is on the way to collect ${code}. He will call you when he arrives.`;
@@ -184,12 +184,11 @@ function render(
     // The only message that goes to somebody who did not book with us, so it
     // says who it is from and why they are hearing from us.
     case 'out_for_delivery': {
-      const to = firstName(order.recipientName);
       const from = firstName(order.senderName);
       const owes = order.payer === 'recipient' && order.paymentStatus !== 'paid';
       return owes
-        ? `Hello ${to}, a parcel from ${from} reaches you today. Code ${code}. Have ${amount} ready for the rider. Call ${phone}.`
-        : `Hello ${to}, a parcel from ${from} reaches you today. Code ${code}. The rider will call you. Call ${phone}.`;
+        ? `a parcel from ${from} reaches you today. Code ${code}. Have ${amount} ready for the rider. Call ${phone}.`
+        : `a parcel from ${from} reaches you today. Code ${code}. The rider will call you. Call ${phone}.`;
     }
 
     case 'delivered': {
@@ -222,8 +221,24 @@ export function renderMessage(
   context: NotificationContext = {}
 ): string {
   const body = render(event, order, context);
-  const prefixed = SMS_SENDER_ID_REGISTERED ? body : `${BRAND_NAME}: ${body}`;
-  return toGsm7(prefixed);
+
+  // Addressed to whoever the event is for: the sender on most, the recipient
+  // on the one that reaches somebody who never dealt with us. A name is worth
+  // its ~12 characters here — an unaddressed text about a parcel reads like
+  // every scam message anybody in Ghana has ever received.
+  const audience = AUDIENCE[event];
+  const name = firstName(audience === 'recipient' ? order.recipientName : order.senderName);
+
+  const brand = (text: string) => (SMS_SENDER_ID_REGISTERED ? text : `${BRAND_NAME}: ${text}`);
+  const plain = toGsm7(brand(body));
+  if (!name) return plain;
+
+  // The greeting is a courtesy; the message is the point. Somebody who typed a
+  // very long name, or a company name, into the name field must not cost twice
+  // the postage for it — so if the courtesy is what tips this into a second
+  // billed segment, the courtesy goes.
+  const greeted = toGsm7(brand(`Dear ${name}, ${body}`));
+  return smsCost(greeted).segments > smsCost(plain).segments ? plain : greeted;
 }
 
 /**
