@@ -70,11 +70,10 @@ enum PaymentTiming {
 enum Role {
   /// Everything, including pricing and staff accounts.
   owner
-  /// Orders, statuses and riders. No pricing, no payment recording.
-  dispatcher
   /// Payments, exports and revenue. No dispatch.
   finance
-  /// Read-only, for answering customer calls.
+  /// Orders, statuses and riders. No pricing, no payment recording.
+  /// The default, and therefore the least an account can hold.
   support
 }
 

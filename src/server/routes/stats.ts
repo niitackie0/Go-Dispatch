@@ -34,9 +34,9 @@ statsRouter.get('/', requireAdmin, requirePermission('orders:read'), async (req,
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  // Turnover is not everyone's business — a dispatcher gets the counts they
-  // need to run the road operation and nothing about money. The figures are
-  // not merely hidden in the UI; they are never queried.
+  // Turnover is not everyone's business — support gets the counts needed to
+  // run the road operation and nothing about money. The figures are not merely
+  // hidden in the UI; they are never queried.
   const showRevenue = can(req.admin!.role, 'revenue:read');
 
   // Summed in the database rather than by walking every payment in memory.

@@ -131,7 +131,6 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   // only stops the console offering buttons that would come back 403.
   const canSeePayments = can(user?.role, 'payments:read');
   const canSeeRevenue = can(user?.role, 'revenue:read');
-  // Read-only roles (support) must not be offered actions that would 403.
   const canWriteOrders = can(user?.role, 'orders:write');
   const canRecordPayment = can(user?.role, 'payments:write');
   const canSetPricing = can(user?.role, 'pricing:write');

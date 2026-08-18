@@ -35,11 +35,6 @@ const ROLE_INFO: Record<AdminRole, { label: string; blurb: string; chip: string 
     blurb: 'Everything, including pricing and staff accounts.',
     chip: 'bg-red-500/10 border border-red-500/20 text-red-600',
   },
-  dispatcher: {
-    label: 'Dispatcher',
-    blurb: 'Orders, statuses and riders. No pricing, no payments.',
-    chip: 'bg-blue-500/10 border border-blue-500/20 text-blue-600',
-  },
   finance: {
     label: 'Finance',
     blurb: 'Payments, exports and revenue. No dispatch.',
@@ -47,8 +42,11 @@ const ROLE_INFO: Record<AdminRole, { label: string; blurb: string; chip: string 
   },
   support: {
     label: 'Support',
-    blurb: 'Read-only, for answering customer calls.',
-    chip: 'bg-slate-500/10 border border-slate-500/20 text-slate-600',
+    // Said plainly, because this is where an owner decides what to hand over.
+    // It described itself as read-only long after it stopped being read-only,
+    // which meant granting the run of the board while believing otherwise.
+    blurb: 'Orders, statuses and riders. No pricing, no payments.',
+    chip: 'bg-blue-500/10 border border-blue-500/20 text-blue-600',
   },
 };
 
