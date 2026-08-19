@@ -34,26 +34,26 @@
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
     "pg": "^8.23.0",
-    "react": "^19.0.1",
-    "react-dom": "^19.0.1",
-    "recharts": "^3.9.2"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/pg": "^8.21.0",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.2",
     "prisma": "^7.9.1",
     "tailwindcss": "^4.1.14",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.12",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
   },
   "_optionalDependencies": "The Linux builds of four native toolchain packages, named here so they cannot be left out. Each of rollup, esbuild, lightningcss and tailwind oxide ships its compiled binary as a per-platform optional dependency, and npm writes into package-lock.json only the ones the machine it ran on actually installed. A lockfile generated on Windows therefore names four Windows binaries and no Linux ones, and npm ci on a Linux CI box installs exactly that and fails at the first bundle. Declaring them at the root forces them into the lockfile on every platform. Versions must track the host packages above.",
   "optionalDependencies": {
-    "@esbuild/linux-x64": "0.25.12",
-    "@rollup/rollup-linux-x64-gnu": "4.62.2",
+    "@esbuild/linux-x64": "0.28.2",
+    "@rollup/rollup-linux-x64-gnu": "4.62.4",
     "@tailwindcss/oxide-linux-x64-gnu": "4.3.3",
-    "lightningcss-linux-x64-gnu": "1.32.0"
+    "lightningcss-linux-x64-gnu": "1.33.0"
   }
 }
