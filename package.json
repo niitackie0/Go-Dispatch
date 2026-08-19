@@ -46,7 +46,7 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "vite": "^8.2.1"
   },
   "_optionalDependencies": "The Linux builds of four native toolchain packages, named here so they cannot be left out. Each of rollup, esbuild, lightningcss and tailwind oxide ships its compiled binary as a per-platform optional dependency, and npm writes into package-lock.json only the ones the machine it ran on actually installed. A lockfile generated on Windows therefore names four Windows binaries and no Linux ones, and npm ci on a Linux CI box installs exactly that and fails at the first bundle. Declaring them at the root forces them into the lockfile on every platform. Versions must track the host packages above.",
   "optionalDependencies": {
