@@ -127,7 +127,14 @@ a card or a person; nothing in the repo can close them.
       transition rules are consulted at all.
 - [x] 43. Submit the booking form twice rapidly → **one booking.** Tested with two
       simultaneous requests, not just two clicks — the clicks were never the hard case.
-- [ ] 44. Idle 15+ minutes, then hit it → measure the real cold start
+- [~] 44. Cold start — **not observed, and that is the finding.** Measured repeatedly
+      across a working session: every request warm, 0.18–0.28s to first byte, and the
+      customer site 0.28s. Never once caught it asleep. Either the service was being
+      kept awake by our own traffic and deploys, or Render's health-check polling of
+      `/api/health` counts as inbound traffic — the docs do not say, and Render support
+      would have to. If the second is true there is no cold start at all, which is a
+      better outcome than the one budgeted for. Worth one measurement first thing in
+      the morning, before anyone has touched it, to settle which.
 - [x] 45. Database unreachable → **503 after 10s**, not a hang. Tested by pointing
       `DATABASE_URL` at a black-hole address. This was the whole reason for setting
       `connectionTimeoutMillis`.
