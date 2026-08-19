@@ -62,9 +62,15 @@ a card or a person; nothing in the repo can close them.
 - [x] 25. Tracking codes from `crypto.randomInt`, never sequential; tracking endpoint rate-limited
 - [x] 26. Money is integer pesewas throughout; `packageWeightKg` is a Decimal converted explicitly
 - [x] 27. Payments immutable — `payments.ts` exposes only `GET /`. Undo marks an auto-created payment `failed`, never deletes it
-- [ ] 28. **Idempotency key on booking creation** — none. A double-tap creates two deliveries, and a sleeping instance makes the first request slow enough that people *will* tap twice. — **S**
+- [x] 28. **Idempotency key on booking creation** — the form sends one key per
+      filled-in form; `bookings.idempotencyKey` is uniquely indexed and the route both
+      looks it up and catches the collision, so simultaneous taps resolve to one booking.
+      Verified: two at once → one; a replay → the same; a new key → a new booking.
 - [x] 29. Server-side state machine in `src/transitions.ts`, shared with the console so it cannot offer an illegal move; owner-only override requires a written reason
 - [x] 30. No delete path for orders or payments — cancellation is a status. Staff accounts delete, but `status_history` keeps attribution via `onDelete: SetNull` plus a denormalised name
+- [x] 31a. **Sender-initiated cancellation** — *not on the original list, added because
+      the alternative was a phone call.* Tracking page, `requested`/`awaiting_payment`
+      only, code + phone required, identical 404 for a wrong code and a wrong number.
 - [ ] 31. Daily reconciliation view, tested against a fake day's cash — **M**
 
 > The public tracking page is the most exposed surface: unauthenticated, and it
@@ -93,7 +99,8 @@ a card or a person; nothing in the repo can close them.
 - [–] 40. Customer A fetching customer B's booking — **not applicable.** No customer accounts; a booking reference is the credential.
 - [ ] 41. POST a booking with `amount`/`status` in the body → must be ignored
 - [ ] 42. `curl` a delivery from "requested" straight to "delivered" → must be rejected
-- [ ] 43. Submit the booking form twice rapidly → **currently creates two.** See 28.
+- [x] 43. Submit the booking form twice rapidly → **one booking.** Tested with two
+      simultaneous requests, not just two clicks — the clicks were never the hard case.
 - [ ] 44. Idle 15+ minutes, then hit it → measure the real cold start
 - [ ] 45. Suspend Neon compute mid-request → clean error, not a hang
 - [–] 46. Upload tests — not applicable, see 21.
