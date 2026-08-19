@@ -1,0 +1,154 @@
+# Nightly backup of the GO DISPATCH database.
+#
+# Runs on GitHub Actions rather than on Render, because the Render instance is
+# a free one that sleeps -- a cron inside a process that is not running is not
+# a cron. Actions also fails loudly, by email, which a silent backup job never
+# does. A silently failing backup is the classic: you find out the night you
+# need it.
+#
+# IT DOES NOT ONLY TAKE THE DUMP. It restores it into a throwaway Postgres and
+# counts the rows before keeping it. "We have backups" and "we have backups
+# that restore" are different claims, and only the second one is worth
+# anything. This makes the second one true every night instead of once, on the
+# day somebody remembered to check.
+#
+# ---------------------------------------------------------------------------
+# SETUP — two repository secrets, Settings -> Secrets and variables -> Actions
+# ---------------------------------------------------------------------------
+#
+#   DIRECT_URL          The Neon connection string WITHOUT `-pooler` in the
+#                       host. pg_dump holds one long transaction; a connection
+#                       pooler is the wrong end to hold it against.
+#
+#   BACKUP_PASSPHRASE   Anything long and random. The dump holds every
+#                       customer's name, phone number and home address, so it
+#                       is encrypted before it is stored.
+#
+#                       KEEP THIS SOMEWHERE THAT IS NOT GITHUB. A passphrase
+#                       stored only in the same account as the backups protects
+#                       nothing, and a lost one makes every backup a file of
+#                       noise. A password manager. Written down. Both.
+#
+# Restoring: docs/backups.md.
+
+name: Nightly backup
+
+on:
+  schedule:
+    # 02:00 UTC. Ghana is UTC+0 year round, so this is 2am locally -- the
+    # quietest hour, and hours before anyone opens the console.
+    - cron: '0 2 * * *'
+  # So you can prove it works today rather than waiting until tomorrow.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # The throwaway the dump gets restored into. Must match the version Neon
+    # runs, or the restore proves nothing about the database we actually have.
+    services:
+      verify:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: verify
+          POSTGRES_DB: verify
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Install postgresql-client 18
+        # The runner ships an older client, and pg_dump refuses to dump a
+        # server newer than itself. Pinned to the major version Neon runs.
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+            https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18
+          pg_dump --version
+
+      - name: Take the dump
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: |
+          if [ -z "$DIRECT_URL" ]; then
+            echo "::error::DIRECT_URL secret is not set. See the header of this file."
+            exit 1
+          fi
+          # --no-owner and --no-privileges so it restores into any role, which
+          # is the whole point on a day when the original role is what broke.
+          pg_dump "$DIRECT_URL" \
+            --no-owner \
+            --no-privileges \
+            --format=plain \
+            --file=backup.sql
+          echo "dump: $(du -h backup.sql | cut -f1), $(wc -l < backup.sql) lines"
+
+      - name: Restore it into a throwaway, and count what came back
+        env:
+          PGPASSWORD: verify
+        run: |
+          psql -h localhost -U postgres -d verify -v ON_ERROR_STOP=1 -q -f backup.sql
+
+          # A dump that restores without error can still be empty. Assert the
+          # tables that would end the business if they were lost.
+          read -r orders payments admins <<< "$(psql -h localhost -U postgres -d verify -tAX -F' ' -c \
+            "SELECT (SELECT count(*) FROM orders),
+                    (SELECT count(*) FROM payments),
+                    (SELECT count(*) FROM admin_users);")"
+
+          echo "restored: $orders order(s), $payments payment(s), $admins admin account(s)"
+
+          if [ "$admins" -lt 1 ]; then
+            echo "::error::Restored database has no admin accounts. This backup would not get anyone back in."
+            exit 1
+          fi
+
+          # Orders can legitimately be zero before launch, so it is a warning
+          # rather than a failure -- but a silent zero is how you discover in
+          # six months that you have been dumping an empty schema.
+          if [ "$orders" -lt 1 ]; then
+            echo "::warning::Restored database has no orders. Fine before launch, alarming after it."
+          fi
+
+      - name: Encrypt
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::BACKUP_PASSPHRASE secret is not set. See the header of this file."
+            exit 1
+          fi
+          gzip -9 backup.sql
+          # -pbkdf2 because the old default KDF is one round of MD5.
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+            -in backup.sql.gz \
+            -out "go-dispatch-$(date -u +%Y-%m-%d).sql.gz.enc" \
+            -pass env:BACKUP_PASSPHRASE
+          rm -f backup.sql.gz
+          ls -lh *.enc
+
+      - name: Keep it
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_id }}
+          path: '*.sql.gz.enc'
+          # The GitHub maximum. Worth knowing what this is and is not: it is
+          # off-Neon, which is the risk it was built for, but it is not
+          # off-GitHub and it is not permanent. Before it matters, move the
+          # monthly one somewhere you own -- docs/backups.md says how.
+          retention-days: 90
+          if-no-files-found: error
