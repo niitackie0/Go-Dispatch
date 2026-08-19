@@ -145,7 +145,13 @@ a card or a person; nothing in the repo can close them.
 ## 10. First week
 
 - [ ] 53. Read the error feed daily — blocked on 32
-- [ ] 54. Watch Neon's query stats for slow queries seed data hid
+- [x] 54. **Slow queries seed data hid** — found three. Public tracking matched
+      `senderPhone` and `recipientPhone` with neither indexed (sequential scan of the
+      whole table, on the one unauthenticated endpoint); both indexed now. The board
+      and the ledger each fetched *every* row and paginated in the browser — capped at
+      500 with an honest notice when a list is cut, rather than quietly hiding old
+      records. And anything over 400ms now logs itself with the query attached, so the
+      next one announces itself instead of waiting to be noticed.
 - [ ] 55. Confirm dumps are landing — blocked on 11
 - [ ] 56. Confirm SMS arrives on real Ghanaian networks — sending is ON; one real booking proves it
 

@@ -214,6 +214,13 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   });
   const [cashOpen, setCashOpen] = useState(false);
 
+  /**
+   * Set when the server capped the list it sent. Filters and paging both run
+   * in the browser, so a capped list silently loses the oldest rows — and a
+   * screen that quietly hides records is worse than one that admits it.
+   */
+  const [listTruncated, setListTruncated] = useState<number | null>(null);
+
   const [payments, setPayments] = useState<(Payment & { trackingCode: string; senderName: string; senderPhone: string })[]>([]);
   const [pricing, setPricing] = useState<PricingConfig | null>(null);
   const [allOrdersForStats, setAllOrdersForStats] = useState<Order[]>([]);
@@ -329,11 +336,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
       }
       if (ordersRes.ok) {
         const oData = await ordersRes.json();
-        setAllOrdersForStats(oData);
+        setAllOrdersForStats(Array.isArray(oData?.orders) ? oData.orders : []);
       }
       if (paymentsRes.ok) {
         const pData = await paymentsRes.json();
-        setAllPaymentsForStats(pData);
+        setAllPaymentsForStats(Array.isArray(pData?.payments) ? pData.payments : []);
       }
     } catch (err) {
       console.error('Failed to load stats', err);
@@ -355,7 +362,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
       const res = await fetch(`/api/orders?${queryParams.toString()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setOrders(data);
+        setOrders(Array.isArray(data?.orders) ? data.orders : []);
+        setListTruncated(data?.truncated === true ? data.cap : null);
       }
     } catch (err) {
       console.error('Failed to load orders', err);
@@ -371,7 +379,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
       const res = await fetch('/api/payments', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setPayments(data);
+        setPayments(Array.isArray(data?.payments) ? data.payments : []);
+        setListTruncated(data?.truncated === true ? data.cap : null);
       }
     } catch (err) {
       console.error('Failed to load payments', err);
@@ -1749,6 +1758,13 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   )}
                 </>
               )}
+            </div>
+          )}
+
+          {listTruncated !== null && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Showing the most recent {listTruncated.toLocaleString()} records. Older ones are
+              not on this screen — narrow the dates to reach them.
             </div>
           )}
 

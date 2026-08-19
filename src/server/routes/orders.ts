@@ -19,6 +19,7 @@ import { withTrackingCode } from '../ids.js';
 import { prisma } from '../prisma.js';
 import { serializeHistory, serializeOrder, serializePayment } from '../serialize.js';
 import { publicActionLimit, publicReadLimit, publicWriteLimit } from '../rateLimit.js';
+import { LIST_CAP } from './payments.js';
 import { senderMayCancel } from '../../transitions.js';
 import { phoneSearchVariants, storablePhone, toE164 } from '../../phone.js';
 import { queueNotification } from '../notifications.js';
@@ -370,13 +371,23 @@ ordersRouter.get('/', requireAdmin, requirePermission('orders:read'), async (req
     where.createdAt = createdAt;
   }
 
-  const orders = await prisma.order.findMany({
+  // Capped for the same reason as the ledger — see LIST_CAP in payments.ts.
+  // The board filters and sorts in the browser, so an uncapped query is the
+  // whole orders table on every load once this business has a year behind it.
+  const rows = await prisma.order.findMany({
     where,
     include: { rider: true },
     orderBy: { createdAt: 'desc' },
+    take: LIST_CAP + 1,
   });
 
-  res.json(orders.map(serializeOrder));
+  const truncated = rows.length > LIST_CAP;
+
+  res.json({
+    truncated,
+    cap: LIST_CAP,
+    orders: (truncated ? rows.slice(0, LIST_CAP) : rows).map(serializeOrder),
+  });
 });
 
 /* ---------------------------------------------------------------------------

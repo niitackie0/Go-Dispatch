@@ -246,6 +246,12 @@ model Order {
   @@index([createdAt])
   @@index([riderId])
   @@index([status, createdAt])
+  /// Public tracking matches a phone number exactly, against both ends. Without
+  /// these two, every lookup by phone is a sequential scan of the whole table --
+  /// invisible at three orders and the slowest thing in the product at thirty
+  /// thousand. Bookings already had one; orders did not.
+  @@index([senderPhone])
+  @@index([recipientPhone])
   @@map("orders")
 }
 

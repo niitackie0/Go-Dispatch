@@ -11,20 +11,38 @@ import { serializePayment } from '../serialize.js';
 
 export const paymentsRouter = asyncRouter();
 
+/**
+  * How many rows a list endpoint will ever return.
+  *
+  * The console fetches the whole ledger and paginates it in the browser, which
+  * is fine at three payments and is the whole table over the wire at thirty
+  * thousand. Full server-side paging is a larger change than this needs today;
+  * a cap is not that, but it does mean the query can never become unbounded,
+  * and the response says when it has been cut so the interface can say so too
+  * rather than quietly hiding older rows.
+  */
+export const LIST_CAP = 500;
+
 paymentsRouter.get('/', requireAdmin, requirePermission('payments:read'), async (_req, res) => {
   const payments = await prisma.payment.findMany({
     include: { order: true },
     orderBy: { createdAt: 'desc' },
+    take: LIST_CAP + 1,
   });
 
-  res.json(
-    payments.map((p) => ({
+  const truncated = payments.length > LIST_CAP;
+  const rows = truncated ? payments.slice(0, LIST_CAP) : payments;
+
+  res.json({
+    truncated,
+    cap: LIST_CAP,
+    payments: rows.map((p) => ({
       ...serializePayment(p),
       trackingCode: p.order?.trackingCode ?? 'UNKNOWN',
       senderName: p.order?.senderName ?? 'UNKNOWN',
       senderPhone: p.order?.senderPhone ?? 'UNKNOWN',
-    }))
-  );
+    })),
+  });
 });
 
 
