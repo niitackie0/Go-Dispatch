@@ -25,7 +25,11 @@ a card or a person; nothing in the repo can close them.
 
 - [x] 5. App uses pooled `DATABASE_URL`; `prisma.config.ts` points migrations at direct `DIRECT_URL`
 - [ ] 6. **App connects as `neondb_owner`** — the project owner, which can drop the schema it reads. Wants a limited role with DML but no DDL. — **S**
-- [ ] 7. Pool size and retry on dropped connections — never configured or tested. `@prisma/adapter-pg` defaults apply. — **S**
+- [x] 7. **Pool configured, and a dropped connection survivable** — max 10,
+      `connectionTimeoutMillis` 10s (was 0, meaning wait forever), `statement_timeout`
+      20s, keepAlive, `application_name` so Neon's monitoring can name us. A `pool.on
+      ('error')` listener too: an idle client dropped by Neon was an unhandled
+      EventEmitter error, which ends the Node process.
 - [x] 8. Same-ish region — Render has no UK region; Frankfurt is the nearest to Neon's London. ~10–15ms per query, documented in `docs/deploying.md`
 - [x] 9. ~~Scale-to-zero disabled; paid always-on instance~~ — **decided against.** Free instance, sleeps after 15 idle minutes. Accepted knowingly: first request after a quiet spell takes ~1min, and the automation tick only runs while awake.
 - [ ] 10. `sslmode` ✅ now `verify-full` in the templates — **but the live values in `.env` and Render still say `require` and need editing by hand.** IP allowlist and spend cap not set. — *yours*
@@ -109,12 +113,18 @@ a card or a person; nothing in the repo can close them.
 ## 8. Verification — test these, don't just implement them
 
 - [–] 40. Customer A fetching customer B's booking — **not applicable.** No customer accounts; a booking reference is the credential.
-- [ ] 41. POST a booking with `amount`/`status` in the body → must be ignored
-- [ ] 42. `curl` a delivery from "requested" straight to "delivered" → must be rejected
+- [x] 41. POST a booking with `amount`/`status`/`trackingCode` in the body → **all
+      ignored.** Price came back 5000 not 1, status `requested` not `delivered`,
+      payment `pending` not `paid`, and the code server-generated.
+- [x] 42. requested → delivered → **400, "Cannot move from requested to delivered."**
+      A legal move still returns 200, and without a session it is 401 before the
+      transition rules are consulted at all.
 - [x] 43. Submit the booking form twice rapidly → **one booking.** Tested with two
       simultaneous requests, not just two clicks — the clicks were never the hard case.
 - [ ] 44. Idle 15+ minutes, then hit it → measure the real cold start
-- [ ] 45. Suspend Neon compute mid-request → clean error, not a hang
+- [x] 45. Database unreachable → **503 after 10s**, not a hang. Tested by pointing
+      `DATABASE_URL` at a black-hole address. This was the whole reason for setting
+      `connectionTimeoutMillis`.
 - [–] 46. Upload tests — not applicable, see 21.
 - [ ] 47. Restore last night's dump into a scratch Neon branch and open the console against it — blocked on 11
 
