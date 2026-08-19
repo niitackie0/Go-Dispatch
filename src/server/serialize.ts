@@ -22,18 +22,11 @@ import type { Order, Payment, Rider, StatusHistory } from '../types.js';
  *   so the API shape is preserved without duplicating the column and having
  *   the copy drift when a rider is renamed.
  *
- * WHAT IS NOT HERE: riderToken, and now nothing serialises it at all.
- *
- * It used to be in this function, which feeds public responses -- so a booking
- * reference could be exchanged for the courier's token, and that token marks a
- * parcel delivered and its bill settled. It was moved behind an admin session
- * for the console's "copy the courier's link" button; that button has since
- * been removed, so the token has no reader left and does not leave the server
- * at all.
- *
- * The rider pages still work for anyone holding a link, but nothing now hands
- * one out. If couriers are meant to have them again, the answer is to text the
- * link to the rider rather than to put it back on a screen.
+ * WHAT IS NOT HERE: riderToken. It used to be, and this function feeds public
+ * responses -- so a booking reference could be exchanged for the courier's
+ * token, and that token marks a parcel delivered and its bill settled. The
+ * sender could close their own order without paying for it. One console screen
+ * needs the token; it asks for it explicitly, below.
  */
 
 export type OrderWithRider = OrderRow & { rider?: RiderRow | null };
@@ -71,6 +64,16 @@ export function serializeOrder(row: OrderWithRider): Order {
   };
 }
 
+/**
+ * The same order, plus the courier's link token.
+ *
+ * Only for responses that are already behind an admin session -- the console's
+ * order drawer offers "copy the courier's link", and this is where that link
+ * comes from. Everything else uses serializeOrder and does not get it.
+ */
+export function serializeOrderWithRiderToken(row: OrderWithRider): Order {
+  return { ...serializeOrder(row), riderToken: row.riderToken ?? undefined };
+}
 
 export function serializePayment(row: PaymentRow): Payment {
   return {
