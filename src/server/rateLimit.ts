@@ -104,6 +104,20 @@ export const publicReadLimit = rateLimit({
  * and far less than a script needs to be worth writing. This one also guards
  * the SMS balance, since every booking queues a message we pay to send.
  */
+/**
+ * Cancelling, which is a write but not a booking.
+ *
+ * Its own bucket rather than sharing publicWriteLimit: mistyping the phone
+ * number three times must not use up the allowance somebody needs to make a
+ * booking afterwards. Twenty an hour is far more than one person cancelling
+ * a parcel and far less than useful for guessing at phone numbers.
+ */
+export const publicActionLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: 'Too many attempts. Wait a while, or call 054 030 4994.',
+});
+
 export const publicWriteLimit = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 10,

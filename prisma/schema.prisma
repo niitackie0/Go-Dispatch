@@ -267,6 +267,13 @@ model Booking {
   /// from the per-parcel tracking codes, which are what recipients use.
   reference String @unique @db.VarChar(32)
 
+  /// Sent by the booking form, one per filled-in form rather than per submit.
+  /// The unique index is the whole mechanism: a second submit of the same form
+  /// collides instead of booking the parcels twice. Nullable because bookings
+  /// taken over the phone, and every booking made before this existed, have no
+  /// form behind them.
+  idempotencyKey String? @unique @db.VarChar(64)
+
   senderName  String
   senderPhone String
   pickupAddress String

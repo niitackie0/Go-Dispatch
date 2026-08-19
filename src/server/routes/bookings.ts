@@ -10,7 +10,7 @@ import { requirePermission } from '../permissions.js';
 import { prisma } from '../prisma.js';
 import { runAutomations } from '../automations.js';
 import { withTrackingCode } from '../ids.js';
-import { serializeOrder } from '../serialize.js';
+import { serializeOrder, type OrderWithRider } from '../serialize.js';
 import { isRegion, REGION_NAMES } from '../../regions.js';
 import { quote, sizeForWeight } from '../../pricing.js';
 import { currentRule } from './pricing.js';
@@ -38,6 +38,29 @@ export const bookingsRouter = asyncRouter();
 
 const MAX_PARCELS = 20;
 
+/**
+ * The booking response, in one place.
+ *
+ * A repeated submit is answered with this too, built from the booking that
+ * already exists -- so a sender who tapped twice sees exactly what a sender who
+ * tapped once sees, rather than an error about a duplicate they did not know
+ * they made.
+ */
+function bookingResponse(
+  booking: { reference: string },
+  orders: OrderWithRider[]
+) {
+  return {
+    success: true,
+    reference: booking.reference,
+    parcels: orders.map(serializeOrder),
+    estimatedTotal: orders.reduce((sum, o) => sum + o.priceAmount, 0),
+    currency: orders[0]?.currency ?? 'GHS',
+    priceIsEstimate: true,
+    note: 'This is an estimate. We weigh every parcel at our office and the weighed price is what the recipient pays.',
+  };
+}
+
 /** Sender-facing reference, distinct from the per-parcel tracking codes. */
 function bookingReference(): string {
   return `GDB-${crypto.randomInt(1000, 10000)}-${crypto.randomInt(100, 1000)}`;
@@ -51,7 +74,32 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
     pickupNotes,
     scheduledPickupAt,
     parcels,
+    idempotencyKey,
   } = req.body ?? {};
+
+  /**
+   * A second press of Book must not book a second time.
+   *
+   * The form sends one key per filled-in form, not per submit, so every retry
+   * of the same booking carries the same one. This is not a nicety: the
+   * service sleeps after fifteen idle minutes, so the first booking of the
+   * morning waits about a minute on a spinner. People press buttons again.
+   *
+   * Checked here for the common case, and caught again on the unique index
+   * below for the real one -- two taps in flight at once both find nothing
+   * here, and only the index can settle that.
+   */
+  const key = typeof idempotencyKey === 'string' && idempotencyKey.length <= 64
+    ? idempotencyKey
+    : null;
+
+  if (key) {
+    const already = await prisma.booking.findUnique({
+      where: { idempotencyKey: key },
+      include: { orders: { include: { rider: true }, orderBy: { createdAt: 'asc' } } },
+    });
+    if (already) return res.json(bookingResponse(already, already.orders));
+  }
 
   if (!senderName || !senderPhone || !pickupAddress) {
     return res.status(400).json({ error: 'Your name, phone number and pickup address are required' });
@@ -122,10 +170,13 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
 
   // Booking and every parcel land together: a booking that half-exists is
   // worse than one that failed outright.
-  const created = await prisma.$transaction(async (tx) => {
+  let created;
+  try {
+    created = await prisma.$transaction(async (tx) => {
     const booking = await tx.booking.create({
       data: {
         reference: bookingReference(),
+        idempotencyKey: key,
         senderName,
         senderPhone,
         pickupAddress,
@@ -189,7 +240,20 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
     });
 
     return { booking, orders };
-  });
+    });
+  } catch (err) {
+    // The other tap won the race. Hand back what it created rather than an
+    // error the sender cannot act on -- from their side the booking worked,
+    // because it did.
+    if (key && (err as { code?: string })?.code === 'P2002') {
+      const winner = await prisma.booking.findUnique({
+        where: { idempotencyKey: key },
+        include: { orders: { include: { rider: true }, orderBy: { createdAt: 'asc' } } },
+      });
+      if (winner) return res.json(bookingResponse(winner, winner.orders));
+    }
+    throw err;
+  }
 
   await runAutomations();
 
@@ -199,18 +263,7 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
     orderBy: { createdAt: 'asc' },
   });
 
-  const estimatedTotal = settled.reduce((sum, o) => sum + o.priceAmount, 0);
-
-  res.status(201).json({
-    success: true,
-    reference: created.booking.reference,
-    parcels: settled.map(serializeOrder),
-    estimatedTotal,
-    currency: rule.currency,
-    // Said plainly, because the customer is told rather than surprised.
-    priceIsEstimate: true,
-    note: 'This is an estimate. We weigh every parcel at our office and the weighed price is what the recipient pays.',
-  });
+  res.status(201).json(bookingResponse(created.booking, settled));
 });
 
 /* ---------------------------------------------------------------------------

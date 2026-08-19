@@ -72,6 +72,23 @@ export function isTerminal(status: OrderStatus): boolean {
  * general "edit history" tool: past the window, moving an order backwards is
  * an owner override, which demands a written reason and is recorded as one.
  */
+/**
+ * The statuses a sender may cancel from without ringing the office.
+ *
+ * Deliberately short, and the line is money rather than convenience: both of
+ * these are before anything has been paid and before a courier has been given
+ * the job. Cancelling later is not a harder button, it is a refund and a
+ * wasted trip, and neither of those should happen without a person involved.
+ *
+ * `confirmed` is excluded on purpose. It means the office has committed to
+ * collecting, and for a prepaid parcel it means the money has arrived.
+ */
+export const SENDER_CANCELLABLE: readonly OrderStatus[] = ['requested', 'awaiting_payment'];
+
+export function senderMayCancel(status: OrderStatus): boolean {
+  return SENDER_CANCELLABLE.includes(status);
+}
+
 export const UNDO_WINDOW_MS = 10 * 60 * 1000;
 
 /** The shape of a status_history row, as either side of the wire has it. */

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
   CheckCircle,
@@ -70,9 +70,36 @@ const blankParcel = (key: number, region = ''): ParcelDraft => ({
  *  - The RECIPIENT pays, per parcel, at their door. There is no payment step
  *    because the sender is not being asked for money.
  */
+/**
+ * A key for one filled-in form. randomUUID needs a secure context — true for
+ * https and for localhost, false for a phone hitting a dev machine over the
+ * LAN, which is exactly where this gets tested.
+ */
+function newKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `k-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 export default function BookingForm({ onSuccessBooking, initialRegion = '' }: BookingFormProps) {
   const [pricing, setPricing] = useState<PricingConfig>(DEFAULT_PRICING);
   const [submitting, setSubmitting] = useState(false);
+
+  /**
+   * One key per filled-in form, not per submit.
+   *
+   * It is a ref rather than state precisely so that re-rendering cannot change
+   * it: every retry of this booking must carry the same value, or the server
+   * has no way to tell a retry from a second booking. A new one is minted only
+   * after a booking succeeds, because at that point the next submit really is
+   * a different parcel.
+   *
+   * This matters here more than on most forms. The server sleeps after fifteen
+   * idle minutes, so the first booking of the morning sits on a spinner for
+   * about a minute, and a spinner that long is a button people press again.
+   */
+  const idempotencyKey = useRef(newKey());
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -183,6 +210,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           pickupAddress,
           pickupNotes,
           scheduledPickupAt: new Date(scheduledPickup).toISOString(),
+          idempotencyKey: idempotencyKey.current,
           parcels: parcels.map((p) => ({
             destinationRegion: p.destinationRegion,
             dropoffAddress: p.dropoffAddress,
@@ -196,6 +224,10 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
 
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'That booking could not be submitted.');
+
+      // Booked. The next submit from this page would be a genuinely new
+      // booking, so it needs a key of its own.
+      idempotencyKey.current = newKey();
 
       setResult({
         reference: body.reference,

@@ -4,6 +4,22 @@ import { PrismaClient } from '@prisma/client';
 import type { OrderStatus, PackageSize, PaymentStatus, PaymentTiming } from '../src/types.js';
 import { randomToken } from '../src/server/ids.js';
 import { quote, sizeForWeight } from '../src/pricing.js';
+import { CONTACT_PHONE } from '../src/brand.js';
+
+/**
+ * Every phone number in this file, and it is deliberately the office's own.
+ *
+ * These orders exist to be worked through the console, and every status change
+ * queues a message. Sending is live. An invented number that happens to be a
+ * real Ghanaian mobile means a stranger gets three texts about a parcel they
+ * never sent -- which is exactly what happened on 19 Aug 2026, to
+ * 0244 815 203, because this file used to contain plausible fakes.
+ *
+ * Pointing them at GO DISPATCH means the only phone a demo can reach is the
+ * one belonging to the people running the demo. It also makes the messages
+ * useful: you can read what a customer would have received.
+ */
+const DEMO_PHONE = CONTACT_PHONE.replace(/\s/g, '');
 
 /**
  * Demo orders, so the board, the drawer and the tracking timeline have
@@ -22,6 +38,8 @@ import { quote, sizeForWeight } from '../src/pricing.js';
  *
  * The three cover the states the board is built to distinguish:
  *   overdue and unassigned  · on the road with a courier  · owing money
+ *
+ * Every phone number is the office's own -- see DEMO_PHONE below.
  *
  * Idempotent by tracking code. `npm run wipe:orders` clears them again.
  */
@@ -78,11 +96,11 @@ const FIXTURES: Fixture[] = [
   {
     trackingCode: 'GD-3184-207',
     senderName: 'Akosua Frimpong',
-    senderPhone: '0244815203',
+    senderPhone: DEMO_PHONE,
     pickupAddress: 'Shop 4, Kwame Nkrumah Circle, Accra',
     pickupNotes: 'Above the pharmacy, ask for Akosua',
     recipientName: 'Kofi Boadu',
-    recipientPhone: '0201447789',
+    recipientPhone: DEMO_PHONE,
     dropoffAddress: 'Plot 22, Ahodwo Road, Kumasi',
     dropoffNotes: 'Green gate opposite the school',
     destinationRegion: 'Ashanti',
@@ -104,11 +122,11 @@ const FIXTURES: Fixture[] = [
   {
     trackingCode: 'GD-7429-618',
     senderName: 'Nana Yaa Owusu',
-    senderPhone: '0553902114',
+    senderPhone: DEMO_PHONE,
     pickupAddress: '14 Ring Road East, Osu, Accra',
     pickupNotes: 'Reception will hand it over',
     recipientName: 'Selorm Dzidzor',
-    recipientPhone: '0269338470',
+    recipientPhone: DEMO_PHONE,
     dropoffAddress: 'House 8, Ahoe, Ho',
     dropoffNotes: 'Call on arrival, the road is unmarked',
     destinationRegion: 'Volta',
@@ -142,11 +160,11 @@ const FIXTURES: Fixture[] = [
   {
     trackingCode: 'GD-9052-341',
     senderName: 'Ibrahim Mahama',
-    senderPhone: '0507723189',
+    senderPhone: DEMO_PHONE,
     pickupAddress: 'Block B, Spintex Road, Accra',
     pickupNotes: 'Warehouse side entrance',
     recipientName: 'Fatima Alhassan',
-    recipientPhone: '0246650931',
+    recipientPhone: DEMO_PHONE,
     dropoffAddress: 'Near Aboabo Market, Tamale',
     dropoffNotes: '',
     destinationRegion: 'Northern',
