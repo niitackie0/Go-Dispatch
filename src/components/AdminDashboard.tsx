@@ -29,8 +29,6 @@ import {
   Menu,
   LogOut,
   ExternalLink,
-  Copy,
-  Check,
   Users,
   ShieldCheck,
   ChevronDown,
@@ -213,7 +211,6 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   const [pipelinePage, setPipelinePage] = useState(1);
   const [paymentsPage, setPaymentsPage] = useState(1);
   const [advancingId, setAdvancingId] = useState<string | null>(null);
-  const [copiedRiderLink, setCopiedRiderLink] = useState(false);
 
   // The payments ledger is filtered here rather than at the API: it is already
   // loaded in full for the revenue figures, so a round trip per keystroke would
@@ -2069,30 +2066,15 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
               </div>
 
-              {/* The courier, and the link they work from. */}
-              {selectedOrderDetails.order.riderToken && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 p-4">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Courier</p>
-                    <p className="mt-1 flex items-center gap-2 font-medium text-slate-900">
-                      <Truck className="h-4 w-4 text-red-600" />
-                      {selectedOrderDetails.order.riderName || 'Unassigned'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const link = `${window.location.origin}/rider/${selectedOrderDetails.order.riderToken}`;
-                      navigator.clipboard.writeText(link);
-                      setCopiedRiderLink(true);
-                      setTimeout(() => setCopiedRiderLink(false), 2000);
-                    }}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                  >
-                    {copiedRiderLink ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-                    {copiedRiderLink ? 'Copied' : 'Copy rider link'}
-                  </button>
-                </div>
-              )}
+              {/* Who is carrying it. The link they used to work from is gone --
+                  see the note on serializeOrder. */}
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Courier</p>
+                <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <Truck className="h-4 w-4 text-red-600" />
+                  {selectedOrderDetails.order.riderName || 'Unassigned'}
+                </p>
+              </div>
 
               {/* Moves the Advance button does not cover. */}
               {canWriteOrders && nextStatuses(selectedOrderDetails.order.status).filter(

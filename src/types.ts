@@ -109,8 +109,6 @@ export interface Order {
   /** Assigned courier, set when the order is auto-queued. */
   riderId?: string;
   riderName?: string;
-  /** Opaque token backing the rider's self-service update link. */
-  riderToken?: string;
   createdAt: string;
   updatedAt: string;
 }

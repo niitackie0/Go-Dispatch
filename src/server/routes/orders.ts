@@ -17,12 +17,7 @@ import { runAutomations } from '../automations.js';
 import { notifyForStatus, unqueueForStatus } from '../notifications.js';
 import { withTrackingCode } from '../ids.js';
 import { prisma } from '../prisma.js';
-import {
-  serializeHistory,
-  serializeOrder,
-  serializeOrderWithRiderToken,
-  serializePayment,
-} from '../serialize.js';
+import { serializeHistory, serializeOrder, serializePayment } from '../serialize.js';
 import { publicActionLimit, publicReadLimit, publicWriteLimit } from '../rateLimit.js';
 import { senderMayCancel } from '../../transitions.js';
 import { toGhanaMsisdn } from '../sms.js';
@@ -401,9 +396,7 @@ ordersRouter.get('/:id', requireAdmin, requirePermission('orders:read'), async (
   }
 
   res.json({
-    // The only response that carries the courier's token: it is behind an
-    // admin session, and the drawer's "copy link" button needs it.
-    order: serializeOrderWithRiderToken(order),
+    order: serializeOrder(order),
     history: order.statusHistory.map(serializeHistory),
     payments: order.payments.map(serializePayment),
   });
