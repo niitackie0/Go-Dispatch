@@ -84,6 +84,37 @@ const STATUS_ORDER: { key: OrderStatus; label: string; bg: string; text: string;
 type SubTab = 'overview' | 'pipeline' | 'payments' | 'pricing' | 'staff' | 'account';
 
 /**
+ * One day's money, split by where it physically is.
+ *
+ * `inOffice` is what an admin recorded, so it arrived here. `withCouriers` is
+ * what was taken at a door and has not been handed in. The distinction is not
+ * payment method -- cash and mobile money both arrive as `manual` -- it is who
+ * is standing where, which is the only thing a cash box can be checked against.
+ */
+interface DayCash {
+  date: string;
+  currency: string;
+  total: number;
+  count: number;
+  inOffice: { amount: number; count: number };
+  withCouriers: { amount: number; count: number };
+  couriers: { name: string; amount: number; count: number }[];
+  lines: {
+    trackingCode: string;
+    amount: number;
+    provider: string;
+    at: string;
+    heldBy: string;
+    note?: string;
+  }[];
+  owing: {
+    amount: number;
+    count: number;
+    orders: { trackingCode: string; amount: number; rider?: string }[];
+  };
+}
+
+/**
  * The console's sections, in sidebar order.
  *
  * One list drives all three places a section is named — the desktop sidebar,
@@ -172,6 +203,17 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   // Loaded server-side datasets
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  /**
+   * The day's takings, for the six o'clock question: how much money should be
+   * in the box, and who is holding the rest of it?
+   */
+  const [dayCash, setDayCash] = useState<DayCash | null>(null);
+  const [cashDate, setCashDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [cashOpen, setCashOpen] = useState(false);
+
   const [payments, setPayments] = useState<(Payment & { trackingCode: string; senderName: string; senderPhone: string })[]>([]);
   const [pricing, setPricing] = useState<PricingConfig | null>(null);
   const [allOrdersForStats, setAllOrdersForStats] = useState<Order[]>([]);
@@ -338,6 +380,25 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     }
   };
 
+  useEffect(() => {
+    if (activeSubTab === 'payments') fetchDayCash(cashDate);
+    // Only the chosen day matters here; the tab change is handled where the
+    // ledger itself is loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cashDate]);
+
+  const fetchDayCash = async (date?: string) => {
+    try {
+      const res = await fetch(`/api/payments/day?date=${encodeURIComponent(date ?? cashDate)}`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) setDayCash(await res.json());
+    } catch (err) {
+      // A failed reconciliation panel must not take the ledger down with it.
+      console.error('Failed to load the day\'s cash', err);
+    }
+  };
+
   // Load pricing config
   const fetchPricing = async () => {
     setLoadingPricing(true);
@@ -369,6 +430,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     } else if (activeSubTab === 'pipeline') {
       fetchOrders();
     } else if (activeSubTab === 'payments') {
+      fetchDayCash();
       fetchPayments();
     } else if (activeSubTab === 'pricing') {
       fetchPricing();
@@ -1543,6 +1605,152 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               <p className="text-sm text-slate-500 mt-0.5">Every transaction recorded against an order, newest first.</p>
             </div>
           </div>
+
+          {/* ---------- THE DAY'S CASH ----------
+              Closing the books is a different job from looking up one
+              transaction, and it is the one with a deadline, so it sits first.
+
+              Split by where the money physically is rather than by method.
+              Cash and mobile money both arrive as `manual`; what somebody needs
+              at six o'clock is which of it is in the room and which is still in
+              a courier's pocket. */}
+          {canSeeRevenue && dayCash && (
+            <div className="gd-panel overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-base font-medium text-slate-900">Cash for the day</h3>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    {new Date(dayCash.date + 'T00:00:00').toLocaleDateString(undefined, {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                    })}
+                  </p>
+                </div>
+                <input
+                  type="date"
+                  value={cashDate}
+                  onChange={(e) => setCashDate(e.target.value)}
+                  aria-label="Which day to reconcile"
+                  className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+                <div className="px-5 py-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Taken today</p>
+                  <p className="mt-1 text-2xl font-medium text-slate-900 tabular-nums tracking-tight">
+                    {dayCash.currency} {(dayCash.total / 100).toFixed(2)}
+                  </p>
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    across {dayCash.count} payment{dayCash.count === 1 ? '' : 's'}
+                  </p>
+                </div>
+
+                <div className="px-5 py-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Should be here</p>
+                  <p className="mt-1 text-2xl font-medium text-slate-900 tabular-nums tracking-tight">
+                    {dayCash.currency} {(dayCash.inOffice.amount / 100).toFixed(2)}
+                  </p>
+                  <p className="mt-0.5 text-sm text-slate-500">recorded in the office</p>
+                </div>
+
+                <div className="px-5 py-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Still with couriers</p>
+                  <p
+                    className={
+                      'mt-1 text-2xl font-medium tabular-nums tracking-tight ' +
+                      (dayCash.withCouriers.amount > 0 ? 'text-amber-700' : 'text-slate-900')
+                    }
+                  >
+                    {dayCash.currency} {(dayCash.withCouriers.amount / 100).toFixed(2)}
+                  </p>
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    {dayCash.couriers.length === 0
+                      ? 'nothing to hand in'
+                      : 'from ' + dayCash.couriers.length + ' courier' + (dayCash.couriers.length === 1 ? '' : 's')}
+                  </p>
+                </div>
+              </div>
+
+              {(dayCash.couriers.length > 0 || dayCash.owing.count > 0 || dayCash.lines.length > 0) && (
+                <>
+                  <button
+                    onClick={() => setCashOpen((v) => !v)}
+                    className="w-full min-h-12 border-t border-slate-100 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    {cashOpen ? 'Hide the detail' : 'Show the detail'}
+                    <ChevronUp className={'h-4 w-4 transition-transform ' + (cashOpen ? '' : 'rotate-180')} />
+                  </button>
+
+                  {cashOpen && (
+                    <div className="border-t border-slate-100 px-5 py-4 space-y-5">
+                      {dayCash.couriers.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">To hand in</p>
+                          <ul className="mt-2 space-y-1.5">
+                            {dayCash.couriers.map((c) => (
+                              <li key={c.name} className="flex items-baseline justify-between gap-4">
+                                <span className="text-sm text-slate-700">{c.name}</span>
+                                <span className="text-sm font-medium text-slate-900 tabular-nums">
+                                  {dayCash.currency} {(c.amount / 100).toFixed(2)}
+                                  <span className="font-normal text-slate-400"> · {c.count}</span>
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {dayCash.owing.count > 0 && (
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-amber-700">
+                            Delivered today and still owing
+                          </p>
+                          <ul className="mt-2 space-y-1.5">
+                            {dayCash.owing.orders.map((o) => (
+                              <li key={o.trackingCode} className="flex items-baseline justify-between gap-4">
+                                <span className="font-mono text-sm text-slate-700">
+                                  {o.trackingCode}
+                                  {o.rider && <span className="font-sans text-slate-400"> · {o.rider}</span>}
+                                </span>
+                                <span className="text-sm font-medium text-amber-800 tabular-nums">
+                                  {dayCash.currency} {(o.amount / 100).toFixed(2)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                          <p className="mt-2 text-sm text-slate-500">
+                            This should be zero by close. Anything here is a parcel that reached
+                            somebody without the money reaching us.
+                          </p>
+                        </div>
+                      )}
+
+                      {dayCash.lines.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Every line</p>
+                          <ul className="mt-2 space-y-1.5">
+                            {dayCash.lines.map((l, i) => (
+                              <li key={l.trackingCode + '-' + i} className="flex items-baseline justify-between gap-4">
+                                <span className="min-w-0 truncate font-mono text-sm text-slate-600">
+                                  {l.trackingCode}
+                                  <span className="font-sans text-slate-400"> · {l.heldBy}</span>
+                                </span>
+                                <span className="shrink-0 text-sm text-slate-700 tabular-nums">
+                                  {dayCash.currency} {(l.amount / 100).toFixed(2)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {/* Finding one transaction. Someone rings about a payment and quotes
               whichever detail they have to hand — a tracking code, the number

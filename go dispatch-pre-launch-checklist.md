@@ -83,7 +83,13 @@ a card or a person; nothing in the repo can close them.
 - [x] 31a. **Sender-initiated cancellation** — *not on the original list, added because
       the alternative was a phone call.* Tracking page, `requested`/`awaiting_payment`
       only, code + phone required, identical 404 for a wrong code and a wrong number.
-- [ ] 31. Daily reconciliation view, tested against a fake day's cash — **M**
+- [x] 31. **Daily reconciliation view, tested against a fake day's cash** — "Cash for
+      the day" on the payments screen, with a date. Split by *where the money is* —
+      recorded in the office versus still in a courier's pocket — because cash and
+      mobile money both arrive as `manual` and a method breakdown cannot answer the
+      question a cash box asks. Also lists what was delivered today and still owes.
+      Tested against a seeded day: 120 in the office, 125 with one courier, 30 with
+      another, 45 owing; every figure agreed.
 
 > The public tracking page is the most exposed surface: unauthenticated, and it
 > answers on an exact phone match as well as a code.
@@ -145,7 +151,9 @@ a card or a person; nothing in the repo can close them.
 
 ## 11. Handover
 
-- [ ] 57. One-page doc: reset a password, mark a payment, correct a mistake, who to call
+- [x] 57. **`docs/running-go-dispatch.md`** — the day in order, recording a payment,
+      fixing a mistake (undo / override / cancel), staff and roles, what to check when
+      something is wrong, and the terminal way back in if nobody can sign in.
 - [ ] 58. Agree what "supported" means — response times, bug vs feature, what each costs
 - [ ] 59. Client owns the domain — **no domain bought yet.** Register it on their account, not yours.
 - [ ] 60. Calendar reminder for the first month-end reconciliation
