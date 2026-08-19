@@ -20,7 +20,7 @@ import { prisma } from '../prisma.js';
 import { serializeHistory, serializeOrder, serializePayment } from '../serialize.js';
 import { publicActionLimit, publicReadLimit, publicWriteLimit } from '../rateLimit.js';
 import { senderMayCancel } from '../../transitions.js';
-import { toGhanaMsisdn } from '../sms.js';
+import { phoneSearchVariants, storablePhone, toE164 } from '../../phone.js';
 import { queueNotification } from '../notifications.js';
 
 export const ordersRouter = asyncRouter();
@@ -37,11 +37,7 @@ const ORDER_STATUSES: OrderStatus[] = [
   'cancelled',
 ];
 
-/** Phone numbers are stored as typed, so match both the trimmed and de-spaced forms. */
-function phoneCandidates(raw: string): string[] {
-  const trimmed = raw.trim();
-  return [...new Set([trimmed, trimmed.replace(/\s+/g, '')])];
-}
+
 
 /* ---------------------------------------------------------------------------
    PUBLIC TRACKING LOOKUP
@@ -57,7 +53,12 @@ ordersRouter.get('/track', publicReadLimit, async (req, res) => {
 
   // Phone matching is an EXACT comparison. It used to be a substring match,
   // which meant searching "0" returned nearly every order in the system.
-  const phones = phoneCandidates(query);
+  //
+  // Exact against several forms of the same number, though: rows are stored
+  // canonically now, but a customer types 024..., +233... or 233... more or
+  // less at random, and rows written before normalisation hold whatever was
+  // typed that day.
+  const phones = phoneSearchVariants(query);
   const code = query.trim().toUpperCase();
 
   const orders = await prisma.order.findMany({
@@ -134,11 +135,11 @@ ordersRouter.post('/cancel', publicActionLimit, async (req, res) => {
 
   // Same answer for "no such parcel" and "wrong number", so this cannot be
   // used to find out which tracking codes are real.
-  const given = toGhanaMsisdn(phone);
+  const given = toE164(phone);
   const matches =
     !!order &&
     !!given &&
-    (toGhanaMsisdn(order.senderPhone) === given || toGhanaMsisdn(order.recipientPhone) === given);
+    (toE164(order.senderPhone) === given || toE164(order.recipientPhone) === given);
 
   if (!matches) {
     return res.status(404).json({
@@ -263,11 +264,11 @@ ordersRouter.post('/book', publicWriteLimit, async (req, res) => {
         data: {
           trackingCode,
           senderName,
-          senderPhone,
+          senderPhone: storablePhone(senderPhone),
           pickupAddress,
           pickupNotes: pickupNotes || null,
           recipientName,
-          recipientPhone,
+          recipientPhone: storablePhone(recipientPhone),
           dropoffAddress,
           dropoffNotes: dropoffNotes || null,
           destinationRegion,

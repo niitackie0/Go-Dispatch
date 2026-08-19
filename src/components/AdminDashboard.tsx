@@ -60,6 +60,7 @@ import AccountSecurity from './AccountSecurity.js';
 import Tooltip from './Tooltip.js';
 import DateModal from './DateModal.js';
 import Sheet from './Sheet.js';
+import { formatPhone } from '../phone.js';
 
 interface AdminDashboardProps {
   token: string;
@@ -1659,7 +1660,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                         <span className="w-full flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-100 pt-2.5 text-sm text-slate-500">
                           <span className="capitalize">{p.provider}</span>
                           <span className="font-mono text-xs">{p.providerReference || 'No reference'}</span>
-                          <span className="font-mono text-xs">{p.senderPhone}</span>
+                          <span className="font-mono text-xs">{formatPhone(p.senderPhone)}</span>
                           {p.note && <span className="truncate">{p.note}</span>}
                         </span>
                       )}
@@ -1908,7 +1909,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               <div>
                 <dt className="text-xs uppercase tracking-wider text-slate-400">Paid by</dt>
                 <dd className="mt-0.5 text-slate-900">{p.senderName}</dd>
-                <dd className="font-mono text-xs text-slate-500">{p.senderPhone}</dd>
+                <dd className="font-mono text-xs text-slate-500">{formatPhone(p.senderPhone)}</dd>
               </div>
               <div>
                 <dt className="text-xs uppercase tracking-wider text-slate-400">Method</dt>
@@ -2052,7 +2053,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <a href={`tel:${selectedOrderDetails.order.senderPhone}`}
                      className="mt-1.5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-red-700">
                     <Phone className="h-4 w-4" />
-                    {selectedOrderDetails.order.senderPhone}
+                    {formatPhone(selectedOrderDetails.order.senderPhone)}
                   </a>
                 </div>
                 <div className="rounded-2xl border border-slate-200 p-4">
@@ -2061,7 +2062,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <a href={`tel:${selectedOrderDetails.order.recipientPhone}`}
                      className="mt-1.5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-red-700">
                     <Phone className="h-4 w-4" />
-                    {selectedOrderDetails.order.recipientPhone}
+                    {formatPhone(selectedOrderDetails.order.recipientPhone)}
                   </a>
                 </div>
               </div>

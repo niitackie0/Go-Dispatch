@@ -16,6 +16,7 @@ import { quote, sizeForWeight } from '../../pricing.js';
 import { currentRule } from './pricing.js';
 import { queueNotification } from '../notifications.js';
 import { publicReadLimit, publicWriteLimit } from '../rateLimit.js';
+import { storablePhone } from '../../phone.js';
 
 export const bookingsRouter = asyncRouter();
 
@@ -155,7 +156,9 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
       dropoffAddress: p.dropoffAddress.trim(),
       dropoffNotes: p.dropoffNotes?.trim() || undefined,
       recipientName: p.recipientName.trim(),
-      recipientPhone: p.recipientPhone.trim(),
+      // Canonical where it can be. See src/phone.ts for why an unrecognised
+      // number is kept as typed rather than refused.
+      recipientPhone: storablePhone(p.recipientPhone),
       description: p.packageDescription?.trim() || 'Parcel',
       weightKg,
     });
@@ -178,7 +181,7 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
         reference: bookingReference(),
         idempotencyKey: key,
         senderName,
-        senderPhone,
+        senderPhone: storablePhone(senderPhone),
         pickupAddress,
         pickupNotes: pickupNotes || null,
         scheduledPickupAt: scheduled,
@@ -195,7 +198,7 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
             trackingCode,
             bookingId: booking.id,
             senderName,
-            senderPhone,
+            senderPhone: storablePhone(senderPhone),
             pickupAddress,
             pickupNotes: pickupNotes || null,
             recipientName: p.recipientName,

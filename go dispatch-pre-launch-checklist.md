@@ -55,7 +55,10 @@ a card or a person; nothing in the repo can close them.
 - [–] 21. File uploads — **not applicable.** No upload surface anywhere in the product.
 - [x] 22. Responses trimmed — public tracking hand-builds its payload; `riderToken` was leaking through `serializeOrder` into the public booking lookup and is now admin-only (`4c336e2`)
 - [x] 23. Security headers written out in `src/server/security.ts` — HSTS, nosniff, frame-deny, referrer, permissions, CORP. `x-powered-by` off. Render forces HTTPS. **No CSP yet.** — **S**
-- [ ] 24. `npm audit` — **5 vulnerabilities (4 high, 1 moderate)** in prod deps: `@prisma/config`/`deepmerge-ts`, `nanoid`, `postcss`. Dependabot not enabled. — **S**
+- [x] 24. **`npm audit`** — nanoid and postcss upgraded. Three remain, all one
+      advisory reached through `@prisma/config`, whose only "fix" is downgrading Prisma
+      7→6; not reachable from the deployed bundle. Reasoning in `docs/dependencies.md`.
+      Dependabot on, weekly.
 
 ## 5. Courier-specific
 
@@ -82,7 +85,11 @@ a card or a person; nothing in the repo can close them.
 - [~] 33. Migrations as a release step — they run at the end of `buildCommand`, because Render's pre-deploy step is paid-only. Safe with one instance; documented in `render.yaml`
 - [ ] 34. Staging on its own Neon branch, seeded not copied — **none.** The live table holds real names, phone numbers and home addresses. — **M**
 - [x] 35. All timestamps `timestamptz` (23 columns)
-- [~] 36. Phone numbers normalised to E.164 — only at *send* time, in `toGhanaMsisdn`. Stored exactly as typed, so `0244…` and `+233244…` are different rows to a tracking search. — **S**
+- [x] 36. **Phone numbers normalised to E.164 on input** — `src/phone.ts`, shared by
+      the console, the booking form and the server. Stored as `+233…`, displayed as
+      `024 481 5203`, sent without the plus. Tracking searches every variant, so the
+      same number typed five ways finds the same parcel — verified. Existing rows
+      migrated with `npm run phones:normalise`.
 - [x] 37. `GET /api/health` pings the database and 503s if it cannot
 
 ## 7. Legal

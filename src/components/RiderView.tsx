@@ -17,6 +17,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { RiderJob, OrderStatus } from '../types.js';
+import { formatPhone } from '../phone.js';
 
 const NEXT_ACTION: Partial<Record<OrderStatus, { label: string; hint: string }>> = {
   queued: { label: 'Mark picked up', hint: 'Confirm once the parcel is in your hands.' },
@@ -215,7 +216,7 @@ export default function RiderView({ token }: { token: string }) {
             className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700"
           >
             <Phone className="h-4 w-4 text-red-600" />
-            {job.senderPhone}
+            {formatPhone(job.senderPhone)}
           </a>
         </section>
 
@@ -236,7 +237,7 @@ export default function RiderView({ token }: { token: string }) {
             className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700"
           >
             <Phone className="h-4 w-4 text-red-600" />
-            {job.recipientPhone}
+            {formatPhone(job.recipientPhone)}
           </a>
         </section>
 

@@ -21,7 +21,8 @@
     "sms:check": "tsx scripts/sms-check.ts",
     "sms:outbox": "tsx scripts/sms-drain.ts",
     "admin": "tsx scripts/admin.ts",
-    "wipe:orders": "tsx scripts/wipe-orders.ts"
+    "wipe:orders": "tsx scripts/wipe-orders.ts",
+    "phones:normalise": "tsx scripts/normalise-phones.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.1.0",

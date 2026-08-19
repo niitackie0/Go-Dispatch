@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { toMsisdn } from '../phone.js';
+
 /**
  * SMS text handling: what a message costs, and what a phone number has to look
  * like before a provider will take it.
@@ -127,19 +129,10 @@ export function smsCost(text: string): SmsCost {
  * Returns null for anything that is not a Ghanaian mobile number.
  */
 export function toGhanaMsisdn(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-
-  let digits = raw.replace(/[^\d+]/g, '');
-  if (digits.startsWith('+')) digits = digits.slice(1);
-
-  // 0241234567 -> 233241234567
-  if (digits.startsWith('0')) digits = `233${digits.slice(1)}`;
-  // 241234567 -> 233241234567, for anyone who omitted the trunk zero
-  else if (digits.length === 9) digits = `233${digits}`;
-
-  if (!/^233[25]\d{8}$/.test(digits)) return null;
-
-  return digits;
+  // The rules moved to src/phone.ts, which the console and the booking form
+  // also need. Two copies of a normaliser is two answers to "is this the same
+  // number", and they diverge quietly.
+  return toMsisdn(raw);
 }
 
 /** True when this is a number we could actually text. */
