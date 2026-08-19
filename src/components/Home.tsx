@@ -265,7 +265,7 @@ export default function Home() {
                   </Link>
                   <a
                     href={`tel:${CONTACT_PHONE_E164}`}
-                    className="inline-flex items-center justify-center gap-2.5 rounded-[14px] border border-white/20 bg-white/5 px-6 py-3 text-[15px] font-medium text-white hover:border-white/40 hover:bg-white/10 transition-colors"
+                    className="inline-flex items-center justify-center gap-2.5 rounded-[14px] border border-white/20 bg-white/5 px-6 py-3 text-base font-medium text-white hover:border-white/40 hover:bg-white/10 transition-colors"
                   >
                     <Phone className="h-4 w-4 text-red-400" />
                     {CONTACT_PHONE}
@@ -324,7 +324,7 @@ export default function Home() {
               </div>
               <Link
                 to="/policy"
-                className="inline-flex items-center gap-2 min-h-11 text-[15px] font-medium text-red-700 hover:underline"
+                className="inline-flex items-center gap-2 min-h-11 text-base font-medium text-red-700 hover:underline"
               >
                 Full terms
                 <ArrowRight className="h-4 w-4" />
@@ -373,8 +373,8 @@ export default function Home() {
                   <div key={item.label} className="flex items-start gap-4">
                     <Sign forbidden={false}>{item.icon}</Sign>
                     <div className="min-w-0">
-                      <span className="block text-[15px] font-medium text-slate-900">{item.label}</span>
-                      <span className="mt-1 block text-[15px] text-slate-600">{item.note}</span>
+                      <span className="block text-base font-medium text-slate-900">{item.label}</span>
+                      <span className="mt-1 block text-base text-slate-600">{item.note}</span>
                     </div>
                   </div>
                 ))}
@@ -407,7 +407,7 @@ export default function Home() {
               </div>
               <button
                 type="submit"
-                className="min-h-12 px-6 rounded-xl bg-slate-900 text-white text-[15px] font-medium hover:bg-slate-800 transition-colors cursor-pointer"
+                className="min-h-12 px-6 rounded-xl bg-slate-900 text-white text-base font-medium hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Track it
               </button>
@@ -465,8 +465,8 @@ export default function Home() {
                     },
                   ].map((f) => (
                     <div key={f.t} className="border-b border-slate-200 py-4">
-                      <dt className="text-[15px] font-medium text-slate-900">{f.t}</dt>
-                      <dd className="mt-1 text-[15px] text-slate-600 leading-relaxed">{f.d}</dd>
+                      <dt className="text-base font-medium text-slate-900">{f.t}</dt>
+                      <dd className="mt-1 text-base text-slate-600 leading-relaxed">{f.d}</dd>
                     </div>
                   ))}
                 </dl>
@@ -578,12 +578,12 @@ export default function Home() {
 
                 <Link
                   to="/book"
-                  className="mt-5 flex items-center justify-center gap-2 min-h-12 rounded-xl bg-red-600 px-4 text-[15px] font-medium text-white transition-colors hover:bg-red-700"
+                  className="mt-5 flex items-center justify-center gap-2 min-h-12 rounded-xl bg-red-600 px-4 text-base font-medium text-white transition-colors hover:bg-red-700"
                 >
                   Book a parcel
                   <ArrowRight className="h-4 w-4" />
                 </Link>
-                <p className="mt-3 text-sm text-slate-500">
+                <p className="mt-3 text-base text-slate-500">
                   {kg >= MAX_KG
                     ? `Heavier than ${MAX_KG}kg? Ring ${CONTACT_PHONE} and we will sort it out.`
                     : 'An estimate until your parcel is on our scale.'}
@@ -612,13 +612,13 @@ export default function Home() {
               <div className="flex flex-col gap-3">
                 <Link
                   to="/book"
-                  className="flex items-center justify-center min-h-12 rounded-xl bg-red-600 hover:bg-red-500 text-[15px] font-semibold transition-colors"
+                  className="flex items-center justify-center min-h-12 rounded-xl bg-red-600 hover:bg-red-500 text-base font-semibold transition-colors"
                 >
                   Book a delivery
                 </Link>
                 <a
                   href={`tel:${CONTACT_PHONE_E164}`}
-                  className="flex items-center justify-center gap-2.5 min-h-12 rounded-xl border border-white/20 hover:border-white/40 hover:bg-white/5 text-[15px] font-medium transition-colors"
+                  className="flex items-center justify-center gap-2.5 min-h-12 rounded-xl border border-white/20 hover:border-white/40 hover:bg-white/5 text-base font-medium transition-colors"
                 >
                   <Phone className="h-5 w-5" />
                   {CONTACT_PHONE}

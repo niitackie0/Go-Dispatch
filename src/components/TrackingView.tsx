@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useId, useMemo } from 'react';
 import { Search, ArrowRight, AlertCircle, Loader2, Phone } from 'lucide-react';
 import { OrderStatus } from '../types.js';
+import { senderMayCancel } from '../transitions.js';
 import { CONTACT_PHONE, CONTACT_PHONE_E164 } from '../brand.js';
 
 interface TrackingViewProps {
@@ -48,6 +49,113 @@ const STEPS: { key: OrderStatus; label: string; short: string }[] = [
   { key: 'in_transit', label: 'On the road', short: 'On the road' },
   { key: 'delivered', label: 'Delivered', short: 'Delivered' },
 ];
+
+/**
+ * Cancelling, for the person who booked it.
+ *
+ * Quiet on purpose. It sits at the bottom of the card as a line of text, not a
+ * red button — somebody arriving to check where their parcel is should not
+ * meet a large invitation to destroy it. Findable when wanted, invisible when
+ * not.
+ *
+ * It asks for the phone number because the tracking code alone is weak: it
+ * travels in a text message and is quotable by anyone who glances at a screen.
+ * The pair is something only the people involved have. The server re-checks
+ * both, and the window it allows, so this component decides nothing.
+ */
+function CancelPanel({ order, onCancelled }: { order: PublicOrder; onCancelled: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const fieldId = useId();
+
+  // The same rule the server enforces, imported rather than restated, so the
+  // page can never offer a button the server will refuse.
+  if (!senderMayCancel(order.status)) return null;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch('/api/orders/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackingCode: order.trackingCode, phone }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'We could not cancel that just now.');
+      onCancelled();
+    } catch (err: any) {
+      setError(err.message || 'We could not cancel that just now.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <div className="px-5 sm:px-7 py-4 border-t border-slate-200">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex min-h-11 items-center text-sm font-medium text-slate-500 underline underline-offset-4 hover:text-red-700 transition-colors cursor-pointer"
+        >
+          Cancel this delivery
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="px-5 sm:px-7 py-5 border-t border-slate-200 bg-slate-50/60">
+      <p className="text-base font-medium text-slate-900">Cancel this delivery?</p>
+      <p className="mt-1 text-sm text-slate-600">
+        Nothing has been collected yet, so this can still be called off. Confirm the phone
+        number the parcel was booked with.
+      </p>
+
+      <label htmlFor={fieldId} className="mt-4 block text-sm font-medium text-slate-700">
+        Phone number
+      </label>
+      <input
+        id={fieldId}
+        type="tel"
+        inputMode="tel"
+        autoComplete="tel"
+        required
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder="024 000 0000"
+        className="mt-1.5 w-full sm:max-w-xs rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
+      />
+
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-2.5">
+        <button
+          type="submit"
+          disabled={busy}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-base font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-60 cursor-pointer"
+        >
+          {busy ? 'Cancelling…' : 'Yes, cancel it'}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setOpen(false); setError(''); }}
+          className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-base font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+        >
+          Keep it
+        </button>
+      </div>
+    </form>
+  );
+}
 
 /** Where on the rail this order sits. Cancelled orders are off the rail entirely. */
 function stepIndex(status: OrderStatus): number {
@@ -152,7 +260,7 @@ function Rail({ current }: { current: number }) {
         </ol>
       </div>
 
-      <p className="sm:hidden mt-3 text-sm text-slate-500">
+      <p className="sm:hidden mt-3 text-base text-slate-500">
         Step {done + 1} of {STEPS.length} —{' '}
         <span className="font-medium text-slate-900">{STEPS[done]?.label}</span>
       </p>
@@ -178,7 +286,7 @@ function Road({ timeline }: { timeline: PublicOrder['timeline'] }) {
   const shown = showAll ? timeline : timeline.slice(hidden);
 
   if (timeline.length === 0) {
-    return <p className="text-sm text-slate-500">Nothing has happened yet. We will update this as it moves.</p>;
+    return <p className="text-base text-slate-500">Nothing has happened yet. We will update this as it moves.</p>;
   }
 
   return (
@@ -208,10 +316,10 @@ function Road({ timeline }: { timeline: PublicOrder['timeline'] }) {
               </div>
 
               <div className={isLatest ? 'pb-0' : 'pb-5'}>
-                <p className={`text-[15px] ${isLatest ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
+                <p className={`text-base ${isLatest ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
                   {event.note || STEPS.find((s) => s.key === event.status)?.label || event.status.replace('_', ' ')}
                 </p>
-                <p className="text-sm text-slate-500 tabular-nums">{formatWhen(event.changedAt)}</p>
+                <p className="text-base text-slate-500 tabular-nums">{formatWhen(event.changedAt)}</p>
               </div>
             </li>
           );
@@ -288,7 +396,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
           </button>
         </form>
 
-        <p className="mt-3 text-sm text-slate-500">
+        <p className="mt-3 text-base text-slate-500">
           A tracking code looks like <span className="font-mono text-slate-700">GD-0000-000</span> and a
           booking reference like <span className="font-mono text-slate-700">GDB-0000-000</span>. Either
           works, as does the phone number the parcel was booked with.
@@ -299,7 +407,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
           <div>
-            <p className="text-[15px] text-red-800">{error}</p>
+            <p className="text-base text-red-800">{error}</p>
             <a
               href={`tel:${CONTACT_PHONE_E164}`}
               className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-red-700 hover:text-red-800"
@@ -312,7 +420,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
       )}
 
       {results && results.length > 1 && (
-        <p className="mb-4 text-sm text-slate-500">
+        <p className="mb-4 text-base text-slate-500">
           {results.length} parcels booked on that number.
         </p>
       )}
@@ -334,7 +442,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                   <h2 className="font-mono text-xl font-semibold text-slate-900 tracking-tight">
                     {order.trackingCode}
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-base text-slate-500">
                     {order.pickupAddress} <span className="text-slate-300 mx-0.5">&rarr;</span>{' '}
                     {order.dropoffAddress}
                   </p>
@@ -352,7 +460,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                 <div className="px-5 sm:px-7 pb-6">
                   <div className="rounded-xl border border-red-200 bg-red-50 p-4">
                     <p className="font-medium text-red-800">This booking was cancelled</p>
-                    <p className="mt-1 text-[15px] text-red-700">
+                    <p className="mt-1 text-base text-red-700">
                       If that is not right, call {CONTACT_PHONE} with this tracking code and we
                       will sort it out.
                     </p>
@@ -371,7 +479,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                       {statusLine(order)}
                     </p>
                     {order.paymentStatus !== 'paid' && (
-                      <p className="mt-1.5 text-sm text-slate-500">
+                      <p className="mt-1.5 text-base text-slate-500">
                         Payment is due on this parcel.
                       </p>
                     )}
@@ -381,7 +489,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
 
               {/* Facts. Deliberately short — a customer needs to recognise the
                   parcel, not audit it. */}
-              <dl className="px-5 sm:px-7 py-5 border-t border-slate-200 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4 text-[15px]">
+              <dl className="px-5 sm:px-7 py-5 border-t border-slate-200 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4 text-base">
                 <div>
                   <dt className="text-sm text-slate-500">Sent by</dt>
                   <dd className="text-slate-900 truncate">{order.senderName}</dd>
@@ -405,6 +513,9 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                 <h3 className="text-sm font-medium text-slate-500 mb-4">What has happened</h3>
                 <Road timeline={order.timeline} />
               </div>
+
+              {/* Last, because it is the thing you least often came for. */}
+              <CancelPanel order={order} onCancelled={() => handleTrack(undefined, order.trackingCode)} />
             </article>
           );
         })}

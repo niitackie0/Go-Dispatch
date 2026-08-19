@@ -51,8 +51,9 @@ export async function runAutomations(): Promise<string[]> {
           changedByName: AUTOMATION_ACTOR,
         },
       });
-      await queueNotification(tx, 'payment_received', order);
-      await queueNotification(tx, 'booking_confirmed', order);
+      // One message, not two: this pass sees the payment and confirms the
+      // booking in the same breath, and the confirmation says both.
+      await queueNotification(tx, 'booking_confirmed', { ...order, paymentStatus: 'paid' });
       actions.push(`auto-confirmed ${order.trackingCode}`);
     }
 
@@ -142,7 +143,11 @@ export async function runAutomations(): Promise<string[]> {
             changedByName: AUTOMATION_ACTOR,
           },
         });
-        await queueNotification(tx, 'rider_assigned', { ...order, riderName: rider.name });
+        await queueNotification(tx, 'rider_assigned', {
+          ...order,
+          riderName: rider.name,
+          riderPhone: rider.phone,
+        });
         actions.push(`auto-queued ${order.trackingCode} -> ${rider.name}`);
       }
     }

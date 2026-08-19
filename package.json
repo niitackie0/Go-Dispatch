@@ -3,16 +3,25 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22 <23"
+  },
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "prisma generate && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
+    "release": "prisma migrate deploy",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:fixtures": "tsx prisma/fixtures.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "sms:preview": "tsx scripts/sms-preview.ts",
+    "sms:check": "tsx scripts/sms-check.ts",
+    "sms:outbox": "tsx scripts/sms-drain.ts",
+    "admin": "tsx scripts/admin.ts",
+    "wipe:orders": "tsx scripts/wipe-orders.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.1.0",
@@ -38,5 +47,12 @@
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
+  },
+  "_optionalDependencies": "The Linux builds of four native toolchain packages, named here so they cannot be left out. Each of rollup, esbuild, lightningcss and tailwind oxide ships its compiled binary as a per-platform optional dependency, and npm writes into package-lock.json only the ones the machine it ran on actually installed. A lockfile generated on Windows therefore names four Windows binaries and no Linux ones, and npm ci on a Linux CI box installs exactly that and fails at the first bundle. Declaring them at the root forces them into the lockfile on every platform. Versions must track the host packages above.",
+  "optionalDependencies": {
+    "@esbuild/linux-x64": "0.25.12",
+    "@rollup/rollup-linux-x64-gnu": "4.62.2",
+    "@tailwindcss/oxide-linux-x64-gnu": "4.3.3",
+    "lightningcss-linux-x64-gnu": "1.32.0"
   }
 }

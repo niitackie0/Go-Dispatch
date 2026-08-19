@@ -69,7 +69,7 @@ export default function ContactPage() {
                   href={WHATSAPP_URL}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between gap-4 min-h-14 rounded-2xl border border-slate-200 bg-white px-6 text-[15px] font-medium text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                  className="flex items-center justify-between gap-4 min-h-14 rounded-2xl border border-slate-200 bg-white px-6 text-base font-medium text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-colors"
                 >
                   <span className="flex items-center gap-3">
                     <MessageCircle className="h-5 w-5 text-red-600" />
@@ -77,7 +77,7 @@ export default function ContactPage() {
                   </span>
                   <ArrowRight className="h-5 w-5 text-slate-400" />
                 </a>
-                <p className="text-sm text-slate-500 text-center">Same number for both</p>
+                <p className="text-base text-slate-500 text-center">Same number for both</p>
               </div>
             </Reveal>
           </div>
@@ -103,7 +103,7 @@ export default function ContactPage() {
               </p>
               <Link
                 to="/book"
-                className="mt-5 inline-flex items-center gap-2 min-h-11 text-[15px] font-medium text-red-700 hover:underline"
+                className="mt-5 inline-flex items-center gap-2 min-h-11 text-base font-medium text-red-700 hover:underline"
               >
                 Book a collection
                 <ArrowRight className="h-4 w-4" />
@@ -146,12 +146,12 @@ export default function ContactPage() {
               <div className="h-full rounded-2xl border border-slate-200 bg-white p-6 flex flex-col">
                 <item.icon className="h-5 w-5 text-red-600" />
                 <h3 className="mt-3 text-lg font-semibold text-slate-900">{item.title}</h3>
-                <p className="mt-1.5 text-[15px] text-slate-700">{item.body}</p>
-                <p className="mt-auto pt-5 text-sm text-slate-500">{item.foot}</p>
+                <p className="mt-1.5 text-base text-slate-700">{item.body}</p>
+                <p className="mt-auto pt-5 text-base text-slate-500">{item.foot}</p>
                 {item.to && (
                   <Link
                     to={item.to}
-                    className="mt-3 inline-flex items-center gap-2 min-h-11 text-[15px] font-medium text-red-700 hover:underline"
+                    className="mt-3 inline-flex items-center gap-2 min-h-11 text-base font-medium text-red-700 hover:underline"
                   >
                     {item.cta}
                     <ArrowRight className="h-4 w-4" />
@@ -181,7 +181,7 @@ export default function ContactPage() {
             {REGIONS.map((region, i) => (
               <Reveal key={region.name} delay={i * 35}>
                 <div className="border-t border-slate-200 pt-3">
-                  <span className="block text-[15px] font-medium text-slate-900">{region.name}</span>
+                  <span className="block text-base font-medium text-slate-900">{region.name}</span>
                   <span className="block text-sm text-slate-500">{region.towns.join(', ')}</span>
                 </div>
               </Reveal>
@@ -189,7 +189,7 @@ export default function ContactPage() {
           </div>
 
           <Reveal delay={100}>
-            <p className="mt-9 text-[15px] text-slate-600 max-w-xl">
+            <p className="mt-9 text-base text-slate-600 max-w-xl">
               Somewhere not listed? Ask anyway — we go further than the list, and we will
               tell you straight if we cannot.
             </p>

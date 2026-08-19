@@ -211,7 +211,11 @@ export default function RiderView({ token }: { token: string }) {
    */
   const collectHere =
     job.cashToCollect &&
-    ((job.payer === 'sender' && leg === 'pickup') || (job.payer !== 'sender' && leg === 'dropoff'));
+    ((job.payer === 'sender' && job.status === 'queued') ||
+      // Not merely `leg === 'dropoff'`, which also covers picked_up -- that is
+      // the moment the courier leaves the sender, not the moment they arrive
+      // at the recipient's door. Money is only due at the second one.
+      (job.payer !== 'sender' && job.status === 'in_transit'));
 
   return (
     <div className="min-h-dvh bg-[var(--wp-bg)] text-slate-900 font-sans pb-36">

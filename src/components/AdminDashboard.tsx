@@ -7,7 +7,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Layers,
   Search, 
-  Calendar, 
   Filter, 
   TrendingUp, 
   User, 
@@ -18,7 +17,6 @@ import {
   CheckCircle, 
   ArrowRight, 
   Loader2, 
-  Download, 
   Settings, 
   Clock, 
   X,
@@ -31,15 +29,14 @@ import {
   Menu,
   LogOut,
   ExternalLink,
-  Copy,
-  Check,
   Users,
   ShieldCheck,
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
   FileSpreadsheet,
-  Undo2
+  Undo2,
+  ChevronUp
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -63,7 +60,8 @@ import SelectModal from './SelectModal.js';
 import StaffManagement from './StaffManagement.js';
 import AccountSecurity from './AccountSecurity.js';
 import Tooltip from './Tooltip.js';
-import { Link } from '../router.js';
+import DateModal from './DateModal.js';
+import Sheet from './Sheet.js';
 
 interface AdminDashboardProps {
   token: string;
@@ -134,7 +132,6 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   // only stops the console offering buttons that would come back 403.
   const canSeePayments = can(user?.role, 'payments:read');
   const canSeeRevenue = can(user?.role, 'revenue:read');
-  // Read-only roles (support) must not be offered actions that would 403.
   const canWriteOrders = can(user?.role, 'orders:write');
   const canRecordPayment = can(user?.role, 'payments:write');
   const canSetPricing = can(user?.role, 'pricing:write');
@@ -217,12 +214,46 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   const [pipelinePage, setPipelinePage] = useState(1);
   const [paymentsPage, setPaymentsPage] = useState(1);
   const [advancingId, setAdvancingId] = useState<string | null>(null);
-  const [copiedRiderLink, setCopiedRiderLink] = useState(false);
 
   // The payments ledger is filtered here rather than at the API: it is already
   // loaded in full for the revenue figures, so a round trip per keystroke would
   // buy nothing.
   const [paymentSearch, setPaymentSearch] = useState('');
+
+  /**
+   * Which ledger row is showing its detail.
+   *
+   * One at a time. The ledger is scanned far more often than it is read, and
+   * eight columns of references and notes is a wall of text -- so a row shows
+   * what identifies it and opens for the rest.
+   */
+  const [openPayment, setOpenPayment] = useState<string | null>(null);
+
+  /**
+   * Whether the filter controls are showing, below sm.
+   *
+   * On a phone the filter panel filled the whole first screen, so the board it
+   * filters began below the fold: the answer was hidden by the question. The
+   * search box stays -- it is the one people reach for -- and the rest folds
+   * behind a button that says how many filters are on, so a narrowed board is
+   * never a mystery.
+   */
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  /**
+   * How much every row shows.
+   *
+   * One switch for the whole list rather than a control per row: somebody
+   * reconciling fifteen payments wants all fifteen thickened at once, and
+   * somebody triaging the board wants none of them. Remembered, because it is
+   * a working style rather than a per-visit decision.
+   */
+  const [fullDetail, setFullDetail] = useState(() => {
+    try { return localStorage.getItem('gd_full_detail') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('gd_full_detail', fullDetail ? '1' : '0'); } catch { /* private mode */ }
+  }, [fullDetail]);
 
   /**
    * The step just taken, and the offer to take it back.
@@ -376,7 +407,20 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
       const res = await fetch(`/api/orders/${id}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setSelectedOrderDetails(data);
+        // Checked rather than trusted: every read of this object assumes an
+        // order is present, so a 200 carrying anything else takes the whole
+        // console down with it rather than failing to open one drawer.
+        if (!data?.order) {
+          console.error('[orders] detail response had no order', data);
+          setSelectedOrderId(null);
+          alert('That order could not be loaded. Refresh and try again.');
+          return;
+        }
+        setSelectedOrderDetails({
+          order: data.order,
+          history: Array.isArray(data.history) ? data.history : [],
+          payments: Array.isArray(data.payments) ? data.payments : [],
+        });
         // Pre-populate cash mark amount with actual pricing
         setPaymentAmount((data.order.priceAmount / 100).toString());
       }
@@ -503,6 +547,42 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     );
   }, [selectedOrderDetails]);
 
+  /**
+   * The board, in the order the work actually wants doing.
+   *
+   * Newest-first is how a database returns rows, not how a day runs: it put a
+   * parcel booked ten minutes ago above one whose collection slot passed two
+   * days back. So live parcels come first, most overdue at the top, then the
+   * ones still ahead of their slot in the order they fall due, and finished
+   * work last.
+   */
+  const boardOrders = useMemo(() => {
+    const finished = (o: Order) => o.status === 'delivered' || o.status === 'cancelled';
+    const due = (o: Order) => new Date(o.scheduledPickupAt).getTime();
+    const now = Date.now();
+
+    return [...orders].sort((a, b) => {
+      if (finished(a) !== finished(b)) return finished(a) ? 1 : -1;
+      if (finished(a)) return due(b) - due(a);
+
+      const aLate = due(a) < now;
+      const bLate = due(b) < now;
+      if (aLate !== bLate) return aLate ? -1 : 1;
+      // Overdue: worst first. Upcoming: soonest first.
+      return aLate ? due(a) - due(b) : due(a) - due(b);
+    });
+  }, [orders]);
+
+  /** Initials for the courier chip. Two letters is all the room there is. */
+  const initials = (name?: string) =>
+    (name || '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0])
+      .join('')
+      .toUpperCase() || '?';
+
   // Reset pagination when the underlying lists change
   useEffect(() => { setPipelinePage(1); }, [searchFilter, statusFilter, startDateFilter, endDateFilter]);
   useEffect(() => { setPaymentsPage(1); }, [payments.length, paymentSearch]);
@@ -596,29 +676,77 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     }
   };
 
-  // Trigger payments CSV download
-  const handleExportPaymentsCSV = () => {
-    fetch('/api/payments/export', { headers: getAuthHeaders() })
-      .then(res => {
-        if (!res.ok) throw new Error();
-        return res.blob();
-      })
-      .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'waypoint_payments_ledger.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      })
-      .catch(() => alert('Failed to download ledger report CSV.'));
-  };
-
   // Move Order Status to next step sequentially
   const getStatusLabel = (s: OrderStatus) => {
     return STATUS_ORDER.find(item => item.key === s)?.label || s;
   };
+
+  /**
+   * The collection slot, said the way a dispatcher would: "Today 9:00am".
+   *
+   * A bare date is the one thing a board like this must not print — the whole
+   * job is knowing what is due now, and "18/08/2026 09:00" makes the reader do
+   * the arithmetic on every row.
+   */
+  const formatPickup = (iso: string) => {
+    const at = new Date(iso);
+    const time = at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const days = Math.floor((at.getTime() - midnight.getTime()) / 86_400_000);
+
+    if (days === 0) return `Today ${time}`;
+    if (days === 1) return `Tomorrow ${time}`;
+    if (days === -1) return `Yesterday ${time}`;
+    return `${at.toLocaleDateString([], { day: 'numeric', month: 'short' })} ${time}`;
+  };
+
+  /**
+   * The collection slot as a dispatcher would say it out loud.
+   *
+   * An overdue parcel says how overdue -- "2 days late" -- because that is the
+   * fact being acted on. A date and a time is what a database knows; it makes
+   * the reader work out the answer on every row.
+   */
+  const formatDue = (order: Order) => {
+    const at = new Date(order.scheduledPickupAt);
+    const time = at
+      .toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      .toLowerCase()
+      .replace(' ', '');
+
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const days = Math.floor((at.getTime() - midnight.getTime()) / 86_400_000);
+    const settled = order.status === 'delivered' || order.status === 'cancelled';
+
+    if (settled) {
+      if (days === 0) return `Today ${time}`;
+      if (days === -1) return `Yesterday`;
+      return at.toLocaleDateString([], { day: 'numeric', month: 'short' });
+    }
+
+    if (days <= -2) return `${Math.abs(days)} days late`;
+    if (days === -1) return 'Yesterday';
+    if (days === 0) return at.getTime() < Date.now() ? `Late, ${time}` : `Today ${time}`;
+    if (days === 1) return `Tomorrow ${time}`;
+    if (days < 7) return `${at.toLocaleDateString([], { weekday: 'short' })} ${time}`;
+    return at.toLocaleDateString([], { day: 'numeric', month: 'short' });
+  };
+
+  /** Short date for the line that says when the booking came in. */
+  const formatBooked = (iso: string) =>
+    new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short' });
+
+  /**
+   * A collection whose slot has passed while the parcel is still sitting here.
+   * Nothing about the status says this — an order can be perfectly "confirmed"
+   * and two days late.
+   */
+  const isLateForPickup = (order: Order) =>
+    new Date(order.scheduledPickupAt).getTime() < Date.now() &&
+    ['requested', 'awaiting_payment', 'confirmed', 'queued'].includes(order.status);
 
   /** "3d", "6h", "45m" — how long something has been sitting. */
   const formatAge = (iso: string) => {
@@ -737,12 +865,17 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     onClick={() => goToSection(key)}
                     aria-current={active ? 'page' : undefined}
                     title={railed ? label : undefined}
-                    className={`w-full min-h-11 flex items-center gap-3 rounded-xl text-sm font-medium transition-colors cursor-pointer ${railed ? 'justify-center px-0' : 'justify-between px-3'} py-2.5 ${
+                    data-active={active}
+                    className={`gd-nav-item w-full min-h-11 flex items-center gap-3 rounded-xl text-sm font-medium transition-colors duration-200 cursor-pointer ${railed ? 'justify-center px-0' : 'justify-between px-3'} py-2.5 ${
                       active
-                        ? 'bg-red-50 text-red-700 border border-red-200'
-                        : 'text-slate-600 border border-transparent hover:text-slate-900 hover:bg-slate-50'
+                        ? 'bg-red-50 text-red-700'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                     }`}
                   >
+                    {/* One marker per item, but only the active one has height,
+                        so switching sections reads as a bar growing where you
+                        clicked rather than two bars blinking. */}
+                    <span className="gd-nav-mark" aria-hidden="true" />
                     <span className="flex items-center gap-3 min-w-0">
                       <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-red-600' : 'text-slate-400'}`} />
                       {!railed && <span className="truncate">{label}</span>}
@@ -819,13 +952,15 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                 {/* View live customer site */}
                 <Tooltip placement="bottom" label="Open the customer site — what a sender sees when they book.">
-                  <Link
-                    to="/"
+                  {/* A real link, not a router one: the customer site is a
+                      different bundle now, so this has to be a page load. */}
+                  <a
+                    href="/"
                     className="hidden md:flex min-h-11 items-center gap-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-medium transition-colors cursor-pointer"
                   >
                     <ExternalLink className="h-4 w-4" />
                     <span>View site</span>
-                  </Link>
+                  </a>
                 </Tooltip>
 
                 {/* Signed-in user identity */}
@@ -863,12 +998,14 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       key={key}
                       onClick={() => goToSection(key)}
                       aria-current={active ? 'page' : undefined}
-                      className={`w-full min-h-12 flex items-center justify-between gap-3 px-3 rounded-xl text-base font-medium transition-colors cursor-pointer ${
+                      data-active={active}
+                      className={`gd-nav-item w-full min-h-12 flex items-center justify-between gap-3 px-3 rounded-xl text-base font-medium transition-colors duration-200 cursor-pointer ${
                         active
-                          ? 'bg-red-50 text-red-700 border border-red-200'
-                          : 'text-slate-700 border border-transparent hover:bg-slate-50'
+                          ? 'bg-red-50 text-red-700'
+                          : 'text-slate-700 hover:bg-slate-50'
                       }`}
                     >
+                      <span className="gd-nav-mark" aria-hidden="true" />
                       <span className="flex items-center gap-3">
                         <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-red-600' : 'text-slate-400'}`} />
                         <span>{label}</span>
@@ -886,11 +1023,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           </header>
 
           {/* Core scrollable canvas workspace */}
-          <div className="p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 flex-1">
+          <div key={activeSubTab} className="gd-enter p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 flex-1">
 
       {/* ----------------- SUB TAB: OVERVIEW STATS ----------------- */}
       {activeSubTab === 'overview' && (
-        <div className="space-y-8 animate-in fade-in duration-200" id="dash_subtab_overview">
+        <div className="space-y-8" id="dash_subtab_overview">
           {loadingStats ? (
             <div className="flex py-12 justify-center"><Loader2 className="h-8 w-8 text-red-600 animate-spin" /></div>
           ) : (
@@ -898,7 +1035,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               {/* Needs attention — first, because it is the only block on this
                   screen that asks the reader to do something. Everything below
                   is a readout; this is a queue. */}
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="gd-panel">
                 <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-200">
                   <h2 className="text-base font-medium text-slate-900">Needs attention</h2>
                   {overview.attention.length > 0 && (
@@ -956,7 +1093,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   money, so it follows the same revenue gate as the cards. */}
               <div className={`grid grid-cols-1 gap-4 ${canSeeRevenue ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="gd-panel p-5">
                   <h3 className="text-sm font-medium text-slate-500">Today</h3>
                   <dl className="mt-3 space-y-2">
                     {([
@@ -973,9 +1110,9 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
 
                 {canSeeRevenue && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="gd-panel p-5">
                     <h3 className="text-sm font-medium text-slate-500">Outstanding</h3>
-                    <p className="mt-3 text-3xl font-medium text-slate-900 tabular-nums tracking-tight">
+                    <p key={overview.outstanding} className="gd-tick mt-3 text-3xl font-medium text-slate-900 tabular-nums tracking-tight">
                       GHS {(overview.outstanding / 100).toFixed(2)}
                     </p>
                     <p className="mt-1.5 text-sm text-slate-500">
@@ -986,7 +1123,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   </div>
                 )}
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="gd-panel p-5">
                   <h3 className="text-sm font-medium text-slate-500">On the road</h3>
                   {overview.riders.length === 0 ? (
                     <p className="mt-3 text-base text-slate-500">No riders carrying parcels.</p>
@@ -1016,7 +1153,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 
                 {/* Today */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="gd-panel p-5">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-medium text-slate-500 block">Revenue today</span>
@@ -1031,7 +1168,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
 
                 {/* Week */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="gd-panel p-5">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-medium text-slate-500 block">Revenue this week</span>
@@ -1046,7 +1183,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
 
                 {/* Month */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="gd-panel p-5">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-medium text-slate-500 block">Revenue this month</span>
@@ -1061,7 +1198,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
 
                 {/* All Time */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="gd-panel p-5">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-medium text-slate-500 block">Collected all time</span>
@@ -1086,7 +1223,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                                    .reduce((sum, s) => sum + s.count, 0);
 
                 return (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="gd-panel p-6">
                     {/* Header */}
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                       <div className="flex items-center gap-2">
@@ -1164,28 +1301,32 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
       {/* ----------------- SUB TAB: DISPATCH PIPELINE ----------------- */}
       {activeSubTab === 'pipeline' && (
-        <div className="space-y-6 animate-in fade-in duration-200" id="dash_subtab_pipeline">
+        <div className="space-y-6" id="dash_subtab_pipeline">
           
           {/* Filters Bar */}
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-md grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+          {(() => {
+            const activeFilters = [statusFilter, startDateFilter].filter(Boolean).length;
+            return (
+          <div className="gd-panel p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5 sm:gap-3 items-end">
             
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-500 mb-1">Search Keywords</label>
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Search</label>
               <div className="relative">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                 <input
                   id="filter_search"
                   type="text"
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
-                  placeholder="Tracking code, sender name, phone..."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 pl-10 pr-4 py-3 text-sm outline-none focus:border-red-500 focus:bg-white transition-all"
+                  placeholder="Code, name or phone"
+                  className="w-full min-h-12 rounded-2xl border border-slate-200/80 bg-white text-slate-900 pl-10 pr-4 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-500 mb-1">Status</label>
+            {/* Below sm these three fold away behind the button underneath. */}
+            <div className={`${filtersOpen ? 'block' : 'hidden'} sm:block`}>
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Status</label>
               <SelectModal
                 id="filter_status"
                 value={statusFilter}
@@ -1196,22 +1337,18 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   { value: '', label: 'All statuses' },
                   ...STATUS_ORDER.map((s) => ({ value: s.key, label: s.label })),
                 ]}
-                className="w-full min-h-12 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-sm text-slate-900 hover:border-slate-300 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-colors cursor-pointer"
+                className="w-full min-h-12 flex items-center justify-between gap-2 rounded-2xl border border-slate-200/80 bg-white px-3.5 text-left text-sm text-slate-900 hover:border-slate-300 focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-colors cursor-pointer"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-500 mb-1">Created Since</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-2.5 h-4.5 w-4.5 text-slate-500" />
-                <input
-                  id="filter_start_date"
-                  type="date"
-                  value={startDateFilter}
-                  onChange={(e) => setStartDateFilter(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-900 pl-9 pr-3 py-3 text-sm outline-none focus:border-red-500 focus:bg-white transition-all"
-                />
-              </div>
+            <div className={`${filtersOpen ? 'block' : 'hidden'} sm:block`}>
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Booked since</label>
+              <DateModal
+                id="filter_start_date"
+                value={startDateFilter}
+                onChange={setStartDateFilter}
+                title="Show orders booked since"
+              />
             </div>
 
             <button
@@ -1221,204 +1358,163 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 setStartDateFilter('');
                 setEndDateFilter('');
               }}
-              className="w-full min-h-11 text-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium text-sm transition-colors cursor-pointer"
+              className={`${filtersOpen ? 'block' : 'hidden'} sm:block w-full min-h-12 text-center rounded-2xl border border-slate-200/80 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium text-sm transition-colors cursor-pointer`}
             >
-              Clear Filters
+              Clear filters
+            </button>
+
+            {/* Phone only: the way in and out of the folded controls. */}
+            <button
+              onClick={() => setFiltersOpen((v) => !v)}
+              aria-expanded={filtersOpen}
+              className="sm:hidden flex min-h-11 w-full items-center justify-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+            >
+              {filtersOpen ? 'Fewer filters' : 'More filters'}
+              {activeFilters > 0 && (
+                <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
+                  {activeFilters} on
+                </span>
+              )}
+              <ChevronDown className={`h-4 w-4 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
             </button>
           </div>
+            );
+          })()}
 
           {/* Loader/Grid */}
           {loadingOrders ? (
             <div className="flex py-12 justify-center"><Loader2 className="h-8 w-8 text-red-600 animate-spin" /></div>
           ) : orders.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-500 bg-white">
+            <div className="rounded-3xl border border-dashed border-slate-200 p-12 text-center text-slate-500 bg-white/60">
               <ClipboardList className="h-10 w-10 text-slate-300 mx-auto mb-3" />
               <p className="text-sm font-medium text-slate-700">No dispatch orders match criteria</p>
               <p className="text-sm text-slate-500 mt-1">Try relaxing filters or search queries.</p>
             </div>
           ) : (
-            /* Orders table (paginated 10 / page) */
             (() => {
-              const totalPages = Math.max(1, Math.ceil(orders.length / PAGE_SIZE));
+              const totalPages = Math.max(1, Math.ceil(boardOrders.length / PAGE_SIZE));
               const page = Math.min(pipelinePage, totalPages);
-              const pageOrders = orders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+              const pageOrders = boardOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
               return (
                 <div className="space-y-3">
-                  {/* Phones: one card per order, so status, price and the
-                      Advance button stay on screen. The table below needs
-                      ~900px of width and put Advance out of reach on a phone. */}
-                  <div className="md:hidden space-y-3">
-                    {pageOrders.map((order) => {
-                      const statusTheme = STATUS_ORDER.find(s => s.key === order.status) || STATUS_ORDER[0];
-                      const next = advanceStatus(order.status);
+
+                  {/* One switch for the whole list. */}
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-sm text-slate-500">Most overdue first</p>
+                    <button
+                      onClick={() => setFullDetail((v) => !v)}
+                      role="switch"
+                      aria-checked={fullDetail}
+                      className="flex items-center gap-2 min-h-11 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                    >
+                      Full detail
+                      <span className={`relative h-6 w-10 rounded-full transition-colors ${fullDetail ? 'bg-red-600' : 'bg-slate-300'}`}>
+                        <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-all ${fullDetail ? 'left-5' : 'left-1'}`} />
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* One list at every width. The courier rides on every row --
+                      "who has this" is the question a ringing phone usually
+                      asks -- and a parcel nobody is carrying says so in red,
+                      because that is a gap in the plan rather than a state. */}
+                  <div className="gd-panel overflow-hidden">
+                    {pageOrders.map((order, i) => {
+                      const theme = STATUS_ORDER.find((x) => x.key === order.status) || STATUS_ORDER[0];
+                      const late = isLateForPickup(order);
+                      const settled = order.status === 'delivered' || order.status === 'cancelled';
+                      const unassigned = !order.riderName && !settled;
+
                       return (
-                        <div
+                        <button
                           key={order.id}
                           onClick={() => setSelectedOrderId(order.id)}
-                          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3 cursor-pointer active:bg-slate-50 transition-colors"
+                          // Capped at 8 so a full page never takes longer than
+                          // a beat to settle.
+                          style={{ animationDelay: `${Math.min(i, 8) * 28}ms` }}
+                          className={`gd-row gd-row-in w-full px-4 sm:px-5 py-3 text-left ${
+                            i > 0 ? 'border-t border-slate-100' : ''
+                          }`}
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <span className="font-mono text-base font-semibold text-slate-900">{order.trackingCode}</span>
-                              {order.riderName && (
-                                <span className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
-                                  <Truck className="h-4 w-4 text-red-500 shrink-0" />
-                                  {order.riderName}
+                          {/* A phone reads this top-to-bottom: when, then what,
+                              then who. A laptop reads it left-to-right. Same
+                              markup, because two markups drift. */}
+                          <span className="flex items-start gap-3">
+                            {/* Who is carrying it. */}
+                            <span
+                              className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                                unassigned
+                                  ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
+                                  : order.riderName
+                                    ? 'bg-slate-100 text-slate-600'
+                                    : 'bg-slate-50 text-slate-300'
+                              }`}
+                              title={order.riderName || 'No rider assigned'}
+                            >
+                              {order.riderName ? initials(order.riderName) : '?'}
+                            </span>
+
+                            <span className="min-w-0 flex-1">
+                              {/* Line one: when it is due, and where it stands.
+                                  On a phone these are the two facts that decide
+                                  whether the row is worth opening. */}
+                              <span className="flex items-center justify-between gap-2">
+                                <span className={`text-sm font-semibold leading-tight ${
+                                  late ? 'text-red-600' : settled ? 'text-slate-400' : 'text-slate-900'
+                                }`}>
+                                  {formatDue(order)}
+                                </span>
+                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${theme.bg} ${theme.text}`}>
+                                  {theme.label}
+                                </span>
+                              </span>
+
+                              {/* Line two: which parcel. */}
+                              <span className="mt-0.5 block font-mono text-sm font-semibold text-slate-900">
+                                {order.trackingCode}
+                              </span>
+
+                              {/* Line three: who and where to. */}
+                              <span className="block truncate text-sm text-slate-500">
+                                {order.riderName ? (
+                                  <>{order.riderName} <span className="text-slate-300">·</span> </>
+                                ) : (
+                                  <span className="font-medium text-red-600">Unassigned <span className="text-slate-300">·</span> </span>
+                                )}
+                                to {order.destinationRegion || order.dropoffAddress}
+                              </span>
+
+                              {/* What the switch adds, on every row at once. */}
+                              {fullDetail && (
+                                <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-xs text-slate-500">
+                                  <span>{order.packageWeightKg}kg</span>
+                                  <span className="font-medium text-slate-900 tabular-nums">
+                                    {order.currency} {(order.priceAmount / 100).toFixed(2)}
+                                  </span>
+                                  <span className={order.paymentStatus === 'paid' ? 'text-emerald-700' : 'text-amber-700'}>
+                                    {order.paymentStatus === 'paid' ? 'Paid' : 'Payment due'}
+                                  </span>
+                                  <span className="hidden sm:inline truncate">{order.pickupAddress}</span>
+                                  <span className="text-slate-400">Booked {formatBooked(order.createdAt)}</span>
                                 </span>
                               )}
-                            </div>
-                            <span className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-semibold ${statusTheme.bg} ${statusTheme.text}`}>
-                              {statusTheme.label}
                             </span>
-                          </div>
-
-                          {/* Full addresses — no truncation, this is the screen
-                              a rider or dispatcher actually reads them from. */}
-                          <div className="text-sm space-y-1">
-                            <p className="text-slate-800">{order.pickupAddress}</p>
-                            <p className="text-slate-500">&rarr; {order.dropoffAddress}</p>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="capitalize text-slate-600">{order.packageSize}</span>
-                            <span className="text-slate-300">·</span>
-                            <span className="font-medium text-slate-900 tabular-nums">
-                              {order.currency} {(order.priceAmount / 100).toFixed(2)}
-                            </span>
-                            <span className={`ml-auto rounded-md border px-2 py-0.5 text-xs font-medium capitalize ${
-                              order.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
-                              order.paymentStatus === 'refunded' ? 'bg-red-50 border-red-200 text-red-600' :
-                              'bg-amber-500/10 border-amber-500/20 text-amber-600'
-                            }`}>
-                              {order.paymentStatus}
-                            </span>
-                          </div>
-
-                          {next && canWriteOrders ? (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); advanceOrderStatus(order); }}
-                              disabled={advancingId === order.id}
-                              className="w-full min-h-12 flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 text-base font-semibold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 cursor-pointer"
-                            >
-                              {advancingId === order.id
-                                ? <Loader2 className="h-5 w-5 animate-spin" />
-                                : <ArrowRight className="h-5 w-5" />}
-                              Advance to {getStatusLabel(next)}
-                            </button>
-                          ) : order.status === 'awaiting_payment' ? (
-                            <p className="flex items-center gap-2 text-sm font-medium text-orange-600">
-                              <Clock className="h-4 w-4 shrink-0" />
-                              Confirms automatically on payment
-                            </p>
-                          ) : null}
-                        </div>
+                          </span>
+                        </button>
                       );
                     })}
                   </div>
 
-                  {/* Tablet and up: the table. */}
-                  <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <table className="w-full text-left text-sm text-slate-700">
-                      <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
-                        <tr>
-                          <th className="px-4 py-3">Tracking</th>
-                          <th className="px-4 py-3">Route</th>
-                          <th className="px-4 py-3">Size</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3">
-                            <Tooltip placement="bottom" label="Whether the money has landed. Pay-on-delivery orders settle themselves once the parcel is marked delivered.">
-                              <span className="underline decoration-dotted decoration-slate-300 underline-offset-4 cursor-help">Payment</span>
-                            </Tooltip>
-                          </th>
-                          <th className="px-4 py-3 text-right">Price</th>
-                          <th className="px-4 py-3 text-right">
-                            <Tooltip placement="bottom" label="One step forward down the delivery workflow. Backwards is Undo, or an owner override with a reason.">
-                              <span className="underline decoration-dotted decoration-slate-300 underline-offset-4 cursor-help">Action</span>
-                            </Tooltip>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {pageOrders.map((order) => {
-                          const statusTheme = STATUS_ORDER.find(s => s.key === order.status) || STATUS_ORDER[0];
-                          const next = advanceStatus(order.status);
-                          return (
-                            <tr
-                              key={order.id}
-                              onClick={() => setSelectedOrderId(order.id)}
-                              className="hover:bg-slate-50 cursor-pointer transition-colors"
-                            >
-                              <td className="px-4 py-3 font-mono font-semibold text-slate-900 whitespace-nowrap">
-                                {order.trackingCode}
-                                {order.riderName && (
-                                  <span className="mt-0.5 flex items-center gap-1 font-sans text-xs font-medium text-slate-500">
-                                    <Truck className="h-3.5 w-3.5 text-red-500" />
-                                    {order.riderName}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 max-w-[220px]">
-                                <span className="block text-slate-800 truncate">{order.pickupAddress}</span>
-                                <span className="block text-slate-500 truncate">&rarr; {order.dropoffAddress}</span>
-                              </td>
-                              <td className="px-4 py-3 capitalize text-slate-700">{order.packageSize}</td>
-                              <td className="px-4 py-3">
-                                <span className={`inline-block px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${statusTheme.bg} ${statusTheme.text}`}>
-                                  {statusTheme.label}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className={`inline-block rounded-md border px-2 py-0.5 text-xs font-medium capitalize ${
-                                  order.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
-                                  order.paymentStatus === 'refunded' ? 'bg-red-50 border-red-200 text-red-600' :
-                                  'bg-amber-500/10 border-amber-500/20 text-amber-600'
-                                }`}>
-                                  {order.paymentStatus}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-right font-medium text-slate-900 whitespace-nowrap tabular-nums">
-                                {order.currency} {(order.priceAmount / 100).toFixed(2)}
-                              </td>
-                              <td className="px-4 py-3 text-right whitespace-nowrap">
-                                {next && canWriteOrders ? (
-                                  <Tooltip label={`Move ${order.trackingCode} to ${getStatusLabel(next)}. You can undo it right after.`}>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); advanceOrderStatus(order); }}
-                                      disabled={advancingId === order.id}
-                                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 cursor-pointer"
-                                    >
-                                      {advancingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                                      {getStatusLabel(next)}
-                                    </button>
-                                  </Tooltip>
-                                ) : order.status === 'awaiting_payment' ? (
-                                  <Tooltip label="Nothing to do here. This order confirms itself the moment the payment lands.">
-                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600">
-                                      <Clock className="h-4 w-4" />
-                                      Auto on payment
-                                    </span>
-                                  </Tooltip>
-                                ) : (
-                                  <span className="text-xs text-slate-400">Final</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-
                   {/* Pager */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1 text-sm text-slate-500">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-1 text-sm text-slate-500">
                     <span>
-                      Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, orders.length)} of {orders.length}
+                      Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, boardOrders.length)} of {boardOrders.length}
                     </span>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setPipelinePage((p) => Math.max(1, p - 1))}
                         disabled={page <= 1}
-                        className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                        className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                       >
                         &lsaquo; Prev
                       </button>
@@ -1426,7 +1522,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       <button
                         onClick={() => setPipelinePage((p) => Math.min(totalPages, p + 1))}
                         disabled={page >= totalPages}
-                        className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                        className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                       >
                         Next &rsaquo;
                       </button>
@@ -1442,21 +1538,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
       {/* ----------------- SUB TAB: PAYMENTS LEDGER ----------------- */}
       {activeSubTab === 'payments' && (
-        <div className="space-y-6 animate-in fade-in duration-200" id="dash_subtab_payments">
+        <div className="space-y-6" id="dash_subtab_payments">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Payments ledger</h2>
               <p className="text-sm text-slate-500 mt-0.5">Every transaction recorded against an order, newest first.</p>
             </div>
-            <Tooltip label="Downloads the whole ledger, not just this page — including transactions outside the search.">
-              <button
-                onClick={handleExportPaymentsCSV}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white min-h-11 px-4 text-sm font-medium text-slate-700 hover:bg-slate-100 shadow-sm transition-colors self-start cursor-pointer"
-              >
-                <Download className="h-4.5 w-4.5" />
-                <span>Export CSV</span>
-              </button>
-            </Tooltip>
           </div>
 
           {/* Finding one transaction. Someone rings about a payment and quotes
@@ -1492,7 +1579,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           {loadingPayments ? (
             <div className="flex py-12 justify-center"><Loader2 className="h-8 w-8 text-red-600 animate-spin" /></div>
           ) : payments.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-500 bg-white">
+            <div className="rounded-3xl border border-dashed border-slate-200 p-12 text-center text-slate-500 bg-white/60">
               <CreditCard className="h-10 w-10 text-slate-300 mx-auto mb-3" />
               <p className="text-sm font-medium text-slate-700">No ledger transactions logged</p>
             </div>
@@ -1505,7 +1592,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
               if (filteredPayments.length === 0) {
                 return (
-                  <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center bg-white">
+                  <div className="rounded-3xl border border-dashed border-slate-200 p-12 text-center bg-white/60">
                     <Search className="h-10 w-10 text-slate-300 mx-auto mb-3" />
                     <p className="text-sm font-medium text-slate-700">
                       Nothing in the ledger matches "{paymentSearch}"
@@ -1520,104 +1607,71 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               return (
               <div className="space-y-3">
 
-              {/* Phones: a card per transaction. Nine columns cannot be read on
-                  a 390px screen, so the ledger stacks instead. */}
-              <div className="md:hidden space-y-3">
-                {pagePayments.map((p) => (
-                  <div key={p.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <span className="font-mono text-base font-semibold text-slate-900 block">{p.trackingCode}</span>
-                        <span className="text-sm text-slate-500">{p.senderName}</span>
-                      </div>
-                      <span className="shrink-0 text-lg font-semibold text-slate-900 tabular-nums">
-                        {p.currency} {(p.amount / 100).toFixed(2)}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
-                        p.status === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
-                        p.status === 'failed' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
-                        'bg-amber-500/10 border-amber-500/20 text-amber-600'
-                      }`}>
-                        {p.status}
-                      </span>
-                      <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
-                        p.provider === 'momo' ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-slate-100 border-slate-300 text-slate-700'
-                      }`}>
-                        {p.provider}
-                      </span>
-                      <span className="ml-auto text-sm text-slate-500">
-                        {p.paidAt ? new Date(p.paidAt).toLocaleDateString() : new Date(p.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-
-                    {p.note && <p className="text-sm text-slate-500">{p.note}</p>}
-
-                    <p className="text-xs text-slate-400 font-mono break-all">
-                      {p.providerReference ? `Ref ${p.providerReference}` : 'No provider reference'}
-                    </p>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between px-1">
+                <p className="text-sm text-slate-500">Newest first</p>
+                <button
+                  onClick={() => setFullDetail((v) => !v)}
+                  role="switch"
+                  aria-checked={fullDetail}
+                  className="flex items-center gap-2.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                >
+                  Full detail
+                  <span className={`relative h-6 w-10 rounded-full transition-colors ${fullDetail ? 'bg-red-600' : 'bg-slate-300'}`}>
+                    <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-all ${fullDetail ? 'left-5' : 'left-1'}`} />
+                  </span>
+                </button>
               </div>
 
-              <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <table className="w-full text-left text-sm text-slate-700 border-collapse">
-                <thead className="bg-slate-50 font-semibold uppercase tracking-wide text-slate-500 text-xs border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-3">Order</th>
-                    <th className="px-4 py-3">Sender</th>
-                    <th className="px-4 py-3 text-right">Amount</th>
-                    <th className="px-4 py-3">Method</th>
-                    <th className="px-4 py-3">Reference</th>
-                    <th className="px-4 py-3">State</th>
-                    <th className="px-4 py-3">Notes</th>
-                    <th className="px-4 py-3">Settled</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {pagePayments.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-mono font-semibold text-slate-900 whitespace-nowrap">{p.trackingCode}</td>
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-slate-900 block">{p.senderName}</span>
-                        <span className="text-xs text-slate-500 block font-mono">{p.senderPhone}</span>
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-900 tabular-nums whitespace-nowrap">
-                        {p.currency} {(p.amount / 100).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
-                          p.provider === 'momo' ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-slate-100 border-slate-300 text-slate-700'
-                        }`}>
-                          {p.provider}
+              {/* The same list mechanics as the board: a row says who and how
+                  much, the switch thickens every row at once, and the whole
+                  transaction opens in a sheet rather than pushing the list
+                  down the page. */}
+              <div className="gd-panel overflow-hidden">
+                {pagePayments.map((p, i) => {
+                  const settled = p.paidAt ?? p.createdAt;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setOpenPayment(p.id)}
+                      style={{ animationDelay: `${Math.min(i, 8) * 28}ms` }}
+                      className={`gd-row gd-row-in w-full flex flex-wrap items-center gap-x-4 gap-y-2 px-4 sm:px-5 py-3.5 text-left ${
+                        i > 0 ? 'border-t border-slate-100' : ''
+                      }`}
+                    >
+                      <span
+                        className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                          p.status === 'success' ? 'bg-emerald-500' :
+                          p.status === 'failed' ? 'bg-red-500' : 'bg-amber-400'
+                        }`}
+                        title={p.status}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-mono text-sm font-semibold text-slate-900">{p.trackingCode}</span>
+                        <span className="block truncate text-sm text-slate-500">{p.senderName}</span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block text-base font-semibold text-slate-900 tabular-nums">
+                          {p.currency} {(p.amount / 100).toFixed(2)}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500 max-w-[140px] truncate" title={p.providerReference || undefined}>
-                        {p.providerReference || '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${
-                          p.status === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
-                          p.status === 'failed' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
-                          'bg-amber-500/10 border-amber-500/20 text-amber-600'
-                        }`}>
-                          {p.status}
+                        <span className="block text-xs text-slate-400 tabular-nums">
+                          {new Date(settled).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-500 max-w-[200px] truncate" title={p.note}>
-                        {p.note || <span className="text-slate-400">—</span>}
-                      </td>
-                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
-                        {p.paidAt ? new Date(p.paidAt).toLocaleDateString() : new Date(p.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </span>
+
+                      {fullDetail && (
+                        <span className="w-full flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-100 pt-2.5 text-sm text-slate-500">
+                          <span className="capitalize">{p.provider}</span>
+                          <span className="font-mono text-xs">{p.providerReference || 'No reference'}</span>
+                          <span className="font-mono text-xs">{p.senderPhone}</span>
+                          {p.note && <span className="truncate">{p.note}</span>}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1 text-sm text-slate-500">
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-1 text-sm text-slate-500">
                 <span>
                   Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, filteredPayments.length)} of {filteredPayments.length}
                   {paymentSearch && ' matching'}
@@ -1626,7 +1680,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <button
                     onClick={() => setPaymentsPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                    className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                   >
                     &lsaquo; Prev
                   </button>
@@ -1634,7 +1688,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <button
                     onClick={() => setPaymentsPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
-                    className="min-h-11 px-4 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
+                    className="min-h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
                   >
                     Next &rsaquo;
                   </button>
@@ -1656,7 +1710,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
       {/* ----------------- SUB TAB: PRICING CONFIGURATION ----------------- */}
       {activeSubTab === 'pricing' && (
-        <div className="mx-auto max-w-2xl animate-in fade-in duration-200" id="dash_subtab_pricing">
+        <div className="mx-auto max-w-2xl" id="dash_subtab_pricing">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl space-y-6">
             
             <div className="pb-4 border-b border-slate-200">
@@ -1848,345 +1902,290 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
         </div>
       )}
 
-      {/* ----------------- ORDER DETAIL RIGHT-SIDEBAR INSPECTOR (DRAWER) ----------------- */}
-      {selectedOrderId && (
-        <div className="fixed inset-0 z-50 overflow-hidden" id="order_inspector_panel">
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/65 backdrop-blur-xs transition-opacity" onClick={() => setSelectedOrderId(null)}></div>
-          
-          <div className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
-            <div className="w-screen max-w-lg bg-white border-l border-slate-200 shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300">
-              
-              {/* Drawer Header */}
-              <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="text-sm text-slate-500 block">Order</span>
-                  <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-1.5 mt-0.5">
-                    {selectedOrderDetails?.order.trackingCode ?? ''}
-                  </h2>
+      {/* One transaction, in full. */}
+      {(() => {
+        const p = payments.find((x) => x.id === openPayment);
+        if (!p) return null;
+        const settled = p.paidAt ?? p.createdAt;
+        return (
+          <Sheet
+            open
+            onClose={() => setOpenPayment(null)}
+            title={<span className="font-mono">{p.trackingCode}</span>}
+            subtitle={`${p.currency} ${(p.amount / 100).toFixed(2)} · ${p.status}`}
+          >
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
+              <div>
+                <dt className="text-xs uppercase tracking-wider text-slate-400">Paid by</dt>
+                <dd className="mt-0.5 text-slate-900">{p.senderName}</dd>
+                <dd className="font-mono text-xs text-slate-500">{p.senderPhone}</dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wider text-slate-400">Method</dt>
+                <dd className="mt-0.5 capitalize text-slate-900">{p.provider}</dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wider text-slate-400">Settled</dt>
+                <dd className="mt-0.5 text-slate-900 tabular-nums">
+                  {new Date(settled).toLocaleString(undefined, {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                  })}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wider text-slate-400">Recorded by</dt>
+                <dd className="mt-0.5 text-slate-900">{p.recordedByAdminId ? 'Staff' : 'Automation'}</dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="text-xs uppercase tracking-wider text-slate-400">Reference</dt>
+                <dd className="mt-0.5 break-all font-mono text-xs text-slate-700">
+                  {p.providerReference || 'None recorded'}
+                </dd>
+              </div>
+              {p.note && (
+                <div className="col-span-2">
+                  <dt className="text-xs uppercase tracking-wider text-slate-400">Note</dt>
+                  <dd className="mt-0.5 text-slate-700">{p.note}</dd>
                 </div>
+              )}
+            </dl>
+          </Sheet>
+        );
+      })()}
+
+      {/* ----------------- THE ORDER SCREEN -----------------
+          One parcel, in a sheet that rises over the board. The board does not
+          move while it is open and is exactly where it was when it closes.
+
+          Nothing folds. The side panel was 512px wide and had to hide five
+          sections to fit; a sheet is as tall as the screen, so everything is
+          simply there, in the order somebody works through it: what and where,
+          then the action, then who to ring, then the record. */}
+      {selectedOrderId && (
+        <Sheet
+          open
+          onClose={() => setSelectedOrderId(null)}
+          title={
+            loadingOrderDetails || !selectedOrderDetails
+              ? 'Loading'
+              : <span className="font-mono">{selectedOrderDetails.order.trackingCode}</span>
+          }
+          subtitle={
+            selectedOrderDetails && (
+              <span className="flex flex-wrap items-center gap-2">
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  STATUS_ORDER.find((x) => x.key === selectedOrderDetails.order.status)?.bg ?? 'bg-slate-100'
+                } ${
+                  STATUS_ORDER.find((x) => x.key === selectedOrderDetails.order.status)?.text ?? 'text-slate-700'
+                }`}>
+                  {getStatusLabel(selectedOrderDetails.order.status)}
+                </span>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  selectedOrderDetails.order.paymentStatus === 'paid'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-amber-50 text-amber-700'
+                }`}>
+                  {selectedOrderDetails.order.paymentStatus === 'paid' ? 'Paid' : 'Payment due'}
+                </span>
+                <span className="text-slate-400">
+                  {selectedOrderDetails.order.currency}{' '}
+                  {(selectedOrderDetails.order.priceAmount / 100).toFixed(2)}
+                </span>
+              </span>
+            )
+          }
+          footer={
+            canWriteOrders && selectedOrderDetails && advanceStatus(selectedOrderDetails.order.status) ? (
+              <div className="space-y-2">
                 <button
-                  id="btn_close_inspector"
-                  onClick={() => setSelectedOrderId(null)}
-                  className="h-11 w-11 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+                  id="btn_trigger_next_status"
+                  onClick={() => handleUpdateStatus(advanceStatus(selectedOrderDetails.order.status)!)}
+                  disabled={submittingStatus}
+                  // 56px is a thumb target on a phone. With a mouse it is just
+                  // a loud slab, so it comes down to 48 from sm up.
+                  className="btn-aurora w-full min-h-14 sm:min-h-12 flex items-center justify-center gap-2 rounded-2xl text-base sm:text-sm font-semibold text-white cursor-pointer disabled:opacity-60"
                 >
-                  <X className="h-5 w-5" />
+                  {submittingStatus ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
+                  Move to {getStatusLabel(advanceStatus(selectedOrderDetails.order.status)!)}
                 </button>
+                {drawerUndo?.ok === true && (
+                  <button
+                    onClick={() => undoLastChange(selectedOrderDetails.order.id)}
+                    disabled={undoing}
+                    className="w-full min-h-11 flex items-center justify-center gap-2 rounded-2xl text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {undoing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+                    {drawerUndo.wasUndo ? 'Redo' : 'Undo'} — back to {getStatusLabel(drawerUndo.previous)}
+                  </button>
+                )}
+              </div>
+            ) : null
+          }
+        >
+          {loadingOrderDetails || !selectedOrderDetails ? (
+            <div className="flex h-40 items-center justify-center">
+              <Loader2 className="h-7 w-7 animate-spin text-red-600" />
+            </div>
+          ) : (
+            <div className="space-y-6">
+
+              {/* Where it goes, and when. */}
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Collect from</p>
+                <p className="mt-1 text-sm leading-snug text-slate-900">
+                  {selectedOrderDetails.order.pickupAddress}
+                </p>
+                {selectedOrderDetails.order.pickupNotes && (
+                  <p className="text-sm text-slate-500">{selectedOrderDetails.order.pickupNotes}</p>
+                )}
+                <p className="mt-3 text-xs font-medium uppercase tracking-wider text-slate-400">Deliver to</p>
+                <p className="mt-1 text-sm leading-snug text-slate-900">
+                  {selectedOrderDetails.order.dropoffAddress}
+                </p>
+                {selectedOrderDetails.order.dropoffNotes && (
+                  <p className="text-sm text-slate-500">{selectedOrderDetails.order.dropoffNotes}</p>
+                )}
+                <p className="mt-3 border-t border-slate-200 pt-3 text-sm text-slate-600">
+                  Collection {formatPickup(selectedOrderDetails.order.scheduledPickupAt)}
+                  <span className="text-slate-300"> · </span>
+                  {selectedOrderDetails.order.packageWeightKg}kg
+                  <span className="text-slate-300"> · </span>
+                  {selectedOrderDetails.order.packageDescription}
+                </p>
               </div>
 
-              {/* Drawer Content */}
-              <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-                
-                {loadingOrderDetails || !selectedOrderDetails ? (
-                  <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 text-red-600 animate-spin" /></div>
-                ) : (
-                  <>
-                    {/* General Specs Ticket Card */}
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-4">
-                      {/* The tracking code is in the drawer header, so this row
-                          carries the price alone rather than repeating it. */}
-                      <div className="pb-3 border-b border-dashed border-slate-200">
-                        <span className="text-sm text-slate-500 block">Price</span>
-                        <span className="text-xl font-medium text-slate-900 tabular-nums">
-                          {selectedOrderDetails.order.currency} {(selectedOrderDetails.order.priceAmount / 100).toFixed(2)}
+              {/* Who to ring. Both numbers, because either end can go wrong. */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Sender</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedOrderDetails.order.senderName}</p>
+                  <a href={`tel:${selectedOrderDetails.order.senderPhone}`}
+                     className="mt-1.5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-red-700">
+                    <Phone className="h-4 w-4" />
+                    {selectedOrderDetails.order.senderPhone}
+                  </a>
+                </div>
+                <div className="rounded-2xl border border-slate-200 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Recipient</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedOrderDetails.order.recipientName}</p>
+                  <a href={`tel:${selectedOrderDetails.order.recipientPhone}`}
+                     className="mt-1.5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-red-700">
+                    <Phone className="h-4 w-4" />
+                    {selectedOrderDetails.order.recipientPhone}
+                  </a>
+                </div>
+              </div>
+
+              {/* Who is carrying it. The link they used to work from is gone --
+                  see the note on serializeOrder. */}
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Courier</p>
+                <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <Truck className="h-4 w-4 text-red-600" />
+                  {selectedOrderDetails.order.riderName || 'Unassigned'}
+                </p>
+              </div>
+
+              {/* Moves the Advance button does not cover. */}
+              {canWriteOrders && nextStatuses(selectedOrderDetails.order.status).filter(
+                (k) => k !== advanceStatus(selectedOrderDetails.order.status)
+              ).length > 0 && (
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Other moves</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {nextStatuses(selectedOrderDetails.order.status)
+                      .filter((k) => k !== advanceStatus(selectedOrderDetails.order.status))
+                      .map((key) => (
+                        <button
+                          key={key}
+                          disabled={submittingStatus}
+                          onClick={() => handleUpdateStatus(key)}
+                          className="min-h-11 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {getStatusLabel(key)}
+                        </button>
+                      ))}
+                  </div>
+                  <input
+                    id="input_status_note"
+                    type="text"
+                    value={statusNote}
+                    onChange={(e) => setStatusNote(e.target.value)}
+                    placeholder="Note for the record (optional)"
+                    className="mt-2 w-full min-h-11 rounded-xl border border-slate-200 px-3.5 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
+                  />
+                </div>
+              )}
+
+              {/* Money owed, and the way to settle it. */}
+              {canRecordPayment && selectedOrderDetails.order.paymentStatus !== 'paid' && (
+                <form onSubmit={handleRecordPayment} className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-3">
+                  <p className="text-xs font-medium uppercase tracking-wider text-emerald-800">Record a payment</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      id="input_reconcile_amount"
+                      type="number" step="0.01" required
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder="Amount"
+                      className="min-h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                    />
+                    <input
+                      id="input_reconcile_ref"
+                      type="text"
+                      value={paymentRef}
+                      onChange={(e) => setPaymentRef(e.target.value)}
+                      placeholder="Reference"
+                      className="min-h-11 rounded-xl border border-emerald-200 bg-white px-3 font-mono text-sm text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                    />
+                  </div>
+                  <input
+                    id="input_reconcile_note"
+                    type="text" required
+                    value={paymentNote}
+                    onChange={(e) => setPaymentNote(e.target.value)}
+                    placeholder="What was seen — a MoMo screenshot, cash counted"
+                    className="w-full min-h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                  />
+                  <button
+                    id="btn_confirm_reconcile"
+                    type="submit"
+                    disabled={submittingPayment}
+                    className="w-full min-h-12 flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors cursor-pointer disabled:opacity-60"
+                  >
+                    {submittingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                    Record it
+                  </button>
+                </form>
+              )}
+
+              {/* What has happened, newest first. */}
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+                  History
+                </p>
+                <ol className="mt-2 space-y-3.5">
+                  {selectedOrderDetails.history.map((log) => (
+                    <li key={log.id} className="text-sm">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="font-medium text-slate-900">{getStatusLabel(log.status)}</span>
+                        <span className="shrink-0 font-mono text-xs text-slate-400 tabular-nums">
+                          {new Date(log.changedAt).toLocaleString(undefined, {
+                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                          })}
                         </span>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-slate-500 block">Status</span>
-                          <span className={`inline-block font-semibold capitalize mt-0.5 rounded px-2 py-0.5 text-xs tracking-wider ${
-                            STATUS_ORDER.find(s => s.key === selectedOrderDetails.order.status)?.bg || 'bg-slate-100'
-                          } ${
-                            STATUS_ORDER.find(s => s.key === selectedOrderDetails.order.status)?.text || 'text-slate-700'
-                          }`}>
-                            {selectedOrderDetails.order.status.replace('_', ' ')}
-                          </span>
-                        </div>
-
-                        <div>
-                          <span className="text-slate-500 block">Payment</span>
-                          <span className={`inline-block font-semibold uppercase mt-0.5 rounded border px-2 py-0.5 text-xs tracking-wider ${
-                            selectedOrderDetails.order.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' :
-                            'bg-amber-500/10 border-amber-500/20 text-amber-600'
-                          }`}>
-                            {selectedOrderDetails.order.paymentStatus}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Assigned courier + shareable self-service link */}
-                      {selectedOrderDetails.order.riderToken && (
-                        <div className="mt-4 pt-4 border-t border-dashed border-slate-200">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <span className="text-slate-500 font-medium block text-xs">Assigned courier</span>
-                              <span className="flex items-center gap-1.5 mt-0.5 text-sm font-medium text-slate-900">
-                                <Truck className="h-3.5 w-3.5 text-red-600" />
-                                {selectedOrderDetails.order.riderName || 'Unassigned'}
-                              </span>
-                            </div>
-                            <Tooltip placement="left" label="Copies a private link for this parcel only. The courier can mark it collected, on the road and delivered without a login. It expires after seven days.">
-                            <button
-                              onClick={() => {
-                                const link = `${window.location.origin}/rider/${selectedOrderDetails.order.riderToken}`;
-                                navigator.clipboard.writeText(link);
-                                setCopiedRiderLink(true);
-                                setTimeout(() => setCopiedRiderLink(false), 2000);
-                              }}
-                              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 min-h-11 px-3 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
-                            >
-                              {copiedRiderLink ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                              {copiedRiderLink ? 'Copied' : 'Copy rider link'}
-                            </button>
-                            </Tooltip>
-                          </div>
-                          <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                            Send this to the courier — they can mark picked up, in transit and delivered themselves,
-                            without a dashboard login.
-                          </p>
-                        </div>
+                      <p className="mt-0.5 leading-relaxed text-slate-600">{log.note}</p>
+                      {log.changedByName && (
+                        <p className="text-xs text-slate-400">by {log.changedByName}</p>
                       )}
-                    </div>
-
-                    {/* Coordinates & Customer info */}
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">Sender and recipient</h3>
-                      
-                      <div className="space-y-3.5 bg-white rounded-xl border border-slate-200 p-4 text-xs text-slate-700">
-                        {/* Sender */}
-                        <div className="flex gap-2.5 pb-3 border-b border-slate-200">
-                          <User className="h-4.5 w-4.5 text-slate-500 shrink-0" />
-                          <div>
-                            <span className="text-slate-500 block font-medium text-xs uppercase">Sender</span>
-                            <span className="font-semibold text-slate-900 block mt-0.5">{selectedOrderDetails.order.senderName}</span>
-                            <span className="text-slate-500 font-mono text-xs block mt-0.5">{selectedOrderDetails.order.senderPhone}</span>
-                            <span className="text-slate-700 block mt-1"><strong className="text-slate-500">Pickup:</strong> {selectedOrderDetails.order.pickupAddress}</span>
-                            {selectedOrderDetails.order.pickupNotes && (
-                              <span className="block italic text-xs text-slate-500 mt-1">Landmark: {selectedOrderDetails.order.pickupNotes}</span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Recipient */}
-                        <div className="flex gap-2.5">
-                          <User className="h-4.5 w-4.5 text-slate-500 shrink-0" />
-                          <div>
-                            <span className="text-slate-500 block font-medium text-xs uppercase">Recipient</span>
-                            <span className="font-semibold text-slate-900 block mt-0.5">{selectedOrderDetails.order.recipientName}</span>
-                            <span className="text-slate-500 font-mono text-xs block mt-0.5">{selectedOrderDetails.order.recipientPhone}</span>
-                            <span className="text-slate-700 block mt-1"><strong className="text-slate-500">Dropoff:</strong> {selectedOrderDetails.order.dropoffAddress}</span>
-                            {selectedOrderDetails.order.dropoffNotes && (
-                              <span className="block italic text-xs text-slate-500 mt-1">Landmark: {selectedOrderDetails.order.dropoffNotes}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Specifications */}
-                    <div className="space-y-3">
-                      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">Parcel specs</h3>
-                      <div className="bg-white rounded-xl border border-slate-200 p-4 text-xs text-slate-700 space-y-2">
-                        <p><strong className="text-slate-500">Size:</strong> <span className="capitalize font-semibold text-slate-900">{selectedOrderDetails.order.packageSize}</span></p>
-                        <p><strong className="text-slate-500">Weight:</strong> <span className="font-semibold text-slate-900">{selectedOrderDetails.order.packageWeightKg} kg</span></p>
-                        <p><strong className="text-slate-500">Description:</strong> <span className="text-slate-700">{selectedOrderDetails.order.packageDescription}</span></p>
-                        <p><strong className="text-slate-500">Pickup:</strong> <span className="text-slate-700">{new Date(selectedOrderDetails.order.scheduledPickupAt).toLocaleString()}</span></p>
-                      </div>
-                    </div>
-
-                    {/* CONTROL BOX: Transition workflow status — write roles only */}
-                    {canWriteOrders && (
-                    <div className="space-y-4 border-t border-slate-200 pt-6">
-                      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
-                        <Edit2 className="h-4 w-4 text-red-600" /> Workflow Transition Pipeline
-                      </h3>
-
-                      <div className="space-y-3 bg-slate-100/25 rounded-xl p-4 border border-slate-200">
-
-                        {/* Undo, when the last change is still inside the
-                            window. checkUndo() decides, and the server refuses
-                            on the same rules, so this cannot offer a move the
-                            API would decline. */}
-                        {drawerUndo?.ok === true ? (
-                          <div className="pb-3 border-b border-slate-200 mb-3">
-                            <button
-                              onClick={() => undoLastChange(selectedOrderDetails.order.id)}
-                              disabled={undoing}
-                              className="w-full min-h-12 flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
-                            >
-                              {undoing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
-                              {drawerUndo.wasUndo ? 'Redo' : 'Undo'} — back to {getStatusLabel(drawerUndo.previous)}
-                            </button>
-                            <p className="mt-2 text-xs text-slate-500">
-                              {drawerUndo.wasUndo
-                                ? 'Puts back the step that was undone at '
-                                : `Reverses the step ${drawerUndo.by} took at `}
-                              {drawerUndo.changedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
-                              Any payment and rider it settled moves with it.
-                            </p>
-                          </div>
-                        ) : drawerUndo && drawerUndo.ok === false ? (
-                          <p className="pb-3 border-b border-slate-200 mb-3 text-xs text-slate-500">
-                            <span className="font-medium text-slate-600">Undo unavailable.</span>{' '}
-                            {drawerUndo.reason}
-                          </p>
-                        ) : null}
-
-                        {/* Quick sequential next step trigger */}
-                        {advanceStatus(selectedOrderDetails.order.status) && (
-                          <div className="space-y-2 pb-3 border-b border-slate-200 mb-3">
-                            <span className="text-xs text-slate-500 font-medium block">Fast Next Step:</span>
-                            <button
-                              id="btn_trigger_next_status"
-                              onClick={() => handleUpdateStatus(advanceStatus(selectedOrderDetails.order.status)!)}
-                              disabled={submittingStatus}
-                              className="w-full text-center min-h-12 px-4 rounded-xl btn-aurora text-white font-semibold text-base shadow-md shadow-red-500/20 transition-colors flex items-center justify-center space-x-1 cursor-pointer"
-                            >
-                              <span>Move to "{getStatusLabel(advanceStatus(selectedOrderDetails.order.status)!)}"</span>
-                              <ArrowRight className="h-4 w-4" />
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Only the moves the server will actually accept. The
-                            table is shared with the API, so this list cannot
-                            drift from what is permitted. */}
-                        {(() => {
-                          const legal = nextStatuses(selectedOrderDetails.order.status);
-                          if (legal.length === 0) {
-                            return (
-                              <p className="text-sm text-slate-500">
-                                This order is {getStatusLabel(selectedOrderDetails.order.status).toLowerCase()} and cannot change further.
-                              </p>
-                            );
-                          }
-                          return (
-                            <div className="grid grid-cols-2 gap-2">
-                              {legal.map((key) => (
-                                <button
-                                  key={key}
-                                  disabled={submittingStatus}
-                                  onClick={() => handleUpdateStatus(key)}
-                                  className="min-h-11 px-3 rounded-lg border text-center transition-colors font-medium text-sm bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer disabled:opacity-50"
-                                >
-                                  {getStatusLabel(key)}
-                                </button>
-                              ))}
-                            </div>
-                          );
-                        })()}
-
-                        {/* Optional status log notes */}
-                        <div className="pt-2">
-                          <label className="block text-sm text-slate-500 mb-1 font-medium">Workflow Log Note (Who, what landmark/action)</label>
-                          <input
-                            id="input_status_note"
-                            type="text"
-                            value={statusNote}
-                            onChange={(e) => setStatusNote(e.target.value)}
-                            placeholder="e.g. Courier Kwesi assigned; package verified intact"
-                            className="w-full min-h-11 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-900 px-3 py-2.5 outline-none focus:border-red-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    )}
-
-                    {/* CONTROL BOX: Mark payment as paid manually — finance/owner only */}
-                    {canRecordPayment && selectedOrderDetails.order.paymentStatus !== 'paid' && (
-                      <div className="space-y-4 border-t border-slate-200 pt-6">
-                        <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-900 flex items-center gap-1.5">
-                          <CreditCard className="h-4 w-4 text-emerald-600" /> Manual Payment reconciliation
-                        </h3>
-
-                        <form onSubmit={handleRecordPayment} className="space-y-3 bg-emerald-950/10 rounded-xl p-4 border border-emerald-800/30">
-                          <span className="text-xs text-emerald-600 font-medium block leading-relaxed">
-                            Log a manually confirmed MTN MoMo transfer, banking deposit, or cash transaction to unlock metrics.
-                          </span>
-
-                          <div className="grid grid-cols-2 gap-3 text-xs">
-                            <div>
-                              <label className="block text-sm text-slate-500 mb-1">Received Amount (GHS)</label>
-                              <input
-                                id="input_reconcile_amount"
-                                type="number"
-                                step="0.01"
-                                required
-                                value={paymentAmount}
-                                onChange={(e) => setPaymentAmount(e.target.value)}
-                                className="w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 outline-none text-slate-900 font-semibold focus:border-red-500"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm text-slate-500 mb-1">Provider Reference (Optional)</label>
-                              <input
-                                id="input_reconcile_ref"
-                                type="text"
-                                value={paymentRef}
-                                onChange={(e) => setPaymentRef(e.target.value)}
-                                placeholder="e.g. TX-882012"
-                                className="w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 outline-none font-mono text-sm text-slate-900 focus:border-red-500"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-sm text-slate-500 mb-1">Internal Audit Ledger Notes</label>
-                            <input
-                              id="input_reconcile_note"
-                              type="text"
-                              required
-                              value={paymentNote}
-                              onChange={(e) => setPaymentNote(e.target.value)}
-                              placeholder="e.g. Verified momo screenshot on dispatch WhatsApp"
-                              className="w-full min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none text-slate-900 focus:border-red-500"
-                            />
-                          </div>
-
-                          <button
-                            id="btn_confirm_reconcile"
-                            type="submit"
-                            disabled={submittingPayment}
-                            className="w-full text-center min-h-12 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 font-semibold text-base shadow-lg shadow-emerald-600/10 transition-colors flex items-center justify-center space-x-1 cursor-pointer"
-                          >
-                            {submittingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <span>Record Ledger Payment & Clear pending</span>}
-                          </button>
-                        </form>
-                      </div>
-                    )}
-
-                    {/* Historical Status Timeline & Payment History logs */}
-                    <div className="space-y-4 border-t border-slate-200 pt-6">
-                      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                        <Clock className="h-4.5 w-4.5" /> Event Timeline History ({selectedOrderDetails.history.length})
-                      </h3>
-
-                      <div className="space-y-3 pl-3 border-l-2 border-slate-200">
-                        {selectedOrderDetails.history.map((log) => (
-                          <div key={log.id} className="relative pl-4 text-xs font-sans text-slate-500 space-y-1">
-                            <div className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-slate-300 border border-white"></div>
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold text-slate-900 capitalize">{log.status.replace('_', ' ')}</span>
-                              <span className="text-xs text-slate-500 font-mono">{new Date(log.changedAt).toLocaleString()}</span>
-                            </div>
-                            <p className="text-slate-600 leading-relaxed">{log.note}</p>
-                            {log.changedByName && (
-                              <span className="block text-xs text-slate-500 font-medium">Logged by: {log.changedByName}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                  </>
-                )}
-
+                    </li>
+                  ))}
+                </ol>
               </div>
-
             </div>
-          </div>
-        </div>
+          )}
+        </Sheet>
       )}
 
           </div>

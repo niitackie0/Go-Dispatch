@@ -21,6 +21,19 @@ import type { Order, Payment, Rider, StatusHistory } from '../types.js';
  * - Orders have no `riderName` column. The name comes from the joined rider,
  *   so the API shape is preserved without duplicating the column and having
  *   the copy drift when a rider is renamed.
+ *
+ * WHAT IS NOT HERE: riderToken, and now nothing serialises it at all.
+ *
+ * It used to be in this function, which feeds public responses -- so a booking
+ * reference could be exchanged for the courier's token, and that token marks a
+ * parcel delivered and its bill settled. It was moved behind an admin session
+ * for the console's "copy the courier's link" button; that button has since
+ * been removed, so the token has no reader left and does not leave the server
+ * at all.
+ *
+ * The rider pages still work for anyone holding a link, but nothing now hands
+ * one out. If couriers are meant to have them again, the answer is to text the
+ * link to the rider rather than to put it back on a screen.
  */
 
 export type OrderWithRider = OrderRow & { rider?: RiderRow | null };
@@ -53,11 +66,11 @@ export function serializeOrder(row: OrderWithRider): Order {
     paymentTiming: row.paymentTiming,
     riderId: row.riderId ?? undefined,
     riderName: row.rider?.name ?? undefined,
-    riderToken: row.riderToken ?? undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
+
 
 export function serializePayment(row: PaymentRow): Payment {
   return {

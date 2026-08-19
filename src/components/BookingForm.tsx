@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
   CheckCircle,
@@ -70,9 +70,36 @@ const blankParcel = (key: number, region = ''): ParcelDraft => ({
  *  - The RECIPIENT pays, per parcel, at their door. There is no payment step
  *    because the sender is not being asked for money.
  */
+/**
+ * A key for one filled-in form. randomUUID needs a secure context — true for
+ * https and for localhost, false for a phone hitting a dev machine over the
+ * LAN, which is exactly where this gets tested.
+ */
+function newKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `k-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 export default function BookingForm({ onSuccessBooking, initialRegion = '' }: BookingFormProps) {
   const [pricing, setPricing] = useState<PricingConfig>(DEFAULT_PRICING);
   const [submitting, setSubmitting] = useState(false);
+
+  /**
+   * One key per filled-in form, not per submit.
+   *
+   * It is a ref rather than state precisely so that re-rendering cannot change
+   * it: every retry of this booking must carry the same value, or the server
+   * has no way to tell a retry from a second booking. A new one is minted only
+   * after a booking succeeds, because at that point the next submit really is
+   * a different parcel.
+   *
+   * This matters here more than on most forms. The server sleeps after fifteen
+   * idle minutes, so the first booking of the morning sits on a spinner for
+   * about a minute, and a spinner that long is a button people press again.
+   */
+  const idempotencyKey = useRef(newKey());
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -183,6 +210,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           pickupAddress,
           pickupNotes,
           scheduledPickupAt: new Date(scheduledPickup).toISOString(),
+          idempotencyKey: idempotencyKey.current,
           parcels: parcels.map((p) => ({
             destinationRegion: p.destinationRegion,
             dropoffAddress: p.dropoffAddress,
@@ -196,6 +224,10 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
 
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'That booking could not be submitted.');
+
+      // Booked. The next submit from this page would be a genuinely new
+      // booking, so it needs a key of its own.
+      idempotencyKey.current = newKey();
 
       setResult({
         reference: body.reference,
@@ -219,7 +251,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
   };
 
   const field =
-    'w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-[15px] outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-colors';
+    'w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 px-4 py-3 text-base outline-none focus:border-red-500 focus:bg-white focus:ring-1 focus:ring-red-500 placeholder-slate-400 transition-colors';
   const label = 'block text-sm font-medium text-slate-500 mb-1';
 
   /* ---------------- confirmation ---------------- */
@@ -280,21 +312,21 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
                   {/* Repeating the code a single-parcel booking already leads
                       with would just be the same number twice. */}
                   {!single && (
-                    <span className="block font-mono text-[15px] font-medium text-slate-900">
+                    <span className="block font-mono text-base font-medium text-slate-900">
                       {p.trackingCode}
                     </span>
                   )}
                   <span
                     className={
                       single
-                        ? 'block text-[15px] text-slate-700 truncate'
+                        ? 'block text-base text-slate-700 truncate'
                         : 'block text-sm text-slate-500 truncate'
                     }
                   >
                     {p.destinationRegion} · {p.recipientName}
                   </span>
                 </span>
-                <span className="text-[15px] font-medium text-slate-900 tabular-nums shrink-0">
+                <span className="text-base font-medium text-slate-900 tabular-nums shrink-0">
                   ~{formatAmount(p.priceAmount, p.currency)}
                 </span>
               </li>
@@ -308,7 +340,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             </span>
           </div>
 
-          <p className="mt-4 text-sm text-slate-500">
+          <p className="mt-4 text-base text-slate-500">
             Every figure here is an estimate from the weight you gave us. Each parcel is
             weighed once our rider brings it in, and that weighed price is what the
             recipient pays.
@@ -347,7 +379,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-2.5" role="alert">
             <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-            <p className="text-[15px] text-red-700">{error}</p>
+            <p className="text-base text-red-700">{error}</p>
           </div>
         )}
 
@@ -380,12 +412,12 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           {parcels.map((p, i) => (
             <div key={p.key} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
               <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-200">
-                <span className="flex items-center gap-2 text-[15px] font-medium text-slate-900">
+                <span className="flex items-center gap-2 text-base font-medium text-slate-900">
                   <Package className="h-4 w-4 text-red-600" />
                   Parcel {i + 1}
                 </span>
                 <span className="flex items-center gap-2">
-                  <span className="text-[15px] text-slate-500 tabular-nums">
+                  <span className="text-base text-slate-500 tabular-nums">
                     ~{formatAmount(estimateFor(p), pricing.currency)}
                   </span>
                   {parcels.length > 1 && (
@@ -435,13 +467,13 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           <button
             type="button"
             onClick={addParcel}
-            className="w-full min-h-14 flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 text-[15px] font-medium text-slate-600 hover:border-red-300 hover:text-red-700 hover:bg-red-50/40 transition-colors cursor-pointer"
+            className="w-full min-h-14 flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 text-base font-medium text-slate-600 hover:border-red-300 hover:text-red-700 hover:bg-red-50/40 transition-colors cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             Add another parcel
           </button>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-base text-slate-500">
             Each parcel gets its own tracking code and can go to a different region. The
             recipient pays for theirs when it arrives.
           </p>
@@ -451,9 +483,9 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
         <div className={step === 3 ? 'space-y-4' : 'hidden'}>
           <div className="rounded-2xl border border-slate-200 bg-white p-5">
             <h3 className="text-sm font-medium text-slate-500">Collection</h3>
-            <p className="mt-1 text-[15px] text-slate-900">{senderName || '—'} · {senderPhone}</p>
-            <p className="text-[15px] text-slate-600">{pickupAddress}</p>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="mt-1 text-base text-slate-900">{senderName || '—'} · {senderPhone}</p>
+            <p className="text-base text-slate-600">{pickupAddress}</p>
+            <p className="text-base text-slate-500 mt-1">
               {scheduledPickup ? new Date(scheduledPickup).toLocaleString() : ''}
             </p>
           </div>
@@ -463,7 +495,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               {parcels.map((p, i) => (
                 <li key={p.key} className="p-4 flex items-start justify-between gap-3">
                   <span className="min-w-0">
-                    <span className="block text-[15px] font-medium text-slate-900">
+                    <span className="block text-base font-medium text-slate-900">
                       Parcel {i + 1} · {p.destinationRegion || '—'}
                     </span>
                     <span className="block text-sm text-slate-500 truncate">
@@ -473,7 +505,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
                       {p.packageWeightKg}kg · {p.packageDescription}
                     </span>
                   </span>
-                  <span className="text-[15px] text-slate-900 tabular-nums shrink-0">
+                  <span className="text-base text-slate-900 tabular-nums shrink-0">
                     ~{formatAmount(estimateFor(p), pricing.currency)}
                   </span>
                 </li>
@@ -489,12 +521,12 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
 
           {/* The two facts most likely to cause an argument later. */}
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
-            <p className="text-[15px] text-amber-900">
+            <p className="text-base text-amber-900">
               <strong className="font-semibold">This is an estimate.</strong> Our rider
               collects from you, we weigh each parcel back at the office, and that weighed
               price is the one charged.
             </p>
-            <p className="text-[15px] text-amber-900">
+            <p className="text-base text-amber-900">
               <strong className="font-semibold">The recipient pays.</strong> Each parcel is
               settled by the person receiving it, when it arrives.
             </p>
@@ -506,7 +538,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             <button
               type="button"
               onClick={goBack}
-              className="min-h-12 px-5 rounded-xl border border-slate-200 bg-white text-[15px] font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              className="min-h-12 px-5 rounded-xl border border-slate-200 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
             >
               Back
             </button>

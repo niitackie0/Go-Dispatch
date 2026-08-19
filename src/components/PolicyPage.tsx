@@ -80,7 +80,7 @@ function Clause({
 
           <div className="flex items-start justify-between gap-6 mt-1.5 lg:mt-0">
             {/* The gist steps aside once the real clause is on screen. */}
-            <p className="text-[15px] text-slate-500 group-open:hidden max-w-[62ch]">{gist}</p>
+            <p className="text-base text-slate-500 group-open:hidden max-w-[62ch]">{gist}</p>
 
             {/* A plus that loses its upright stroke when the clause opens.
                 Quieter than a chevron, and it says the same thing. */}
@@ -97,7 +97,7 @@ function Clause({
 
       <div className={`${COLUMNS} pb-8`}>
         <div aria-hidden="true" />
-        <div className="space-y-4 text-[16px] leading-relaxed text-slate-700 max-w-[62ch]">
+        <div className="space-y-4 text-base leading-relaxed text-slate-700 max-w-[62ch]">
           {children}
         </div>
       </div>

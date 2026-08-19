@@ -142,7 +142,7 @@ function FooterPattern() {
         </g>
 
         <pattern id="gd-footer-pattern" width="190" height="130" patternUnits="userSpaceOnUse">
-          <use href="#gd-glyphs" opacity="0.16" />
+          <use href="#gd-glyphs" opacity="0.07" />
         </pattern>
       </defs>
 
@@ -251,7 +251,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-600 text-white shadow-[0_6px_14px_-8px_rgba(216,30,36,0.95)] transition-transform duration-300 group-hover:-translate-y-px">
               <GoMark />
             </span>
-            <Wordmark className="text-[15px] text-slate-900" />
+            <Wordmark className="text-base text-slate-900" />
           </Link>
 
           <nav className="hidden md:flex items-center rounded-full bg-slate-100/90 p-1" aria-label="Main">
@@ -260,7 +260,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                 key={l.to}
                 to={l.to}
                 aria-current={isActive(l.to) ? 'page' : undefined}
-                className={`inline-flex items-center min-h-11 rounded-full px-4 text-[15px] transition-colors duration-200 ${
+                className={`inline-flex items-center min-h-11 rounded-full px-4 text-base transition-colors duration-200 ${
                   isActive(l.to)
                     ? 'bg-white font-medium text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.10)]'
                     : 'text-slate-500 hover:text-slate-900'
@@ -273,7 +273,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
 
           <Link
             to="/book"
-            className="group hidden md:inline-flex items-center shrink-0 min-h-11 gap-2 rounded-full bg-red-600 hover:bg-red-700 pl-5 pr-4 text-[15px] font-medium text-white transition-colors"
+            className="group hidden md:inline-flex items-center shrink-0 min-h-11 gap-2 rounded-full bg-red-600 hover:bg-red-700 pl-5 pr-4 text-base font-medium text-white transition-colors"
           >
             Book a delivery
             <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -321,7 +321,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-600 text-white">
                   <GoMark />
                 </span>
-                <Wordmark className="text-[15px] text-slate-900" />
+                <Wordmark className="text-base text-slate-900" />
               </span>
               <button
                 onClick={closeMenu}
@@ -341,7 +341,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                     to={l.to}
                     onClick={closeMenu}
                     aria-current={on ? 'page' : undefined}
-                    className={`flex items-center justify-between min-h-14 rounded-xl px-3 text-[17px] transition-colors ${
+                    className={`flex items-center justify-between min-h-14 rounded-xl px-3 text-lg transition-colors ${
                       on ? 'bg-red-50 font-medium text-red-700' : 'text-slate-800 hover:bg-slate-50'
                     }`}
                   >
@@ -401,7 +401,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       <footer className="mt-auto relative overflow-hidden bg-gradient-to-b from-slate-950 to-black text-white">
         <FooterPattern />
 
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-9">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-9">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
 
             <div className="flex items-center gap-3">
@@ -409,19 +409,20 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                 <GoMark size={20} />
               </span>
               <span className="leading-tight">
-                <Wordmark className="block text-[15px] text-white" />
+                <Wordmark className="block text-base text-white" />
                 <span className="mt-1 block text-sm text-white/45">We deliver trust</span>
               </span>
             </div>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-2.5">
               <a
                 href={`tel:${CONTACT_PHONE_E164}`}
-                className="inline-flex items-center gap-2 min-h-11 shrink-0 whitespace-nowrap rounded-full bg-red-600 hover:bg-red-500 px-5 text-[15px] font-medium tabular-nums transition-colors"
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 min-h-12 sm:min-h-11 shrink-0 whitespace-nowrap rounded-full bg-red-600 hover:bg-red-500 px-5 text-base font-medium tabular-nums transition-colors"
               >
                 <Phone className="h-4 w-4" />
                 {CONTACT_PHONE}
               </a>
+              <div className="flex items-center gap-2.5">
               {SOCIAL.filter((s) => s.url).map((s) => (
                 <a
                   key={s.name}
@@ -434,17 +435,20 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                   <SocialIcon name={s.name} />
                 </a>
               ))}
+              </div>
             </div>
           </div>
 
-          <div className="relative mt-7 pt-6 border-t border-white/10 grid gap-6 sm:grid-cols-2">
+          <div className="relative mt-6 pt-6 border-t border-white/10 grid gap-6 sm:grid-cols-2">
             <div>
               <h3 className="text-sm font-medium text-white/40">Opening hours</h3>
               <dl className="mt-2 space-y-1">
+                {/* Rows run full width on a phone. Capped at max-w-xs they
+                    stopped dead mid-screen and read as a broken column. */}
                 {OPENING_HOURS.map((h) => (
-                  <div key={h.days} className="flex items-baseline justify-between gap-4 max-w-xs">
-                    <dt className="text-[15px] text-white/70">{h.days}</dt>
-                    <dd className={`text-[15px] tabular-nums ${h.hours === 'Closed' ? 'text-white/35' : 'text-white'}`}>
+                  <div key={h.days} className="flex items-baseline justify-between gap-4 max-w-none sm:max-w-xs">
+                    <dt className="text-sm text-white/70">{h.days}</dt>
+                    <dd className={`text-sm tabular-nums ${h.hours === 'Closed' ? 'text-white/40' : 'text-white'}`}>
                       {h.hours}
                     </dd>
                   </div>
@@ -453,18 +457,18 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             </div>
             <div>
               <h3 className="text-sm font-medium text-white/40">Find us</h3>
-              <p className="mt-2 text-[15px] text-white/70">
+              <p className="mt-2 text-sm text-white/70">
                 {OFFICE_ADDRESS}
                 <br />
                 <span className="text-white/45">{OFFICE_LANDMARK}</span>
               </p>
-              <p className="mt-3 text-[15px] text-white/70">
+              <p className="mt-3 text-sm text-white/70">
                 A rider collects from anywhere in Accra — you do not need to come in.
               </p>
             </div>
           </div>
 
-          <div className="relative mt-7 pt-5 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="relative mt-6 pt-5 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-1 gap-y-0 text-sm text-white/55">
               {[
                 { to: '/book', label: 'Book' },
@@ -480,7 +484,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                 </React.Fragment>
               ))}
             </nav>
-            <p className="text-sm text-white/35">
+            <p className="text-sm text-white/45">
               &copy; 2026 GO DISPATCH · Safe · Fast · Reliable
             </p>
           </div>

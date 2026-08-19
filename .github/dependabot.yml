@@ -1,0 +1,31 @@
+# Dependency updates, weekly.
+#
+# Three high-severity advisories in this tree cannot be fixed by upgrading:
+# @prisma/config depends on a vulnerable deepmerge-ts, and npm's proposed
+# "fix" is to downgrade prisma from 7 to 6 -- which is not a fix, it is a
+# different codebase. Prisma 7.9.1 is the latest stable, so the only real
+# resolution arrives upstream. This exists so we hear about it the week it
+# lands rather than the next time somebody runs npm audit by hand.
+#
+# See docs/dependencies.md for why those three are accepted rather than fixed.
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # Patch and minor bumps arrive together; a major gets its own PR, because
+    # a major is a decision and should not be buried in a batch of five.
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

@@ -3,16 +3,45 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import type { OrderStatus, PackageSize, PaymentStatus, PaymentTiming } from '../src/types.js';
 import { randomToken } from '../src/server/ids.js';
+import { quote, sizeForWeight } from '../src/pricing.js';
+import { CONTACT_PHONE } from '../src/brand.js';
 
 /**
- * Development fixtures — demo orders so the dashboard, charts and tracking
- * timeline have something to render.
+ * Every phone number in this file, and it is deliberately the office's own.
+ *
+ * These orders exist to be worked through the console, and every status change
+ * queues a message. Sending is live. An invented number that happens to be a
+ * real Ghanaian mobile means a stranger gets three texts about a parcel they
+ * never sent -- which is exactly what happened on 19 Aug 2026, to
+ * 0244 815 203, because this file used to contain plausible fakes.
+ *
+ * Pointing them at GO DISPATCH means the only phone a demo can reach is the
+ * one belonging to the people running the demo. It also makes the messages
+ * useful: you can read what a customer would have received.
+ */
+const DEMO_PHONE = CONTACT_PHONE.replace(/\s/g, '');
+
+/**
+ * Demo orders, so the board, the drawer and the tracking timeline have
+ * something real-shaped to render.
  *
  * Deliberately separate from prisma/seed.ts: seed creates the baseline a real
- * deployment needs, this creates fake deliveries. Keeping them apart means
- * running the seed in production can never invent orders.
+ * deployment needs, this invents deliveries. Keeping them apart means running
+ * the seed in production can never conjure parcels.
  *
- * Idempotent by tracking code.
+ * NOTHING HERE QUEUES A NOTIFICATION. Orders are written straight to the
+ * tables rather than through POST /api/bookings, so no message reaches the
+ * outbox and no phone is texted. That is the point: with sending switched on,
+ * seeding through the real endpoint would spend Arkesel credit and text
+ * whatever numbers appear below. It also means this does NOT exercise the
+ * booking path -- to test that, place one real booking on the live site.
+ *
+ * The three cover the states the board is built to distinguish:
+ *   overdue and unassigned  · on the road with a courier  · owing money
+ *
+ * Every phone number is the office's own -- see DEMO_PHONE below.
+ *
+ * Idempotent by tracking code. `npm run wipe:orders` clears them again.
  */
 
 if (process.env.NODE_ENV === 'production') {
@@ -38,20 +67,21 @@ interface Fixture {
   recipientPhone: string;
   dropoffAddress: string;
   dropoffNotes: string;
-  packageSize: PackageSize;
+  /** One of the regions in src/regions.ts — the board shows it on every row. */
+  destinationRegion: string;
   packageWeightKg: number;
   packageDescription: string;
   scheduledPickupAt: Date;
-  priceAmount: number;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  /** Who settles the bill. The booking form sends recipient/on_delivery. */
+  payer: 'sender' | 'recipient';
   paymentTiming: PaymentTiming;
   createdAt: Date;
   /** Index into the seeded rider pool, for jobs already on the road. */
   riderIndex?: number;
   timeline: { status: OrderStatus; note: string; byAdmin?: boolean; atMs: number }[];
   payment?: {
-    amount: number;
     provider: 'momo' | 'manual';
     providerReference?: string;
     note?: string;
@@ -61,146 +91,94 @@ interface Fixture {
 }
 
 const FIXTURES: Fixture[] = [
+  // 1. Late and nobody is carrying it. Sorts to the top of the board and is
+  //    the reason the "Unassigned" marker is red.
   {
-    trackingCode: 'WP-8293-102',
-    senderName: 'Ama Osei',
-    senderPhone: '0244123456',
-    pickupAddress: 'Block C, Airport Residential Area, Accra',
-    pickupNotes: 'Opposite the French School, ring gate bell',
-    recipientName: 'Kofi Mensah',
-    recipientPhone: '0207987654',
-    dropoffAddress: 'House No. 12, Ring Road Central, Kokomlemle, Accra',
-    dropoffNotes: 'Next to the MTN office',
-    packageSize: 'small',
-    packageWeightKg: 1.2,
-    packageDescription: 'Important contract documents and office keys',
-    scheduledPickupAt: at(-4 * day),
-    priceAmount: 2500,
-    status: 'delivered',
-    paymentStatus: 'paid',
-    paymentTiming: 'prepaid',
-    createdAt: at(-4 * day),
+    trackingCode: 'GD-3184-207',
+    senderName: 'Akosua Frimpong',
+    senderPhone: DEMO_PHONE,
+    pickupAddress: 'Shop 4, Kwame Nkrumah Circle, Accra',
+    pickupNotes: 'Above the pharmacy, ask for Akosua',
+    recipientName: 'Kofi Boadu',
+    recipientPhone: DEMO_PHONE,
+    dropoffAddress: 'Plot 22, Ahodwo Road, Kumasi',
+    dropoffNotes: 'Green gate opposite the school',
+    destinationRegion: 'Ashanti',
+    packageWeightKg: 2,
+    packageDescription: 'Two boxes of phone accessories',
+    scheduledPickupAt: at(-1 * day + 9 * hour),
+    status: 'requested',
+    paymentStatus: 'pending',
+    payer: 'recipient',
+    paymentTiming: 'on_delivery',
+    createdAt: at(-1 * day - 2 * hour),
     timeline: [
-      { status: 'requested', note: 'Order submitted online by customer', atMs: -4 * day },
-      { status: 'confirmed', note: 'Admin confirmed pickup coordinates and package details', byAdmin: true, atMs: -4 * day + 30 * 60 * 1000 },
-      { status: 'queued', note: 'Assigned to courier route B7', byAdmin: true, atMs: -4 * day + 2 * hour },
-      { status: 'picked_up', note: 'Courier picked up package from sender', atMs: -4 * day + 3 * hour },
-      { status: 'in_transit', note: 'On the way to Kokomlemle', atMs: -4 * day + 4 * hour },
-      { status: 'delivered', note: 'Delivered and signed for by recipient', atMs: -3 * day },
+      { status: 'requested', note: 'Booked online', atMs: -1 * day - 2 * hour },
     ],
-    payment: {
-      amount: 2500,
-      provider: 'momo',
-      providerReference: 'MTN-MOMO-88291039',
-      paidAtMs: -4 * day,
-    },
   },
+
+  // 2. Moving, with a courier and a paid bill. Exercises the initials avatar,
+  //    the rider link, and a timeline with something in it.
   {
-    trackingCode: 'WP-4012-948',
-    senderName: 'Ekow Taylor',
-    senderPhone: '0553112233',
-    pickupAddress: 'Teshie Estates, near Bush Road, Accra',
-    pickupNotes: 'Blue gate near the taxi rank',
-    recipientName: 'Abena Appiah',
-    recipientPhone: '0244998877',
-    dropoffAddress: 'SSNIT Flats, Block B, Madina, Accra',
-    dropoffNotes: 'Third floor, Room 304',
-    packageSize: 'medium',
-    packageWeightKg: 4.5,
-    packageDescription: 'Handmade leather shoes and kente cloth bundle',
-    scheduledPickupAt: at(-2 * day),
-    priceAmount: 5000,
+    trackingCode: 'GD-7429-618',
+    senderName: 'Nana Yaa Owusu',
+    senderPhone: DEMO_PHONE,
+    pickupAddress: '14 Ring Road East, Osu, Accra',
+    pickupNotes: 'Reception will hand it over',
+    recipientName: 'Selorm Dzidzor',
+    recipientPhone: DEMO_PHONE,
+    dropoffAddress: 'House 8, Ahoe, Ho',
+    dropoffNotes: 'Call on arrival, the road is unmarked',
+    destinationRegion: 'Volta',
+    packageWeightKg: 5,
+    packageDescription: 'Legal documents and a laptop',
+    scheduledPickupAt: at(-6 * hour),
     status: 'in_transit',
     paymentStatus: 'paid',
+    payer: 'sender',
     paymentTiming: 'prepaid',
-    createdAt: at(-2 * day),
+    createdAt: at(-1 * day),
     riderIndex: 0,
     timeline: [
-      { status: 'requested', note: 'Order submitted online by customer', atMs: -2 * day },
-      { status: 'confirmed', note: 'Payment confirmed, pickup scheduled', byAdmin: true, atMs: -2 * day + hour },
-      { status: 'queued', note: 'Assigned to courier', byAdmin: true, atMs: -2 * day + 2 * hour },
-      { status: 'picked_up', note: 'Package collected from Teshie', atMs: -6 * hour },
-      { status: 'in_transit', note: 'Courier is en route to Madina', atMs: -4 * hour },
+      { status: 'requested', note: 'Booked online', atMs: -1 * day },
+      { status: 'awaiting_payment', note: 'Weighed at 5kg — price GHS 50.00 to 70.00', byAdmin: true, atMs: -1 * day + hour },
+      { status: 'confirmed', note: 'Mobile money received', byAdmin: true, atMs: -1 * day + 2 * hour },
+      { status: 'queued', note: 'Assigned to courier', atMs: -8 * hour },
+      { status: 'picked_up', note: 'Collected from Osu', atMs: -6 * hour },
+      { status: 'in_transit', note: 'On the road to Ho', atMs: -4 * hour },
     ],
     payment: {
-      amount: 5000,
-      provider: 'manual',
-      note: 'Admin confirmed payment screenshot on WhatsApp. Reference: GIB-9921',
-      paidAtMs: -2 * day,
+      provider: 'momo',
+      providerReference: 'MTN-4471902',
+      note: 'Paid before dispatch',
+      paidAtMs: -1 * day + 2 * hour,
       byAdmin: true,
     },
   },
+
+  // 3. Weighed, priced, and waiting on the money. Puts a figure in Outstanding.
   {
-    trackingCode: 'WP-7721-309',
-    senderName: 'Yaa Boateng',
-    senderPhone: '0277334455',
-    pickupAddress: 'East Legon, Lagos Avenue, Accra',
-    pickupNotes: 'Behind the Shell station',
-    recipientName: 'Kwame Asante',
-    recipientPhone: '0501122446',
-    dropoffAddress: 'Dzorwulu, near Fiesta Royale Hotel, Accra',
-    dropoffNotes: 'Drop at security desk',
-    packageSize: 'large',
-    packageWeightKg: 12.0,
-    packageDescription: 'Kitchen blender and electronic food scale',
-    scheduledPickupAt: at(-1 * day),
-    priceAmount: 9000,
-    status: 'queued',
+    trackingCode: 'GD-9052-341',
+    senderName: 'Ibrahim Mahama',
+    senderPhone: DEMO_PHONE,
+    pickupAddress: 'Block B, Spintex Road, Accra',
+    pickupNotes: 'Warehouse side entrance',
+    recipientName: 'Fatima Alhassan',
+    recipientPhone: DEMO_PHONE,
+    dropoffAddress: 'Near Aboabo Market, Tamale',
+    dropoffNotes: '',
+    destinationRegion: 'Northern',
+    packageWeightKg: 8,
+    packageDescription: 'Fabric samples, one roll',
+    scheduledPickupAt: at(1 * day + 13 * hour),
+    status: 'awaiting_payment',
     paymentStatus: 'pending',
-    paymentTiming: 'on_delivery',
-    createdAt: at(-1 * day),
-    riderIndex: 1,
-    timeline: [
-      { status: 'requested', note: 'Order submitted online by customer', atMs: -1 * day },
-      { status: 'confirmed', note: 'Details verified, sender ready with item', byAdmin: true, atMs: -1 * day + 2 * hour },
-      { status: 'queued', note: 'Placed in queue for pickup dispatch', byAdmin: true, atMs: -12 * hour },
-    ],
-  },
-  {
-    trackingCode: 'WP-9923-014',
-    senderName: 'John Doe',
-    senderPhone: '0243009988',
-    pickupAddress: 'Osu, Danquah Circle, Accra',
-    pickupNotes: 'Above the pharmacy',
-    recipientName: 'Richard Mills',
-    recipientPhone: '0204455667',
-    dropoffAddress: 'Labone, near Metro TV, Accra',
-    dropoffNotes: 'Gate has a palm tree outside',
-    packageSize: 'small',
-    packageWeightKg: 0.5,
-    packageDescription: 'Replacement charger and laptop power adapter',
-    scheduledPickupAt: at(-5 * 60 * 1000),
-    priceAmount: 2500,
-    status: 'confirmed',
-    paymentStatus: 'pending',
-    paymentTiming: 'on_delivery',
+    payer: 'sender',
+    paymentTiming: 'prepaid',
     createdAt: at(-3 * hour),
     timeline: [
-      { status: 'requested', note: 'Order submitted online by customer', atMs: -3 * hour },
-      { status: 'confirmed', note: 'Confirmed with sender', byAdmin: true, atMs: -2 * hour },
-    ],
-  },
-  {
-    trackingCode: 'WP-1048-552',
-    senderName: 'Sarah Lamptey',
-    senderPhone: '0544881122',
-    pickupAddress: 'Spintex Road, near Kotobabi Junction, Accra',
-    pickupNotes: 'Inside the Accra Mall Complex back parking',
-    recipientName: 'Michael Tagoe',
-    recipientPhone: '0244665544',
-    dropoffAddress: 'Tema Community 6, near the Harbor, Tema',
-    dropoffNotes: 'Warehouse B',
-    packageSize: 'large',
-    packageWeightKg: 18.2,
-    packageDescription: 'Automotive replacement filters and engine gaskets',
-    scheduledPickupAt: at(1 * day),
-    priceAmount: 9000,
-    status: 'requested',
-    paymentStatus: 'pending',
-    paymentTiming: 'on_delivery',
-    createdAt: at(-1 * hour),
-    timeline: [
-      { status: 'requested', note: 'New booking requested online', atMs: -1 * hour },
+      { status: 'requested', note: 'Booked online', atMs: -3 * hour },
+      { status: 'awaiting_payment', note: 'Weighed at 8kg — price GHS 50.00 to 100.00', byAdmin: true, atMs: -2 * hour },
     ],
   },
 ];
@@ -214,6 +192,22 @@ async function main() {
     process.exit(1);
   }
 
+  // Priced by the same function the booking form quotes from and the server
+  // charges by, against the rule actually in the database. A fixture with a
+  // handwritten price is a fixture that disagrees with the product the moment
+  // somebody edits pricing.
+  const config = await prisma.pricingConfig.findUnique({ where: { id: 1 } });
+  if (!config) {
+    console.error('Run `npm run db:seed` first — pricing is not configured.');
+    process.exit(1);
+  }
+  const rule = {
+    baseAmount: config.baseAmount,
+    includedKg: config.includedKg,
+    perExtraKgAmount: config.perExtraKgAmount,
+    currency: config.currency,
+  };
+
   let created = 0;
 
   for (const fixture of FIXTURES) {
@@ -224,6 +218,8 @@ async function main() {
 
     const rider =
       fixture.riderIndex !== undefined ? riders[fixture.riderIndex] : undefined;
+
+    const priceAmount = quote(fixture.packageWeightKg, rule).total;
 
     await prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
@@ -237,15 +233,18 @@ async function main() {
           recipientPhone: fixture.recipientPhone,
           dropoffAddress: fixture.dropoffAddress,
           dropoffNotes: fixture.dropoffNotes,
-          packageSize: fixture.packageSize,
+          destinationRegion: fixture.destinationRegion,
+          packageSize: sizeForWeight(fixture.packageWeightKg),
           packageWeightKg: fixture.packageWeightKg,
           packageDescription: fixture.packageDescription,
           scheduledPickupAt: fixture.scheduledPickupAt,
-          priceAmount: fixture.priceAmount,
-          currency: 'GHS',
+          priceAmount,
+          // Weighed already, so the price is settled rather than an estimate.
+          priceConfirmedAt: at(0),
+          currency: rule.currency,
           status: fixture.status,
           paymentStatus: fixture.paymentStatus,
-          payer: 'sender',
+          payer: fixture.payer,
           paymentTiming: fixture.paymentTiming,
           createdAt: fixture.createdAt,
           ...(rider
@@ -276,8 +275,8 @@ async function main() {
         await tx.payment.create({
           data: {
             orderId: order.id,
-            amount: fixture.payment.amount,
-            currency: 'GHS',
+            amount: priceAmount,
+            currency: rule.currency,
             provider: fixture.payment.provider,
             providerReference: fixture.payment.providerReference ?? null,
             status: 'success',
@@ -306,6 +305,8 @@ async function main() {
       ? `✔ created ${created} demo order(s)`
       : '✔ demo orders already present — nothing to do'
   );
+
+  console.log('  no messages queued — these never went through the booking endpoint');
 
   const withToken = await prisma.order.findFirst({
     where: { riderToken: { not: null } },

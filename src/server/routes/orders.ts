@@ -18,6 +18,10 @@ import { notifyForStatus, unqueueForStatus } from '../notifications.js';
 import { withTrackingCode } from '../ids.js';
 import { prisma } from '../prisma.js';
 import { serializeHistory, serializeOrder, serializePayment } from '../serialize.js';
+import { publicActionLimit, publicReadLimit, publicWriteLimit } from '../rateLimit.js';
+import { senderMayCancel } from '../../transitions.js';
+import { toGhanaMsisdn } from '../sms.js';
+import { queueNotification } from '../notifications.js';
 
 export const ordersRouter = asyncRouter();
 
@@ -43,7 +47,7 @@ function phoneCandidates(raw: string): string[] {
    PUBLIC TRACKING LOOKUP
    Registered before '/:id' — Express would otherwise match "track" as an id.
    --------------------------------------------------------------------------- */
-ordersRouter.get('/track', async (req, res) => {
+ordersRouter.get('/track', publicReadLimit, async (req, res) => {
   const query = req.query.q;
   if (typeof query !== 'string' || !query.trim()) {
     return res
@@ -104,9 +108,78 @@ ordersRouter.get('/track', async (req, res) => {
 });
 
 /* ---------------------------------------------------------------------------
+   PUBLIC CANCELLATION
+
+   A sender who changes their mind should not have to telephone an office to
+   undo something they did on a website ninety seconds ago. But cancelling a
+   parcel is a write on somebody else's record, so it asks for two things: the
+   tracking code, and the phone number the parcel was booked with. The code
+   alone travels in a text message and is quotable by anyone who glances at a
+   phone; the pair is something only the people involved have.
+
+   And it is only offered before money and before a courier -- see
+   SENDER_CANCELLABLE in src/transitions.ts. After that it is a refund and a
+   wasted trip, and both want a person.
+   --------------------------------------------------------------------------- */
+ordersRouter.post('/cancel', publicActionLimit, async (req, res) => {
+  const { trackingCode, phone } = req.body ?? {};
+
+  if (typeof trackingCode !== 'string' || typeof phone !== 'string') {
+    return res.status(400).json({ error: 'Tracking code and phone number are required' });
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { trackingCode: trackingCode.trim().toUpperCase() },
+  });
+
+  // Same answer for "no such parcel" and "wrong number", so this cannot be
+  // used to find out which tracking codes are real.
+  const given = toGhanaMsisdn(phone);
+  const matches =
+    !!order &&
+    !!given &&
+    (toGhanaMsisdn(order.senderPhone) === given || toGhanaMsisdn(order.recipientPhone) === given);
+
+  if (!matches) {
+    return res.status(404).json({
+      error: 'We could not match that tracking code and phone number.',
+    });
+  }
+
+  if (order.status === 'cancelled') {
+    // Already done is not a failure. Saying so lets a double-tap end quietly.
+    return res.json({ success: true, status: 'cancelled', alreadyCancelled: true });
+  }
+
+  if (!senderMayCancel(order.status)) {
+    return res.status(409).json({
+      error:
+        'This parcel is already being handled, so it cannot be cancelled online. ' +
+        'Please call 054 030 4994 and we will sort it out.',
+    });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({ where: { id: order.id }, data: { status: 'cancelled' } });
+    await tx.statusHistory.create({
+      data: {
+        orderId: order.id,
+        status: 'cancelled',
+        note: 'Cancelled by the sender from the tracking page',
+        // No admin did this, and the history must not imply one did.
+        changedByName: 'Customer',
+      },
+    });
+    await queueNotification(tx, 'cancelled', order);
+  });
+
+  res.json({ success: true, status: 'cancelled' });
+});
+
+/* ---------------------------------------------------------------------------
    PUBLIC BOOKING
    --------------------------------------------------------------------------- */
-ordersRouter.post('/book', async (req, res) => {
+ordersRouter.post('/book', publicWriteLimit, async (req, res) => {
   const {
     senderName,
     senderPhone,

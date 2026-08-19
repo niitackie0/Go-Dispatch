@@ -14,6 +14,19 @@ import type { AdminRole } from './types.js';
  * server will refuse — and no second copy to drift out of step.
  *
  * This file must stay free of server-only imports so it can be bundled.
+ *
+ * THREE ROLES, NOT FOUR. There used to be a `dispatcher` as well, holding
+ * exactly what `support` holds. Support began read-only, but the job as it is
+ * actually done is moving parcels through their statuses and telling riders
+ * where to go -- so the two converged, and two names for one set of powers is
+ * a trap: somebody eventually assumes they differ and hands out more than they
+ * meant to. The console had already fallen into it, describing Support as
+ * read-only while it carried orders:write.
+ *
+ * `support` is the survivor because it is the word this business uses for the
+ * person who answers the phone and works the board, and because it is the
+ * schema default -- an account created without an explicit role lands here, so
+ * this list is also the floor.
  */
 export type Capability =
   | 'orders:read'
@@ -36,12 +49,12 @@ export const CAPABILITIES: Record<AdminRole, readonly Capability[]> = {
     'revenue:read',
     'staff:manage',
   ],
-  // Runs the road operation: dispatch and fleet, but no money and no pricing.
-  dispatcher: ['orders:read', 'orders:write', 'riders:read'],
   // Reconciles money. Can read orders for context but cannot dispatch them.
   finance: ['orders:read', 'payments:read', 'payments:write', 'revenue:read'],
-  // Answers customer calls. Reads only.
-  support: ['orders:read', 'riders:read'],
+  // Answers the phone AND works the board: moves parcels through their
+  // statuses and passes jobs to riders. No money, no pricing, no staff.
+  // This is the default role, so it is also the least any account can hold.
+  support: ['orders:read', 'orders:write', 'riders:read'],
 };
 
 export function can(role: AdminRole | undefined, capability: Capability): boolean {

@@ -14,5 +14,16 @@ export default defineConfig(() => {
     server: {
       hmr: true,
     },
+    build: {
+      rollupOptions: {
+        // Two applications, two bundles. The console is not code a customer
+        // should be downloading to book a parcel, and this is what keeps it
+        // out of their bundle rather than merely out of their sight.
+        input: {
+          main: path.resolve(__dirname, 'index.html'),
+          admin: path.resolve(__dirname, 'admin.html'),
+        },
+      },
+    },
   };
 });

@@ -98,11 +98,11 @@ export default function WhenPicker({ value, onChange, id }: WhenPickerProps) {
           <span className="min-w-0">
             {value ? (
               <>
-                <span className="block text-[15px] font-medium text-slate-900">{summary}</span>
+                <span className="block text-base font-medium text-slate-900">{summary}</span>
                 <span className="block text-sm text-slate-500">A rider comes to you</span>
               </>
             ) : (
-              <span className="block text-[15px] text-slate-500">Choose a day and time…</span>
+              <span className="block text-base text-slate-500">Choose a day and time…</span>
             )}
           </span>
         </span>
@@ -174,7 +174,7 @@ export default function WhenPicker({ value, onChange, id }: WhenPickerProps) {
                         key={slot}
                         type="button"
                         onClick={() => choose(slot)}
-                        className={`min-h-12 rounded-xl border text-[15px] font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                        className={`min-h-12 rounded-xl border text-base font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
                           on ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                         }`}
                       >

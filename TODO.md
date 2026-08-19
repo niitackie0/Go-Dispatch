@@ -4,30 +4,19 @@ Ordered by priority. Effort: **S** ≈ under an hour · **M** ≈ half a day · 
 
 ---
 
-## P0 — Security, do these first
+## P0 — Security
 
-Small jobs, real exposure. None take more than a few minutes.
+Both rotations are done and verified; the old Arkesel key is confirmed dead.
+The one item left here is not urgent, it just has no owner yet.
 
-- [ ] **Rotate the Neon database password** — **S**
-  Both connection strings were pasted into a chat, so that credential is in a
-  transcript. Neon Console → Roles → `neondb_owner` → Reset password, then
-  update the two lines in `.env`. Do this before real customer data exists.
+Method, if either credential is ever exposed again: **docs/rotating-credentials.md**.
 
-- [ ] **Change the admin password to one you choose** — **S**
-  Currently `admin@waypoint.com` / `u8MoA64Xg588wuLH8dvd`, which was generated
-  by the seed and has since appeared in a chat transcript. Change it from
-  **My Account** in the console, and store the new one in a password manager —
-  only a hash is kept, so it cannot be recovered.
-
-- [ ] **Move the admin account off `@waypoint.com`** — **S**
-  The only way into the console is `admin@waypoint.com`, which is the old brand.
-  Changing it is a one-liner from **Staff Accounts**, but doing it wrong locks
-  you out, so add the new address as a second owner first, sign in as it, then
-  remove the old one.
-
-- [ ] **Delete the stale `db.json`** — **S**
-  Untracked and unread by anything since the Postgres port. It only exists now
-  to confuse whoever next opens the folder.
+- [ ] **Add a second owner when there is somebody to add** — **S**
+  `annanrichard26@gmail.com` is now the only owner, and the app refuses to
+  delete or demote a last owner, so the account cannot be locked out by a
+  mistake in the console. The way back in if that password is ever lost is
+  `npm run admin password annanrichard26@gmail.com`, which works without being
+  signed in. Worth a second owner anyway once a colleague needs access.
 
 ---
 
@@ -36,37 +25,50 @@ Small jobs, real exposure. None take more than a few minutes.
 The visual direction is settled: the GO DISPATCH red and white from the printed
 flyer. The console and the customer site have both had the mobile and type pass.
 
-- [ ] **Rider view** — **M**
+- [x] **Rider view** — **M** — *done, parked on `feature-reports-pack`*
   The only screen that never got a proper pass. It inherited the red but still
   reads as the old product, and it is the one screen used one-handed, outdoors,
   in sunlight. Wants large type, high contrast and few, obvious controls.
 
-- [ ] **Split admin into its own bundle at a private path** — **M**
-  Today admin code ships to every customer and sits at the guessable `/admin`.
-  New `admin.html` Vite entry + `src/AdminApp.tsx`, path from `ADMIN_PATH` in
-  `.env` (default `/ops`).
+- [x] **Console redesign** — **L** — *board, orders, payments, sign-in, motion*
+  Urgency-sorted board, detail behind one reveal, bottom sheets, a date modal,
+  ten to a page, one type ramp, and a motion vocabulary that says what changed.
+
+- [ ] **Overview screen** — **M**
+  The last console page still on the old panels — everything around it moved and
+  it did not. It is also the screen a live map of who is carrying what would
+  suit, if that is worth building.
+
+- [ ] **Decide between `support` and `dispatcher`** — **S**
+  They hold identical capabilities (see the note at the top of
+  `src/capabilities.ts`). Two names for one job is a question every new hire
+  asks and nobody can answer. No account holds either role yet, so retiring one
+  costs nothing today and costs a migration later.
 
 ---
 
 ## P2 — Before this goes live
 
-- [ ] **Send the queued notifications** — **M** — *needs a provider account*
-  The outbox is built: the five trigger points write to a `notifications` table,
-  deduplicated per order per event, rendered at write time, and queued inside the
-  same transaction as the change that caused them. Nothing sends yet.
-  What is left is the sender. Pick a Ghanaian provider — **Arkesel, Hubtel or
-  mNotify** — for cost and for a registered sender ID, so messages arrive from
-  "GO DISPATCH" rather than a random number. Then a worker that drains
-  `status = pending`, retries with backoff, and records `providerReference`.
+- [ ] **Turn SMS sending on** — **S** — *two steps, both yours*
+  The sender is built and the account is confirmed: Arkesel, 466 credits, key in
+  `.env`. Six events earn a message (see the header of
+  `src/server/notifications.ts`), every template fits one billed segment, and a
+  worker drains the outbox every 30s with backoff, giving up after five
+  attempts. It stays OFF until `SMS_PROVIDER=arkesel` is set.
+
+  One thing to do first: **register the sender ID** "GO DISPATCH" with Arkesel.
+  Until it is approved, messages arrive from a shortcode, so every template
+  carries a 13-character "GO DISPATCH: " prefix to say who it is from. Once
+  approved, flip `SMS_SENDER_ID_REGISTERED` in `src/brand.ts` and every message
+  gets those characters back.
+
+  The queue is clean — `npm run sms:outbox` reads 0 pending — so nothing old
+  fires the moment it is switched on. Check it again before you flip it.
 
 - [ ] **Deployment** — **L**
   Nothing is hosted yet. Needs a host, env vars set (including `ADMIN_PATH` and
   the rotated `DATABASE_URL`), `prisma migrate deploy` in the release step, and
   a decision on where the automation tick runs.
-
-- [ ] **Recreate `.env.example`** — **S**
-  Deleted with the AI Studio cruft, but deployment needs a checklist of required
-  variables: `DATABASE_URL`, `DIRECT_URL`, `ADMIN_PATH`, SMS keys later.
 
 - [ ] **Turn on TypeScript `strict`** — **M**
   `tsconfig.json` has no `strict`, so `tsc` catches almost no null/undefined
@@ -101,6 +103,31 @@ flyer. The console and the customer site have both had the mobile and type pass.
 - [ ] **Branch protection on `main`** — **S**
   Nothing stops a direct push, which makes `dev → staging → main` decorative.
   GitHub → Settings → Rules → Rulesets. Note: private repos need Pro for this.
+
+---
+
+## Parked, and sellable
+
+- **Reports pack** — *lifted out of `dev`, lives on `feature-reports-pack`*
+  The Reports tab and `/api/reports`: a date range, a summary of orders,
+  delivered, cancelled and revenue for it, and three server-generated CSVs
+  (payments, orders, a daily summary) built from the whole range rather than
+  from whatever the console had loaded.
+
+  Removed from `dev` deliberately, not because it was wrong. It is the most
+  self-contained thing in the codebase — six touchpoints, nothing else depends
+  on it — and it is the sort of thing a business asks for once they have a few
+  months of data and an accountant. Since then the payments ledger's own
+  **Export CSV** has gone too, button and route both, so this branch is now the
+  only way anything leaves the system as a file.
+
+  The **redesigned courier screen** is parked on the same branch: one leg at a
+  time, an address at 30px, and a Navigate button that opens Maps. The base
+  product keeps the working original.
+
+  To put both back: `git merge feature-reports-pack`. The branch carries a revert
+  of the removal, so the merge restores the files, the router mount and the nav
+  entry in one step. Rebase it onto `dev` first if the console has moved on.
 
 ---
 
@@ -154,3 +181,18 @@ flyer. The console and the customer site have both had the mobile and type pass.
 - Repriced by weight — GHS 50 to 3kg, GHS 10 per extra kilo rounded up — with
   one shared implementation the form quotes from and the server charges by
 - Demo staff accounts deleted and the order ledger wiped clean
+- Console split into its own bundle at `ADMIN_PATH` (default `/ops`): customers no
+  longer download it, and /admin and /admin.html are refused
+- The exposed `admin@waypoint.com` owner deleted: old brand, transcript password
+  and 61 live sessions retired in one step, audit trail kept its attribution
+- Undo on the delivery workflow: one step, ten minutes, side effects reversed with it
+- Terms and tracking pages rebuilt; tooltips and a payments search in the console
+- Reports lifted onto `feature-reports-pack` to be sold later as an upgrade
+- SMS decided and built: six events, one billed segment each, Arkesel wired but
+  switched off — see docs/sms-messages.md
+- `.env.example` written, and `npm run admin` for staff accounts from a terminal
+- Neon password rotated and the Arkesel key rolled; the old key confirmed revoked
+- Console redesigned end to end: a board that reads by urgency and carries the
+  courier on every row, detail hidden until asked for, sheets instead of dialogs,
+  a date modal, ten to a page, one type ramp, 16px on every field, a patterned
+  sign-in and a motion vocabulary that only ever says what just changed

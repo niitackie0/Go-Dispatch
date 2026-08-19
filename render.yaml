@@ -1,0 +1,95 @@
+# GO DISPATCH on Render.
+#
+# One web service. The Express process serves the API, the customer site and
+# the console from the same origin, so there is no second static service and
+# no CORS to configure.
+#
+# The database is NOT declared here. It lives on Neon, which is already
+# provisioned and holds the live orders -- letting a blueprint create a Render
+# Postgres alongside it would give us two databases and one of them would
+# quietly be the wrong one.
+#
+# To use: Render Dashboard -> New -> Blueprint -> pick this repo.
+# Secrets are marked `sync: false`, which means Render prompts for them on
+# first deploy and never stores them in this file. Nothing secret belongs here.
+
+services:
+  - type: web
+    name: go-dispatch
+    runtime: node
+    # The service sleeps after 15 minutes idle and takes about a minute to
+    # wake. That is the intended arrangement, not a stage on the way to
+    # something else -- this is a small operation and the machine has no
+    # business running at 3am. docs/deploying.md covers what sleeping means
+    # for the automation rules.
+    plan: free
+    region: frankfurt # Render has five regions and none of them is London, so
+                      # this cannot match the Neon project. Frankfurt is the
+                      # only European one. See docs/deploying.md on the hop.
+    # STOP. As of the day this file was written, `main` is still the initial
+    # commit and 59 behind `dev` -- deploying it would ship the scaffolding
+    # this product was built out of. Merge dev -> staging -> main first.
+    # docs/deploying.md opens with that step.
+    branch: main
+    # Every push to `main` deploys itself. That is the point of the branch
+    # model: work lands on `dev`, and reaching `main` is already the decision
+    # -- having to also click a button in a dashboard was one decision too
+    # many. It does mean a broken merge into `main` goes live on its own, so
+    # let the build be the gate: `npm run lint` before you merge up.
+    autoDeploy: true
+
+    # Migrations run at the end of the build. Render's dedicated pre-deploy
+    # step is not available here, so this is the place -- and the reason it is
+    # safe is that there is exactly one instance, so no second copy can race it
+    # through the same migration.
+    #
+    # The one thing to know: the build finishes before the old process stops,
+    # so for a few seconds the schema is ahead of the code still serving. Write
+    # migrations that the previous version can survive -- add columns, do not
+    # rename them out from under it -- and that window costs nothing.
+    # npm ci, deliberately: it installs the lockfile exactly, which is what a
+    # deploy should do. That only works because package.json now names the
+    # Linux binaries in optionalDependencies -- see the comment there. Without
+    # them the lockfile carries only what a Windows machine installed, and this
+    # build dies at `vite build` looking for a rollup binary that was never
+    # recorded. npm install does not save you either; npm will not add what the
+    # lockfile does not name. (npm/cli#4828)
+    buildCommand: npm ci && npm run build && npm run release
+    startCommand: npm start
+
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Render terminates TLS one hop in front of us. Without this, every
+      # visitor shares one rate-limit bucket; with it set too high, a client
+      # can spoof X-Forwarded-For straight past the limits.
+      - key: TRUST_PROXY
+        value: 1
+
+      # Pooled Neon connection (the `-pooler` host).
+      - key: DATABASE_URL
+        sync: false
+
+      # Direct Neon connection (host WITHOUT `-pooler`). Used by
+      # `prisma migrate deploy` in the pre-deploy step, and by `prisma
+      # generate` during the build -- prisma.config.ts reads it either way, so
+      # a missing value fails the build, not the deploy.
+      - key: DIRECT_URL
+        sync: false
+
+      # Where the console is served. Not a secret, but not advertised either.
+      - key: ADMIN_PATH
+        sync: false
+
+      # SMS. Leave SMS_PROVIDER empty to deploy with sending off; messages
+      # queue in the outbox until it is set to `arkesel`. The sender ID is not
+      # here -- it is a constant in src/brand.ts, because it has to match what
+      # the provider approved and a typo in a dashboard field is a silent
+      # delivery failure.
+      - key: SMS_PROVIDER
+        sync: false
+      - key: SMS_API_KEY
+        sync: false

@@ -305,6 +305,202 @@ body {
 }
 
 /* ============================================================
+   TYPE SCALE
+
+   Tailwind's default ramp, which is also Material's:
+
+     12 · 14 · 16 · 18 · 20 · 24 · 30 · 36 · 48
+     xs   sm   base lg   xl   2xl  3xl  4xl  5xl
+
+   Use those names. Do not reach for text-[15px]: 13/15/17 is
+   Apple's ramp, equally valid and a different system, and this
+   project had ended up on both at once.
+
+   Customer site   lg lead · base body · sm meta
+                   Read once, by somebody who has never seen it,
+                   on a phone, often outdoors.
+
+   Console         base titles · sm rows · xs labels
+                   Read all day by two people who know it by
+                   heart, on a screen holding forty rows.
+
+   THE TWO HARD RULES
+
+   1. Form controls are never below 16px. Under that, iOS Safari
+      zooms the page when the field takes focus, and the layout
+      lurches under the thumb that just tapped it. This is why
+      .gd-field is 16px and not 15.
+
+   2. Nothing below 12px. Below that type stops being small and
+      becomes a rumour.
+
+   Targets: 44px minimum, which is min-h-11.
+   ============================================================ */
+
+/* ============================================================
+   THE ROUTE FIELD — the sign-in page's ground.
+
+   Not decoration for its own sake: it is the dashed road the
+   brand already draws, repeated at a shallow angle until it
+   reads as a texture rather than a picture. Three layers, none
+   of them loud:
+
+     - dashes running north-east, the direction every parcel
+       travels out of Accra
+     - a second, wider set crossing them, so the field does not
+       read as stripes
+     - a soft red wash in one corner, to stop the middle of the
+       screen being the brightest thing on it
+
+   Kept under 5% opacity throughout. A sign-in page is looked
+   past, not at.
+   ============================================================ */
+.gd-route-field {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--wp-bg);
+}
+.gd-route-field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      64deg,
+      color-mix(in srgb, var(--wp-maroon) 7%, transparent) 0 2px,
+      transparent 2px 13px
+    ),
+    repeating-linear-gradient(
+      -28deg,
+      color-mix(in srgb, var(--wp-maroon) 4%, transparent) 0 1px,
+      transparent 1px 34px
+    );
+  /* Fades out towards the middle, so the form never sits on texture. */
+  -webkit-mask-image: radial-gradient(120% 90% at 50% 50%, transparent 22%, #000 78%);
+  mask-image: radial-gradient(120% 90% at 50% 50%, transparent 22%, #000 78%);
+  opacity: 0.9;
+}
+.gd-route-field::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 38% at 6% 4%, color-mix(in srgb, var(--wp-red) 12%, transparent), transparent 70%),
+    radial-gradient(40% 34% at 96% 98%, color-mix(in srgb, var(--wp-maroon) 9%, transparent), transparent 68%);
+}
+
+/* ============================================================
+   MOTION
+
+   The console is a working tool, so movement here has one job:
+   to say what just changed and where it came from. Nothing
+   loops, nothing bounces, and nothing lasts long enough to be
+   waited on — 160 to 260ms, which is under the threshold where
+   an interface starts to feel slow.
+
+   Every rule is switched off wholesale for reduced motion at
+   the bottom of this file.
+   ============================================================ */
+
+/* A section arriving when its nav item is chosen. Rises a little,
+   because it came from the click below it. */
+@keyframes gd-enter {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+.gd-enter { animation: gd-enter 260ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Rows landing one after another. The delay is set per row in the
+   component; capped so a full page never takes longer than a beat. */
+@keyframes gd-row-in {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+.gd-row-in { animation: gd-row-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* The nav's active marker. It is one element that moves between
+   items rather than one per item appearing and disappearing, so
+   the eye tracks a thing travelling instead of two things blinking. */
+.gd-nav-item { position: relative; }
+.gd-nav-item .gd-nav-mark {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 0 3px 3px 0;
+  background: var(--wp-red);
+  transform: translateY(-50%);
+  transition: height 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.gd-nav-item[data-active="true"] .gd-nav-mark { height: 22px; }
+
+/* The icon leans towards the label on hover, which is the smallest
+   possible acknowledgement that a control noticed the pointer. */
+.gd-nav-item svg { transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+.gd-nav-item:hover svg { transform: translateX(2px); }
+
+/* Figures that change while you are looking at them. */
+@keyframes gd-tick {
+  0%   { opacity: 0.35; transform: translate3d(0, -3px, 0); }
+  100% { opacity: 1; transform: none; }
+}
+.gd-tick { animation: gd-tick 260ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gd-enter,
+  .gd-row-in,
+  .gd-tick { animation: none !important; }
+  .gd-nav-item .gd-nav-mark,
+  .gd-nav-item svg { transition: none !important; }
+}
+
+/* ============================================================
+   The console's surfaces.
+
+   Softer than the customer site on purpose: this is a screen
+   somebody sits in front of for hours, so the panels are round
+   and low-contrast, the shadow is diffuse rather than crisp,
+   and the borders barely exist. Detail hides until asked for,
+   which is what keeps a dense screen calm.
+   ============================================================ */
+.gd-panel {
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--wp-border-strong) 55%, transparent);
+  border-radius: 20px;
+  box-shadow:
+    0 1px 2px rgba(26, 17, 19, 0.03),
+    0 12px 32px -18px rgba(92, 10, 14, 0.14);
+}
+
+/* A row that opens. The ring appears only while it is open, so a
+   closed list stays flat and quiet. */
+.gd-row {
+  transition: background-color 0.16s ease;
+  cursor: pointer;
+}
+.gd-row:hover { background: color-mix(in srgb, var(--wp-red) 3%, #fff); }
+.gd-row[data-open="true"] {
+  background: color-mix(in srgb, var(--wp-red) 4%, #fff);
+}
+
+/* The revealed half. Animated open so the eye follows it rather
+   than being asked to re-find its place. */
+@keyframes gd-reveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+.gd-reveal { animation: gd-reveal 0.18s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gd-reveal { animation: none; }
+}
+
+/* ============================================================
    Fanned cards — stacked and tilted, spreading on hover.
    ============================================================ */
 .fan { display: flex; justify-content: center; align-items: center; }

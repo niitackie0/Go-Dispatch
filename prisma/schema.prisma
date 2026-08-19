@@ -70,11 +70,10 @@ enum PaymentTiming {
 enum Role {
   /// Everything, including pricing and staff accounts.
   owner
-  /// Orders, statuses and riders. No pricing, no payment recording.
-  dispatcher
   /// Payments, exports and revenue. No dispatch.
   finance
-  /// Read-only, for answering customer calls.
+  /// Orders, statuses and riders. No pricing, no payment recording.
+  /// The default, and therefore the least an account can hold.
   support
 }
 
@@ -268,6 +267,13 @@ model Booking {
   /// from the per-parcel tracking codes, which are what recipients use.
   reference String @unique @db.VarChar(32)
 
+  /// Sent by the booking form, one per filled-in form rather than per submit.
+  /// The unique index is the whole mechanism: a second submit of the same form
+  /// collides instead of booking the parcels twice. Nullable because bookings
+  /// taken over the phone, and every booking made before this existed, have no
+  /// form behind them.
+  idempotencyKey String? @unique @db.VarChar(64)
+
   senderName  String
   senderPhone String
   pickupAddress String
@@ -370,10 +376,16 @@ model PricingConfig {
 /// told.
 enum NotificationEvent {
   booking_confirmed
+  /// Retired: folded into booking_confirmed, which now says payment was
+  /// received when it has been. Kept so rows written before that still read.
   payment_received
+  /// Weighing changed the price. Only queued when it actually changed.
+  price_confirmed
   rider_assigned
   out_for_delivery
   delivered
+  /// Silence when a parcel is cancelled is the worst gap in the outbox.
+  cancelled
 }
 
 enum NotificationStatus {
@@ -404,6 +416,9 @@ model Notification {
 
   status   NotificationStatus @default(pending)
   attempts Int                @default(0)
+  /// When the worker may try again after a failure. Null means "as soon as
+  /// possible" for a pending row, and nothing at all for a settled one.
+  nextAttemptAt DateTime? @db.Timestamptz(3)
   /// Provider message id once sending exists; also the idempotency handle.
   providerReference String?
   lastError         String?
@@ -415,5 +430,7 @@ model Notification {
   /// double-tapped button must not text the customer twice.
   @@unique([orderId, event])
   @@index([status, createdAt])
+  /// The worker's own query: pending rows that are due.
+  @@index([status, nextAttemptAt])
   @@map("notifications")
 }
