@@ -50,7 +50,12 @@ a card or a person; nothing in the repo can close them.
 ## 4. Input and output
 
 - [x] 18. Prisma everywhere; the only raw SQL is `SELECT 1` in the health check, with nothing interpolated
-- [~] 19. Server-side validation on every input — present and thorough, but hand-rolled rather than schema-driven. No zod. Types are not checked, so `senderName: {}` reaches Prisma and 500s. — **S** to harden
+- [x] 19. **Server-side validation on every input** — typed and length-capped in
+      `src/server/validate.ts`. Was thorough about meaning and silent about type, so
+      `senderName: {}` walked past the checks into Prisma and came back a 500 about a
+      mistake the caller could have fixed. Not zod: the checks already carry the
+      product's voice, and what was missing was type and length. Verified against
+      eleven malformed bodies — every one now a 400 that names the field.
 - [x] 20. React escapes on render; zero uses of `dangerouslySetInnerHTML`
 - [–] 21. File uploads — **not applicable.** No upload surface anywhere in the product.
 - [x] 22. Responses trimmed — public tracking hand-builds its payload; `riderToken` was leaking through `serializeOrder` into the public booking lookup and is now admin-only (`4c336e2`)

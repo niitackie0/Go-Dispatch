@@ -17,6 +17,7 @@ import { currentRule } from './pricing.js';
 import { queueNotification } from '../notifications.js';
 import { publicReadLimit, publicWriteLimit } from '../rateLimit.js';
 import { storablePhone } from '../../phone.js';
+import { LIMITS, bounded, optionalText, text, when } from '../validate.js';
 
 export const bookingsRouter = asyncRouter();
 
@@ -102,8 +103,19 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
     if (already) return res.json(bookingResponse(already, already.orders));
   }
 
-  if (!senderName || !senderPhone || !pickupAddress) {
+  // Typed, not merely present. `!senderName` is false for {} and for 123,
+  // both of which used to reach Prisma and come back as a 500 about a mistake
+  // the caller made and could have fixed.
+  const name = text(senderName, LIMITS.name);
+  const phone = text(senderPhone, LIMITS.phone);
+  const pickup = text(pickupAddress, LIMITS.address);
+  const notes = optionalText(pickupNotes, LIMITS.notes);
+
+  if (!name || !phone || !pickup) {
     return res.status(400).json({ error: 'Your name, phone number and pickup address are required' });
+  }
+  if (notes === null) {
+    return res.status(400).json({ error: `Pickup notes must be under ${LIMITS.notes} characters` });
   }
   if (!Array.isArray(parcels) || parcels.length === 0) {
     return res.status(400).json({ error: 'Add at least one parcel' });
@@ -112,8 +124,8 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
     return res.status(400).json({ error: `That is more than ${MAX_PARCELS} parcels — please call us` });
   }
 
-  const scheduled = scheduledPickupAt ? new Date(scheduledPickupAt) : new Date();
-  if (Number.isNaN(scheduled.getTime())) {
+  const scheduled = when(scheduledPickupAt);
+  if (!scheduled) {
     return res.status(400).json({ error: 'Invalid collection time' });
   }
 
@@ -136,30 +148,49 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
     if (!isRegion(p.destinationRegion)) {
       return res.status(400).json({ ...at, error: 'Choose a region we deliver to', allowed: REGION_NAMES });
     }
-    if (!p.dropoffAddress?.trim()) {
+    const dropoff = text(p.dropoffAddress, LIMITS.address);
+    if (!dropoff) {
       return res.status(400).json({ ...at, error: 'Delivery address is required' });
     }
-    if (!p.recipientName?.trim() || !p.recipientPhone?.trim()) {
+
+    const recipientName = text(p.recipientName, LIMITS.name);
+    const recipientPhone = text(p.recipientPhone, LIMITS.phone);
+    if (!recipientName || !recipientPhone) {
       return res.status(400).json({ ...at, error: "The recipient's name and phone number are required" });
     }
 
-    const weightKg = Number(p.packageWeightKg);
-    if (!Number.isFinite(weightKg) || weightKg <= 0) {
-      return res.status(400).json({ ...at, error: 'Give us a rough weight so we can estimate' });
+    const dropoffNotes = optionalText(p.dropoffNotes, LIMITS.notes);
+    if (dropoffNotes === null) {
+      return res.status(400).json({ ...at, error: `Delivery notes must be under ${LIMITS.notes} characters` });
     }
-    if (weightKg > 100) {
-      return res.status(400).json({ ...at, error: 'For parcels over 100kg, please call 054 030 4994' });
+
+    const description = optionalText(p.packageDescription, LIMITS.description);
+    if (description === null) {
+      return res.status(400).json({ ...at, error: `The description must be under ${LIMITS.description} characters` });
+    }
+
+    // Weight is bounded rather than merely positive: 100kg is the line above
+    // which this stops being a parcel and becomes a phone call.
+    const weightKg = bounded(p.packageWeightKg, 0.01, 100);
+    if (weightKg === null) {
+      return res.status(400).json({
+        ...at,
+        error:
+          Number(p.packageWeightKg) > 100
+            ? 'For parcels over 100kg, please call 054 030 4994'
+            : 'Give us a rough weight so we can estimate',
+      });
     }
 
     checked.push({
       region: p.destinationRegion,
-      dropoffAddress: p.dropoffAddress.trim(),
-      dropoffNotes: p.dropoffNotes?.trim() || undefined,
-      recipientName: p.recipientName.trim(),
+      dropoffAddress: dropoff,
+      dropoffNotes,
+      recipientName,
       // Canonical where it can be. See src/phone.ts for why an unrecognised
       // number is kept as typed rather than refused.
-      recipientPhone: storablePhone(p.recipientPhone),
-      description: p.packageDescription?.trim() || 'Parcel',
+      recipientPhone: storablePhone(recipientPhone),
+      description: description ?? 'Parcel',
       weightKg,
     });
   }
@@ -180,10 +211,10 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
       data: {
         reference: bookingReference(),
         idempotencyKey: key,
-        senderName,
-        senderPhone: storablePhone(senderPhone),
-        pickupAddress,
-        pickupNotes: pickupNotes || null,
+        senderName: name,
+        senderPhone: storablePhone(phone),
+        pickupAddress: pickup,
+        pickupNotes: notes ?? null,
         scheduledPickupAt: scheduled,
       },
     });
@@ -197,10 +228,10 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
           data: {
             trackingCode,
             bookingId: booking.id,
-            senderName,
-            senderPhone: storablePhone(senderPhone),
-            pickupAddress,
-            pickupNotes: pickupNotes || null,
+            senderName: name,
+            senderPhone: storablePhone(phone),
+            pickupAddress: pickup,
+            pickupNotes: notes ?? null,
             recipientName: p.recipientName,
             recipientPhone: p.recipientPhone,
             dropoffAddress: p.dropoffAddress,
