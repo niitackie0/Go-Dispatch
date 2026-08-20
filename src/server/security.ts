@@ -38,10 +38,58 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
 
   if (process.env.NODE_ENV === 'production') {
     res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.set('Content-Security-Policy', CSP);
   }
 
   next();
 }
+
+/**
+ * What this page is allowed to load, and from where.
+ *
+ * Written from what the built output actually asks for rather than from a
+ * template, because a policy loose enough to never break is a policy that
+ * stops nothing:
+ *
+ *   script-src 'self'        Vite emits two module scripts and no inline ones,
+ *                            so this needs no 'unsafe-inline' and no nonce --
+ *                            which is the whole value of having a CSP. An
+ *                            injected <script> has nowhere to run.
+ *
+ *   style-src 'unsafe-inline'  Reluctantly. React writes style attributes
+ *                            (animation delays, the header gradient) and CSP
+ *                            treats those as inline styles. Injected CSS can
+ *                            deface a page; it cannot read a session or call
+ *                            an endpoint, so this is the cheap half of the
+ *                            trade and script-src is the expensive one.
+ *
+ *   fonts.googleapis.com     src/index.css imports Inter and JetBrains Mono.
+ *   fonts.gstatic.com        The stylesheet comes from the first host and the
+ *                            font files from the second; both are needed or
+ *                            the page silently falls back to system fonts.
+ *
+ *   img-src data:            The favicon is an inline SVG data URI.
+ *
+ *   connect-src 'self'       Every fetch in this app is same-origin. If that
+ *                            ever stops being true, this line is the one that
+ *                            will say so, loudly, in the console.
+ *
+ * Development is exempt: Vite injects inline scripts and opens a websocket for
+ * hot reload, and a policy that has to allow those is not the policy running in
+ * production anyway.
+ */
+const CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+].join('; ');
 
 /**
  * How many proxies sit in front of us.

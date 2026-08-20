@@ -63,7 +63,13 @@ a card or a person; nothing in the repo can close them.
 - [x] 20. React escapes on render; zero uses of `dangerouslySetInnerHTML`
 - [–] 21. File uploads — **not applicable.** No upload surface anywhere in the product.
 - [x] 22. Responses trimmed — public tracking hand-builds its payload; `riderToken` was leaking through `serializeOrder` into the public booking lookup and is now admin-only (`4c336e2`)
-- [x] 23. Security headers written out in `src/server/security.ts` — HSTS, nosniff, frame-deny, referrer, permissions, CORP. `x-powered-by` off. Render forces HTTPS. **No CSP yet.** — **S**
+- [x] 23. **Security headers** in `src/server/security.ts` — HSTS, nosniff, frame-deny,
+      referrer, permissions, CORP, `x-powered-by` off, HTTPS forced by Render. **And a
+      CSP**, written from what the built output actually loads: `script-src 'self'` with
+      no inline and no nonce, because Vite emits no inline scripts — so an injected
+      `<script>` has nowhere to run. Google Fonts allowed by name because `index.css`
+      imports Inter. Verified across all four pages: zero violations, zero JS errors,
+      and Inter still resolving rather than silently falling back.
 - [x] 24. **`npm audit`** — nanoid and postcss upgraded. Three remain, all one
       advisory reached through `@prisma/config`, whose only "fix" is downgrading Prisma
       7→6; not reachable from the deployed bundle. Reasoning in `docs/dependencies.md`.
