@@ -96,7 +96,17 @@ a card or a person; nothing in the repo can close them.
 
 ## 6. Operations
 
-- [ ] 32. **Error monitoring** — errors go to stdout, and nobody reads stdout. — **M**
+- [x] 32. **Error monitoring** — `src/server/errors.ts`. Every error logged
+      structured with a reference; the same reference on every response as
+      `X-Request-Id` and in any 500 body, so "it said something went wrong" becomes a
+      line somebody can find. Set `ERROR_WEBHOOK_URL` to any free Slack or Discord
+      webhook and they arrive on a phone — one per distinct error per ten minutes, so
+      a crash loop cannot bury the first or get the webhook silenced. No vendor, no
+      account, no dependency; `report()` is the single seam if Sentry is ever wanted.
+
+      The important half: there were **no process-level handlers at all**. On Node 22
+      an unhandled promise rejection ends the process — silently, and on a free
+      instance the next visitor pays a cold start for something nobody knew happened.
 - [~] 33. Migrations as a release step — they run at the end of `buildCommand`, because Render's pre-deploy step is paid-only. Safe with one instance; documented in `render.yaml`
 - [ ] 34. Staging on its own Neon branch, seeded not copied — **none.** The live table holds real names, phone numbers and home addresses. — **M**
 - [x] 35. All timestamps `timestamptz` (23 columns)

@@ -12,6 +12,7 @@ import { createServer as createViteServer } from 'vite';
 import { runAutomations } from './src/server/automations.js';
 import { prisma } from './src/server/prisma.js';
 import { securityHeaders, trustProxyHops } from './src/server/security.js';
+import { catchProcessFailures, report, requestId } from './src/server/errors.js';
 import { drainOutbox, outboxSummary } from './src/server/outbox.js';
 import { smsEnabled, smsProviderName } from './src/server/smsProvider.js';
 import { adminsRouter } from './src/server/routes/admins.js';
@@ -23,6 +24,10 @@ import { bookingsRouter } from './src/server/routes/bookings.js';
 import { riderRouter } from './src/server/routes/rider.js';
 import { ridersRouter } from './src/server/routes/riders.js';
 import { statsRouter } from './src/server/routes/stats.js';
+
+// Registered before the app exists, because a failure during start-up is
+// exactly as worth hearing about as one during a request.
+catchProcessFailures();
 
 const app = express();
 
@@ -60,6 +65,7 @@ if (proxyHops === false) {
 // which CVE list to read and tells a customer nothing.
 app.disable('x-powered-by');
 
+app.use(requestId);
 app.use(securityHeaders);
 
 // A body limit, said out loud. Express defaults to 100kb; the largest thing
@@ -82,7 +88,9 @@ app.get('/api/health', async (_req, res) => {
     await prisma.$queryRaw`SELECT 1`;
     res.json({ ok: true });
   } catch (err) {
-    console.error('[health] database unreachable', err);
+    // Reported, not merely logged: the database being unreachable is the one
+    // failure where somebody should be told before a customer notices.
+    report(err, { at: 'health' });
     res.status(503).json({ ok: false, error: 'Database unreachable' });
   }
 });
@@ -111,12 +119,20 @@ app.use('/api', (_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-// Anything a route handler threw or rejected with lands here. Details stay in
-// the log; the client gets a generic message rather than a stack trace.
-app.use('/api', (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('[api] unhandled error', err);
+/**
+ * Anything a route handler threw or rejected with lands here.
+ *
+ * The stack stays in the log; the caller gets a sentence and a reference. The
+ * reference is the useful half — it is what lets somebody ringing the office
+ * about "an error" be matched to the line that explains it, instead of both
+ * sides guessing.
+ */
+app.use('/api', (err: unknown, req: Request, res: Response, _next: NextFunction) => {
+  const ref = (req as Request & { id?: string }).id;
+  report(err, { at: 'api', ref, method: req.method, path: req.originalUrl });
+
   if (!res.headersSent) {
-    res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ error: 'Something went wrong', reference: ref });
   }
 });
 
@@ -133,7 +149,7 @@ setInterval(() => {
         console.log(`[automation] ${actions.length} action(s):`, actions.join(' | '));
       }
     })
-    .catch((err) => console.error('[automation] tick failed', err));
+    .catch((err) => report(err, { at: 'automation' }));
 }, AUTOMATION_TICK_MS);
 
 /**
@@ -157,7 +173,7 @@ if (smsEnabled()) {
           console.log(`[outbox] sent ${r.sent}, retrying ${r.retrying}, failed ${r.failed}`);
         }
       })
-      .catch((err) => console.error('[outbox] drain failed', err));
+      .catch((err) => report(err, { at: 'outbox' }));
   }, OUTBOX_TICK_MS);
 } else {
   console.log('[outbox] sending is OFF. Messages queue up; set SMS_PROVIDER in .env to send them.');

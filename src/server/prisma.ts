@@ -73,19 +73,19 @@ pool.on('error', (err) => {
 });
 
 /**
-  * Anything slow says so, in the log, with the query attached.
-  *
-  * "Watch the query stats" is advice nobody follows, because it means
-  * remembering to go and look. This means the opposite: a query that crosses
-  * the threshold announces itself in the same place every other problem
-  * appears, on the day it starts happening rather than the week somebody
-  * thinks to check a dashboard.
-  *
-  * 400ms is chosen for where this runs, not from a textbook. The app is in
-  * Frankfurt and the database is in London, so every query already pays 10-15ms
-  * of distance; anything four hundred milliseconds deep is doing real work and
-  * is worth a look. Set SLOW_QUERY_MS to move it.
-  */
+ * Anything slow says so, in the log, with the query attached.
+ *
+ * "Watch the query stats" is advice nobody follows, because it means
+ * remembering to go and look. This means the opposite: a query that crosses
+ * the threshold announces itself in the same place every other problem
+ * appears, on the day it starts happening rather than the week somebody
+ * thinks to check a dashboard.
+ *
+ * 400ms is chosen for where this runs, not from a textbook. The app is in
+ * Frankfurt and the database is in London, so every query already pays 10-15ms
+ * of distance; anything four hundred milliseconds deep is doing real work and
+ * is worth a look. Set SLOW_QUERY_MS to move it.
+ */
 const SLOW_QUERY_MS = Number(process.env.SLOW_QUERY_MS) || 400;
 
 export const prisma = new PrismaClient({
