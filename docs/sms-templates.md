@@ -2,42 +2,12 @@
 
 ```
 Dear {name}
-We have your parcel. Payment is due on delivery. Use {code} to track it here: {link}
-```
-
-```
-Dear {name}
-Payment received and we have your parcel. Use {code} to track it here: {link}
-```
-
-```
-Dear {name}
-We have your parcel and collect once your payment lands. Use {code} to track it here: {link}
+We have your parcel. The price confirms when we weigh it. Use {code} to track it here: {link}
 ```
 
 ```
 Dear {name}
 We have your {n} parcels. Prices confirm when we weigh each one. Use {ref} to track them here: {refLink}
-```
-
-```
-Dear {name}
-{code} weighed {weight}kg, so the price is {amount}, not {oldAmount}. Track it here: {link}
-```
-
-```
-Dear {name}
-{code} weighed {weight}kg and the price is {amount}. Track it here: {link}
-```
-
-```
-Dear {name}
-{code} has been weighed, so the price is {amount}, not {oldAmount}. Track it here: {link}
-```
-
-```
-Dear {name}
-{code} has been weighed and the price is {amount}. Track it here: {link}
 ```
 
 ```
@@ -52,22 +22,27 @@ Dear {name}
 
 ```
 Dear {name}
-{sender} has sent you a parcel, arriving today. Have {amount} ready for the rider. Track it here: {link}
+{code} weighed {weight}kg, so the price is {amount}, not {oldAmount}. Pay by MoMo to {office} and it goes on the bus.
 ```
 
 ```
 Dear {name}
-{sender} has sent you a parcel, arriving today. The rider will call you. Track it here: {link}
+{code} weighed {weight}kg. Pay {amount} by MoMo to {office} and it goes on the bus.
 ```
 
 ```
 Dear {name}
-{code} was delivered to {recipient} and {amount} was collected. Thank you.
+{sender} has sent you a parcel, {code}. It weighed {weight}kg. Pay {amount} by MoMo to {office} and it goes on the bus.
 ```
 
 ```
 Dear {name}
-{code} was delivered to {recipient}. Thank you for choosing us.
+{code} is on the bus, car number {bus}. {recipient} has been told the same. Call {office} if anything is wrong.
+```
+
+```
+Dear {name}
+{sender} has sent you a parcel on the bus, car number {bus}. Collect it at the station. Call {office} if you need us.
 ```
 
 ```
@@ -79,3 +54,26 @@ Dear {name}
 Dear {name}
 {code} has been cancelled. We will call you about your refund. Call {office}.
 ```
+
+---
+
+## Placeholders
+
+| | |
+|---|---|
+| `{name}` | First name of whoever the message is for |
+| `{sender}` | Sender's first name |
+| `{recipient}` | Recipient's first name |
+| `{rider}` | Rider's first name, or `A rider` |
+| `{riderPhone}` | Rider's number |
+| `{code}` | `GD-4821-330` |
+| `{ref}` | `GDB-4821-330` |
+| `{n}` | Number of parcels |
+| `{amount}` `{oldAmount}` | `GHS 60.00` |
+| `{weight}` | `4.2` |
+| `{bus}` | `GT 4821 24` |
+| `{link}` | `go-dispatch.onrender.com/t/{code}` |
+| `{refLink}` | `go-dispatch.onrender.com/t/{ref}` |
+| `{office}` | `054 030 4994` |
+
+Source: `src/server/notifications.ts`. `npm run sms:preview` prints them filled in.

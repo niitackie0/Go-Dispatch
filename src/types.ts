@@ -5,15 +5,43 @@
 
 export type PackageSize = 'small' | 'medium' | 'large';
 
+/**
+ * The life of a parcel. Mirrors the enum in prisma/schema.prisma.
+ *
+ * Our job ends at the bus. A rider collects from the sender and brings the
+ * parcel to the office; it is weighed and paid for there; a rider runs it to
+ * the station and hands it to an intercity bus; both ends are texted the car
+ * number. What happens at the far end is the recipient's business, not ours,
+ * so `dispatched` is terminal and there is no `delivered`.
+ */
 export type OrderStatus =
   | 'requested'
-  | 'awaiting_payment'
   | 'confirmed'
   | 'queued'
   | 'picked_up'
+  | 'at_office'
+  | 'paid'
+  | 'to_station'
+  | 'dispatched'
+  | 'cancelled'
+  // Retired, and kept only so history rows written under the old model still
+  // type. Nothing sets these.
+  | 'awaiting_payment'
   | 'in_transit'
-  | 'delivered'
-  | 'cancelled';
+  | 'delivered';
+
+/** The statuses still reachable. Retired ones are excluded deliberately. */
+export const LIVE_ORDER_STATUSES: OrderStatus[] = [
+  'requested',
+  'confirmed',
+  'queued',
+  'picked_up',
+  'at_office',
+  'paid',
+  'to_station',
+  'dispatched',
+  'cancelled',
+];
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 
@@ -43,6 +71,28 @@ export interface Rider {
   createdAt: string;
 }
 
+/**
+ * Who is carrying this parcel right now, and on which leg.
+ *
+ * A parcel has two rider columns and only one of them is ever in play: the
+ * collection until it reaches the office, the station run after it is paid for.
+ * Every screen that wants to print "who has it" wants this, and picking the
+ * column by hand at each call site is how one of them ends up showing the
+ * collection rider on a parcel that is halfway to the bus station.
+ */
+export function riderLegOf(order: {
+  status: OrderStatus;
+  collectionRiderId?: string;
+  collectionRiderName?: string;
+  stationRiderId?: string;
+  stationRiderName?: string;
+}): { leg: 'collection' | 'station'; id?: string; name?: string } {
+  const station = order.status === 'paid' || order.status === 'to_station' || order.status === 'dispatched';
+  return station
+    ? { leg: 'station', id: order.stationRiderId, name: order.stationRiderName }
+    : { leg: 'collection', id: order.collectionRiderId, name: order.collectionRiderName };
+}
+
 /** A rider plus what the fleet page needs to say about them right now. */
 export interface FleetRider extends Rider {
   /** Parcels this rider is carrying: queued, picked up or in transit. */
@@ -55,6 +105,7 @@ export interface FleetRider extends Rider {
 export interface RiderJob {
   trackingCode: string;
   status: OrderStatus;
+  /** The rider holding this leg — whichever leg the parcel is currently on. */
   riderName?: string;
   senderName: string;
   senderPhone: string;
@@ -121,11 +172,18 @@ export interface Order {
   paymentStatus: PaymentStatus;
   /** Who pays — the sender who booked, or the recipient at the other end. */
   payer?: Payer;
-  /** Prepaid orders cannot confirm until payment lands; on_delivery orders dispatch with "payment due". */
+  /** Retired: payment is always MoMo, after weighing. Read-only on old rows. */
   paymentTiming?: PaymentTiming;
-  /** Assigned courier, set when the order is auto-queued. */
-  riderId?: string;
-  riderName?: string;
+
+  /** Sender -> office. Freed once the parcel is on the office scale. */
+  collectionRiderId?: string;
+  collectionRiderName?: string;
+  /** Office -> station. Null when a staff member walks it round. */
+  stationRiderId?: string;
+  stationRiderName?: string;
+  /** The bus it went on. Set when the parcel is dispatched, and never after. */
+  busCarNumber?: string;
+
   createdAt: string;
   updatedAt: string;
 }

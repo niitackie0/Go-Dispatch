@@ -51,13 +51,19 @@ statsRouter.get('/', requireAdmin, requirePermission('orders:read'), async (req,
   // The dashboard expects every status present, including the zeroes.
   const counts: Record<OrderStatus, number> = {
     requested: 0,
-    awaiting_payment: 0,
     confirmed: 0,
     queued: 0,
     picked_up: 0,
+    at_office: 0,
+    paid: 0,
+    to_station: 0,
+    dispatched: 0,
+    cancelled: 0,
+    // Retired, but a database that predates the bus model still holds rows in
+    // them, and the dashboard expects every key present.
+    awaiting_payment: 0,
     in_transit: 0,
     delivered: 0,
-    cancelled: 0,
   };
   for (const row of grouped) {
     counts[row.status] = row._count._all;

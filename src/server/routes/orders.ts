@@ -5,6 +5,7 @@
 
 import type { Prisma } from '@prisma/client';
 import { asyncRouter } from '../http.js';
+import { LIVE_ORDER_STATUSES } from '../../types.js';
 import type { OrderStatus, PackageSize, Payer, PaymentTiming } from '../../types.js';
 import { AUTOMATION_ACTOR } from '../../brand.js';
 import { requireAdmin } from '../auth.js';
@@ -17,7 +18,7 @@ import { runAutomations, RIDER_TOKEN_TTL_MS } from '../automations.js';
 import { notifyForStatus, unqueueForStatus } from '../notifications.js';
 import { randomToken, withTrackingCode } from '../ids.js';
 import { prisma } from '../prisma.js';
-import { serializeHistory, serializeOrder, serializePayment } from '../serialize.js';
+import { ORDER_RIDERS, serializeHistory, serializeOrder, serializePayment } from '../serialize.js';
 import { publicActionLimit, publicReadLimit, publicWriteLimit } from '../rateLimit.js';
 import { LIST_CAP } from './payments.js';
 import { senderMayCancel } from '../../transitions.js';
@@ -27,16 +28,8 @@ import { queueNotification } from '../notifications.js';
 export const ordersRouter = asyncRouter();
 
 const PACKAGE_SIZES: PackageSize[] = ['small', 'medium', 'large'];
-const ORDER_STATUSES: OrderStatus[] = [
-  'requested',
-  'awaiting_payment',
-  'confirmed',
-  'queued',
-  'picked_up',
-  'in_transit',
-  'delivered',
-  'cancelled',
-];
+/** The statuses an admin may name. Retired ones are deliberately absent. */
+const ORDER_STATUSES: OrderStatus[] = LIVE_ORDER_STATUSES;
 
 
 
@@ -240,17 +233,18 @@ ordersRouter.post('/book', publicWriteLimit, async (req, res) => {
   const size = sizeForWeight(weightKg);
   const pricing = { currency: rule.currency };
 
-  // Legacy mapping kept so existing clients keep working:
-  // MoMo = pay up front, manual = settle at the door.
+  // paymentTiming is retired -- there is one moment now, after the parcel is
+  // weighed at the office -- but the column is still written so old rows and
+  // any client still sending the field keep their shape.
   const resolvedTiming: PaymentTiming =
     paymentTiming ?? (paymentProvider === 'momo' ? 'prepaid' : 'on_delivery');
   const resolvedPayer: Payer = payer ?? 'sender';
 
-  // Prepaid orders are payment-gated: they park in awaiting_payment and cannot
-  // confirm or dispatch until money lands. Pay-on-delivery orders are accepted
-  // straight away but carry a visible "payment due" flag until reconciled.
-  const isPrepaid = resolvedTiming === 'prepaid';
-  const status: OrderStatus = isPrepaid ? 'awaiting_payment' : 'confirmed';
+  // ACCEPTED STRAIGHT AWAY, whoever is paying. Money is no longer a gate on the
+  // front of the process: a rider goes out, collects, and the parcel is weighed
+  // and billed at the office. The gate moved to the other end -- nothing goes
+  // on a bus until it is paid for (see ALLOWED_TRANSITIONS, at_office -> paid).
+  const status: OrderStatus = 'confirmed';
 
   const scheduled = scheduledPickupAt ? new Date(scheduledPickupAt) : new Date();
   if (Number.isNaN(scheduled.getTime())) {
@@ -290,16 +284,13 @@ ordersRouter.post('/book', publicWriteLimit, async (req, res) => {
         data: {
           orderId: order.id,
           status,
-          note: isPrepaid
-            ? `Order submitted — awaiting payment from ${resolvedPayer}`
-            : `Order submitted and auto-confirmed — payment due on delivery (${resolvedPayer})`,
+          note: `Order submitted and accepted. ${resolvedPayer} pays once it is weighed`,
           changedByName: AUTOMATION_ACTOR,
         },
       });
 
-      // Pay-on-delivery bookings are confirmed on the spot, so this is their
-      // only chance to be told. Prepaid ones are notified by the payment rule
-      // once the money actually lands.
+      // Every booking is accepted on the spot now, so this is where the
+      // sender is told we have it. The bill follows after weighing.
       await notifyForStatus(tx, status, { ...order, riderName: null });
 
       if (paymentProvider === 'momo') {
@@ -324,7 +315,7 @@ ordersRouter.post('/book', publicWriteLimit, async (req, res) => {
   // rider, and the caller should see the settled state.
   const settled = await prisma.order.findUnique({
     where: { id: created.id },
-    include: { rider: true },
+    include: ORDER_RIDERS,
   });
 
   res.status(201).json({
@@ -376,7 +367,7 @@ ordersRouter.get('/', requireAdmin, requirePermission('orders:read'), async (req
   // whole orders table on every load once this business has a year behind it.
   const rows = await prisma.order.findMany({
     where,
-    include: { rider: true },
+    include: ORDER_RIDERS,
     orderBy: { createdAt: 'desc' },
     take: LIST_CAP + 1,
   });
@@ -397,7 +388,8 @@ ordersRouter.get('/:id', requireAdmin, requirePermission('orders:read'), async (
   const order = await prisma.order.findUnique({
     where: { id: req.params.id },
     include: {
-      rider: true,
+      collectionRider: true,
+      stationRider: true,
       statusHistory: { orderBy: { changedAt: 'desc' } },
       payments: { orderBy: { createdAt: 'desc' } },
     },
@@ -500,7 +492,7 @@ ordersRouter.patch('/:id/status', requireAdmin, requirePermission('orders:write'
 
   const settled = await prisma.order.findUnique({
     where: { id: existing.id },
-    include: { rider: true },
+    include: ORDER_RIDERS,
   });
 
   res.json({
@@ -511,11 +503,16 @@ ordersRouter.patch('/:id/status', requireAdmin, requirePermission('orders:write'
 });
 
 /* ---------------------------------------------------------------------------
-   ADMIN: HAND A PARCEL TO A DIFFERENT RIDER
+   ADMIN: HAND A LEG TO A DIFFERENT RIDER
    --------------------------------------------------------------------------- */
 
 /**
  * Move a parcel from one courier to another, or take it off a courier entirely.
+ *
+ * WHICH LEG is not a parameter — it is read off the parcel's status, because
+ * only one of the two can be in play at a time. Before the office it is the
+ * collection; after payment it is the run to the station. Asking the caller to
+ * say which would only let them say the wrong one.
  *
  * The automation only ever assigns to a rider who is FREE, which is right for
  * the normal case and useless for the one that actually needs a human: a bike
@@ -530,8 +527,9 @@ ordersRouter.patch('/:id/status', requireAdmin, requirePermission('orders:write'
  * assign to somebody who is off the fleet: that flag means "not working here",
  * and no view of the road changes it.
  *
- * Passing riderId: null unassigns, dropping the parcel back to `confirmed` so
- * the automation can pick it up again on its next pass.
+ * Passing riderId: null unassigns, dropping the parcel back to the status it
+ * waits in — `confirmed` for a collection, `paid` for a station run — so the
+ * automation can pick it up again on its next pass.
  */
 ordersRouter.patch('/:id/rider', requireAdmin, requirePermission('orders:write'), async (req, res) => {
   const admin = req.admin!;
@@ -543,20 +541,38 @@ ordersRouter.patch('/:id/rider', requireAdmin, requirePermission('orders:write')
 
   const existing = await prisma.order.findUnique({
     where: { id: req.params.id },
-    include: { rider: true },
+    include: ORDER_RIDERS,
   });
   if (!existing) return res.status(404).json({ error: 'Order not found' });
 
-  // A delivered or cancelled parcel is a record, not a job. Changing who
-  // carried it would rewrite history -- and the day's cash-with-couriers
-  // figure, which is built from exactly this column.
-  if (existing.status === 'delivered' || existing.status === 'cancelled') {
+  // A dispatched or cancelled parcel is a record, not a job. Changing who
+  // carried it would rewrite history.
+  if (existing.status === 'dispatched' || existing.status === 'cancelled') {
     return res.status(400).json({
       error: `This parcel is ${existing.status} and its courier is part of the record.`,
     });
   }
 
-  if (existing.riderId === riderId) {
+  /**
+   * Which leg this is, and what the parcel falls back to without a rider.
+   *
+   * `at_office` has no leg at all: the parcel is sitting on a shelf waiting for
+   * money, in nobody's hands. Assigning a rider to it would mark somebody busy
+   * for a parcel they cannot move.
+   */
+  const stationLeg = existing.status === 'paid' || existing.status === 'to_station';
+  if (existing.status === 'at_office') {
+    return res.status(400).json({
+      error: 'This parcel is at the office waiting to be paid for. It goes to a rider once it clears.',
+    });
+  }
+
+  const currentId = stationLeg ? existing.stationRiderId : existing.collectionRiderId;
+  const previousRider = stationLeg ? existing.stationRider : existing.collectionRider;
+  const waitingStatus = stationLeg ? 'paid' : 'confirmed';
+  const carryingStatus = stationLeg ? 'to_station' : 'queued';
+
+  if (currentId === riderId) {
     return res.status(400).json({
       error: riderId ? 'That parcel is already with this rider.' : 'That parcel has no rider.',
     });
@@ -573,25 +589,23 @@ ordersRouter.patch('/:id/rider', requireAdmin, requirePermission('orders:write')
     }
   }
 
-  const previousRider = existing.rider;
-
   const result = await prisma.$transaction(async (tx) => {
-    // The parcel moves to `queued` when it gets a courier and back to
-    // `confirmed` when it loses one -- but only from the states before pickup.
-    // Something already picked up stays picked up: the parcel is physically in
-    // a bag, and rewriting its status to match the paperwork would tell the
-    // customer it had been un-collected.
-    const beforePickup = existing.status === 'confirmed' || existing.status === 'queued';
-    const status = beforePickup ? (riderId ? 'queued' : 'confirmed') : existing.status;
+    // A parcel already picked up stays picked up. It is physically in a bag,
+    // and rewriting its status to match the paperwork would tell the customer
+    // it had been un-collected.
+    const status = existing.status === 'picked_up'
+      ? existing.status
+      : riderId
+        ? carryingStatus
+        : waitingStatus;
 
     const order = await tx.order.update({
       where: { id: existing.id },
       data: {
-        riderId,
+        ...(stationLeg ? { stationRiderId: riderId } : { collectionRiderId: riderId }),
         status,
-        // A courier who is handed a parcel needs a working link for it, and the
-        // old one is fine to keep: it is scoped to the order, not the person,
-        // and the person holding it has just been replaced on this parcel.
+        // A courier handed a parcel needs a working link for it, and the old
+        // one is fine to keep: it is scoped to the order, not to the person.
         ...(riderId
           ? {
               riderToken: existing.riderToken ?? randomToken(),
@@ -599,7 +613,7 @@ ordersRouter.patch('/:id/rider', requireAdmin, requirePermission('orders:write')
             }
           : {}),
       },
-      include: { rider: true },
+      include: ORDER_RIDERS,
     });
 
     if (rider) {
@@ -607,25 +621,30 @@ ordersRouter.patch('/:id/rider', requireAdmin, requirePermission('orders:write')
     }
 
     // Free the rider we took it off, unless they are still carrying something
-    // else. The automation's release rule only looks at finished parcels, so
-    // without this a rider handing over a job stays marked busy until their
-    // next delivery completes.
+    // else on either leg. The automation's release rule runs once a minute; a
+    // rider handing over a job should not wait for it.
     if (previousRider) {
-      const stillCarrying = await tx.order.count({
-        where: {
-          riderId: previousRider.id,
-          status: { in: ['queued', 'picked_up', 'in_transit'] },
-        },
-      });
-      if (stillCarrying === 0) {
+      const [collecting, running] = await Promise.all([
+        tx.order.count({
+          where: {
+            collectionRiderId: previousRider.id,
+            status: { in: ['queued', 'picked_up'] },
+          },
+        }),
+        tx.order.count({
+          where: { stationRiderId: previousRider.id, status: 'to_station' },
+        }),
+      ]);
+      if (collecting + running === 0) {
         await tx.rider.update({ where: { id: previousRider.id }, data: { available: true } });
       }
     }
 
+    const leg = stationLeg ? 'station run' : 'collection';
     const note = rider
       ? previousRider
-        ? `Reassigned from ${previousRider.name} to ${rider.name}`
-        : `Assigned to ${rider.name}`
+        ? `${leg} reassigned from ${previousRider.name} to ${rider.name}`
+        : `${leg} assigned to ${rider.name}`
       : `Taken off ${previousRider?.name ?? 'the courier'} — back in the queue`;
 
     const history = await tx.statusHistory.create({
@@ -639,52 +658,176 @@ ordersRouter.patch('/:id/rider', requireAdmin, requirePermission('orders:write')
     });
 
     /**
-     * The customer was told a name. Whether they can be told the new one
-     * depends on whether the first message has gone.
+     * The customer was told a name, and only for the collection.
      *
      * `rider_assigned` is unique per (orderId, event), which is what stops the
-     * automation texting twice. Here that constraint gets in the way: while
-     * the original is still PENDING it can be deleted and re-queued, so the
-     * customer only ever receives the truth. Once it has been SENT, the
-     * constraint holds and no second text is possible -- deleting a sent row
-     * would only destroy the record of having told them.
+     * automation texting twice. Here that constraint gets in the way: while the
+     * original is still PENDING it can be deleted and re-queued, so the sender
+     * only ever receives the truth. Once it has been SENT the constraint holds
+     * and no second text is possible -- deleting a sent row would only destroy
+     * the record of having told them.
      *
      * That case is handed back to the caller rather than swallowed, because
-     * somebody is expecting a call from a rider who is no longer coming, and
-     * a phone call is the repair.
+     * somebody is expecting a call from a rider who is no longer coming, and a
+     * phone call is the repair.
+     *
+     * The station leg says nothing either way. Nobody was told who was taking
+     * the parcel across town, so nobody has to be un-told.
      */
-    const pending = await tx.notification.deleteMany({
-      where: { orderId: order.id, event: 'rider_assigned', status: 'pending' },
-    });
+    let customerToldPreviousRider = false;
 
-    const alreadySent = await tx.notification.findFirst({
-      where: { orderId: order.id, event: 'rider_assigned' },
-      select: { id: true },
-    });
-
-    if (rider && !alreadySent) {
-      await queueNotification(tx, 'rider_assigned', {
-        ...order,
-        riderName: rider.name,
-        riderPhone: rider.phone,
+    if (!stationLeg) {
+      const pending = await tx.notification.deleteMany({
+        where: { orderId: order.id, event: 'rider_assigned', status: 'pending' },
       });
+      const alreadySent = await tx.notification.findFirst({
+        where: { orderId: order.id, event: 'rider_assigned' },
+        select: { id: true },
+      });
+
+      if (rider && !alreadySent) {
+        await queueNotification(tx, 'rider_assigned', {
+          ...order,
+          riderName: rider.name,
+          riderPhone: rider.phone,
+        });
+      }
+
+      customerToldPreviousRider = Boolean(alreadySent) && pending.count === 0;
     }
 
-    return {
-      order,
-      history,
-      // True when the customer holds a text naming somebody else, and no
-      // further text can correct it.
-      customerToldPreviousRider: Boolean(alreadySent) && pending.count === 0,
-    };
+    return { order, history, customerToldPreviousRider };
   });
 
   res.json({
     success: true,
     order: serializeOrder(result.order),
     history: serializeHistory(result.history),
+    leg: stationLeg ? 'station' : 'collection',
     previousRiderName: previousRider?.name ?? null,
     customerToldPreviousRider: result.customerToldPreviousRider,
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   ADMIN: PUT IT ON THE BUS
+   --------------------------------------------------------------------------- */
+
+/**
+ * Record the bus, and end our part in the parcel.
+ *
+ * This is the last thing that happens to an order and the only place the car
+ * number is ever written. Both ends are texted it in the same transaction,
+ * because that number is the only handle either of them has on the parcel once
+ * it has left us -- a dispatch recorded without the messages going out is a
+ * parcel nobody can find.
+ *
+ * TWO MESSAGES, TWO EVENTS. The (orderId, event) unique constraint means one
+ * event can only reach one person, so the sender and the recipient get
+ * separately-worded messages under separate events rather than one event bent
+ * to serve both.
+ *
+ * Refused unless the parcel is paid for. Past the station there is nothing we
+ * can do to collect, and nobody of ours at the far end to do it.
+ */
+ordersRouter.post('/:id/dispatch', requireAdmin, requirePermission('orders:write'), async (req, res) => {
+  const admin = req.admin!;
+  const raw = req.body?.busCarNumber;
+
+  if (typeof raw !== 'string' || !raw.trim()) {
+    return res.status(400).json({ error: 'The bus car number is required' });
+  }
+
+  // Registrations are read off the back of a bus and typed in a hurry. Spacing
+  // and case vary; the characters do not.
+  const busCarNumber = raw.trim().toUpperCase().replace(/\s+/g, ' ');
+  if (busCarNumber.length > 32) {
+    return res.status(400).json({ error: 'That car number is too long to be one' });
+  }
+
+  const existing = await prisma.order.findUnique({
+    where: { id: req.params.id },
+    include: ORDER_RIDERS,
+  });
+  if (!existing) return res.status(404).json({ error: 'Order not found' });
+
+  if (existing.status === 'dispatched') {
+    return res.status(400).json({
+      error: `This parcel already went on car ${existing.busCarNumber ?? 'unknown'}.`,
+    });
+  }
+  if (existing.status === 'cancelled') {
+    return res.status(400).json({ error: 'This parcel was cancelled.' });
+  }
+  if (existing.paymentStatus !== 'paid') {
+    return res.status(400).json({
+      error: 'This parcel has not been paid for. Nothing goes on a bus before it clears.',
+    });
+  }
+  if (!canTransition(existing.status as OrderStatus, 'dispatched')) {
+    return res.status(400).json({
+      error: `A parcel cannot go from ${existing.status} straight onto a bus.`,
+    });
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.update({
+      where: { id: existing.id },
+      data: {
+        status: 'dispatched',
+        busCarNumber,
+        // The link dies with the job. Nothing further can be done to this
+        // parcel, so a courier's old link should stop opening it.
+        riderToken: null,
+        riderTokenExpiresAt: null,
+      },
+      include: ORDER_RIDERS,
+    });
+
+    const history = await tx.statusHistory.create({
+      data: {
+        orderId: order.id,
+        status: 'dispatched',
+        note: `On the bus, car ${busCarNumber}`,
+        changedByAdminId: admin.id,
+        changedByName: admin.name,
+      },
+    });
+
+    const toSender = await queueNotification(tx, 'dispatched_sender', order);
+    const toRecipient = await queueNotification(tx, 'dispatched_recipient', order);
+
+    // Free the station rider. Their leg, and the parcel, are finished.
+    if (order.stationRiderId) {
+      const stillRunning = await tx.order.count({
+        where: { stationRiderId: order.stationRiderId, status: 'to_station' },
+      });
+      const stillCollecting = await tx.order.count({
+        where: {
+          collectionRiderId: order.stationRiderId,
+          status: { in: ['queued', 'picked_up'] },
+        },
+      });
+      if (stillRunning + stillCollecting === 0) {
+        await tx.rider.update({
+          where: { id: order.stationRiderId },
+          data: { available: true },
+        });
+      }
+    }
+
+    return { order, history, toSender, toRecipient };
+  });
+
+  res.json({
+    success: true,
+    order: serializeOrder(result.order),
+    history: serializeHistory(result.history),
+    // Which messages actually queued. A number we could not text is not a
+    // failure of the dispatch, but it is something the office should know
+    // about while the parcel is still in front of them.
+    textedSender: result.toSender,
+    textedRecipient: result.toRecipient,
   });
 });
 
@@ -788,15 +931,23 @@ ordersRouter.post('/:id/undo', requireAdmin, requirePermission('orders:write'), 
       }
     }
 
-    // The parcel is back on the road, so the courier carrying it is busy
-    // again. Without this the automation pass would hand them a second job
-    // while the first is still in their bag.
-    const backOnTheRoad = to === 'queued' || to === 'picked_up' || to === 'in_transit';
-    if (backOnTheRoad && existing.riderId) {
-      await tx.rider.update({
-        where: { id: existing.riderId },
-        data: { available: false },
-      });
+    // The parcel is back in somebody's hands, so that courier is busy again.
+    // Without this the automation pass would hand them a second job while the
+    // first is still in their bag.
+    //
+    // WHICH courier depends on which leg we have gone back to: undoing a drop
+    // at the office belongs to the rider who collected it, undoing a dispatch
+    // belongs to the one who took it to the station.
+    const backOnCollection = to === 'queued' || to === 'picked_up';
+    const backOnStationRun = to === 'to_station';
+    const restore = backOnCollection
+      ? existing.collectionRiderId
+      : backOnStationRun
+        ? existing.stationRiderId
+        : null;
+
+    if (restore) {
+      await tx.rider.update({ where: { id: restore }, data: { available: false } });
     }
 
     await unqueueForStatus(tx, from, existing.id);
@@ -819,7 +970,7 @@ ordersRouter.post('/:id/undo', requireAdmin, requirePermission('orders:write'), 
   // response even reached the browser.
   const settled = await prisma.order.findUnique({
     where: { id: existing.id },
-    include: { rider: true },
+    include: ORDER_RIDERS,
   });
 
   res.json({
@@ -882,7 +1033,7 @@ ordersRouter.post('/:id/pay', requireAdmin, requirePermission('payments:write'),
 
   const settled = await prisma.order.findUnique({
     where: { id: existing.id },
-    include: { rider: true },
+    include: ORDER_RIDERS,
   });
 
   res.json({

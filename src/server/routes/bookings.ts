@@ -10,7 +10,7 @@ import { requirePermission } from '../permissions.js';
 import { prisma } from '../prisma.js';
 import { runAutomations } from '../automations.js';
 import { withTrackingCode } from '../ids.js';
-import { serializeOrder, type OrderWithRider } from '../serialize.js';
+import { ORDER_RIDERS, serializeOrder, type OrderWithRider } from '../serialize.js';
 import { isRegion, REGION_NAMES } from '../../regions.js';
 import { quote, sizeForWeight } from '../../pricing.js';
 import { currentRule } from './pricing.js';
@@ -98,7 +98,7 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
   if (key) {
     const already = await prisma.booking.findUnique({
       where: { idempotencyKey: key },
-      include: { orders: { include: { rider: true }, orderBy: { createdAt: 'asc' } } },
+      include: { orders: { include: ORDER_RIDERS, orderBy: { createdAt: 'asc' } } },
     });
     if (already) return res.json(bookingResponse(already, already.orders));
   }
@@ -282,7 +282,7 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
     if (key && (err as { code?: string })?.code === 'P2002') {
       const winner = await prisma.booking.findUnique({
         where: { idempotencyKey: key },
-        include: { orders: { include: { rider: true }, orderBy: { createdAt: 'asc' } } },
+        include: { orders: { include: ORDER_RIDERS, orderBy: { createdAt: 'asc' } } },
       });
       if (winner) return res.json(bookingResponse(winner, winner.orders));
     }
@@ -293,7 +293,7 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
 
   const settled = await prisma.order.findMany({
     where: { bookingId: created.booking.id },
-    include: { rider: true },
+    include: ORDER_RIDERS,
     orderBy: { createdAt: 'asc' },
   });
 
@@ -332,6 +332,17 @@ bookingsRouter.patch('/parcels/:id/weight', requireAdmin, requirePermission('ord
   const was = existing.priceAmount;
 
   const updated = await prisma.$transaction(async (tx) => {
+    /**
+     * Weighing IS the parcel being at the office.
+     *
+     * A parcel still marked `picked_up` is one whose rider dropped it and did
+     * not tap anything — which is most of them, since nothing hands couriers
+     * their links yet. Moving it here rather than making somebody press a
+     * second button also frees that rider on the next automation pass, which
+     * is the honest state: they are standing in the office with empty hands.
+     */
+    const status = existing.status === 'picked_up' ? 'at_office' : existing.status;
+
     const order = await tx.order.update({
       where: { id: existing.id },
       data: {
@@ -340,8 +351,9 @@ bookingsRouter.patch('/parcels/:id/weight', requireAdmin, requirePermission('ord
         priceAmount: priced,
         currency: rule.currency,
         priceConfirmedAt: new Date(),
+        status,
       },
-      include: { rider: true },
+      include: ORDER_RIDERS,
     });
 
     await tx.statusHistory.create({
@@ -357,13 +369,25 @@ bookingsRouter.patch('/parcels/:id/weight', requireAdmin, requirePermission('ord
       },
     });
 
-    // The terms page promises we get in touch before dispatching a parcel that
-    // weighed more than declared, rather than charging the difference quietly.
-    // This is that promise, and it is only worth a message when the figure
-    // actually moved — "your price is unchanged" is a text nobody needs.
-    if (priced !== was) {
-      await queueNotification(tx, 'price_confirmed', order, { previousAmount: was });
-    }
+    /**
+     * The bill, and it goes out EVERY time — not only when the price moved.
+     *
+     * Under the old door-delivery model this message was a courtesy: it warned
+     * a customer that a parcel weighed more than they said before we charged
+     * them the difference. Now it is the invoice. Nothing goes on a bus until
+     * it is paid for, so a parcel that is weighed and never billed is a parcel
+     * that sits on a shelf while everyone waits for the other to move.
+     *
+     * `previousAmount` is passed only when the figure actually changed, which
+     * is what lets the template say "not GHS 50.00" rather than inventing a
+     * comparison out of an estimate that happened to be right.
+     */
+    await queueNotification(
+      tx,
+      'payment_request',
+      order,
+      priced !== was ? { previousAmount: was } : {}
+    );
 
     return order;
   });
@@ -382,7 +406,7 @@ bookingsRouter.patch('/parcels/:id/weight', requireAdmin, requirePermission('ord
 bookingsRouter.get('/:reference', publicReadLimit, async (req, res) => {
   const booking = await prisma.booking.findUnique({
     where: { reference: req.params.reference.trim().toUpperCase() },
-    include: { orders: { include: { rider: true }, orderBy: { createdAt: 'asc' } } },
+    include: { orders: { include: ORDER_RIDERS, orderBy: { createdAt: 'asc' } } },
   });
 
   if (!booking) return res.status(404).json({ error: 'No booking found with that reference' });

@@ -134,7 +134,7 @@ const FIXTURES: Fixture[] = [
     packageWeightKg: 5,
     packageDescription: 'Legal documents and a laptop',
     scheduledPickupAt: at(-6 * hour),
-    status: 'in_transit',
+    status: 'to_station',
     paymentStatus: 'paid',
     payer: 'sender',
     paymentTiming: 'prepaid',
@@ -142,11 +142,12 @@ const FIXTURES: Fixture[] = [
     riderIndex: 0,
     timeline: [
       { status: 'requested', note: 'Booked online', atMs: -1 * day },
-      { status: 'awaiting_payment', note: 'Weighed at 5kg — price GHS 50.00 to 70.00', byAdmin: true, atMs: -1 * day + hour },
-      { status: 'confirmed', note: 'Mobile money received', byAdmin: true, atMs: -1 * day + 2 * hour },
-      { status: 'queued', note: 'Assigned to courier', atMs: -8 * hour },
+      { status: 'confirmed', note: 'Accepted', byAdmin: true, atMs: -1 * day + hour },
+      { status: 'queued', note: 'Auto-queued — courier collecting', atMs: -8 * hour },
       { status: 'picked_up', note: 'Collected from Osu', atMs: -6 * hour },
-      { status: 'in_transit', note: 'On the road to Ho', atMs: -4 * hour },
+      { status: 'at_office', note: 'Weighed at 5kg — price GHS 50.00 to 70.00', byAdmin: true, atMs: -5 * hour },
+      { status: 'paid', note: 'Payment received — ready for the station', atMs: -4 * hour },
+      { status: 'to_station', note: 'Auto-queued — running it to the station', atMs: -4 * hour },
     ],
     payment: {
       provider: 'momo',
@@ -172,14 +173,17 @@ const FIXTURES: Fixture[] = [
     packageWeightKg: 8,
     packageDescription: 'Fabric samples, one roll',
     scheduledPickupAt: at(1 * day + 13 * hour),
-    status: 'awaiting_payment',
+    status: 'at_office',
     paymentStatus: 'pending',
     payer: 'sender',
     paymentTiming: 'prepaid',
     createdAt: at(-3 * hour),
     timeline: [
       { status: 'requested', note: 'Booked online', atMs: -3 * hour },
-      { status: 'awaiting_payment', note: 'Weighed at 8kg — price GHS 50.00 to 100.00', byAdmin: true, atMs: -2 * hour },
+      { status: 'confirmed', note: 'Accepted', byAdmin: true, atMs: -3 * hour },
+      { status: 'queued', note: 'Auto-queued — courier collecting', atMs: -3 * hour },
+      { status: 'picked_up', note: 'Collected from Adabraka', atMs: -2 * hour },
+      { status: 'at_office', note: 'Weighed at 8kg — price GHS 50.00 to 100.00', byAdmin: true, atMs: -2 * hour },
     ],
   },
 ];
@@ -266,7 +270,8 @@ async function main() {
           createdAt: fixture.createdAt,
           ...(rider
             ? {
-                riderId: rider.id,
+                collectionRiderId: rider.id,
+                stationRiderId: rider.id,
                 riderToken: randomToken(),
                 riderTokenExpiresAt: at(7 * day),
               }

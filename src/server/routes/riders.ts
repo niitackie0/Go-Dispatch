@@ -29,8 +29,11 @@ import { serializeRider } from '../serialize.js';
 
 export const ridersRouter = asyncRouter();
 
-/** Statuses that mean a parcel is in this rider's hands right now. */
-const LIVE_STATUSES = ['queued', 'picked_up', 'in_transit'] as const;
+/** A collection is in this rider's hands while it is in one of these. */
+const COLLECTION_LIVE = ['queued', 'picked_up'] as const;
+
+/** A station run is in their hands while it is in this one. */
+const STATION_LIVE = ['to_station'] as const;
 
 /** Prisma's unique-constraint violation, i.e. the phone is already on the fleet. */
 function isDuplicate(err: unknown): boolean {
@@ -57,13 +60,33 @@ function riderPhone(raw: unknown): { phone: string } | { error: string } {
   return { phone };
 }
 
-/** Counts for one rider, in the two numbers the fleet page shows. */
+/**
+ * Counts for one rider, in the two numbers the fleet page shows.
+ *
+ * Both legs count. A rider may be collecting one parcel and running another to
+ * the station, and either way they are carrying something.
+ *
+ * `delivered` counts finished work of both kinds -- collections that reached
+ * the office and station runs that reached a bus. It is the number that makes
+ * deleting somebody destructive, so it must not miss a leg.
+ */
 async function jobCounts(riderId: string): Promise<{ carrying: number; delivered: number }> {
-  const [carrying, delivered] = await Promise.all([
-    prisma.order.count({ where: { riderId, status: { in: [...LIVE_STATUSES] } } }),
-    prisma.order.count({ where: { riderId, status: 'delivered' } }),
+  const [collecting, running, collected, dispatched] = await Promise.all([
+    prisma.order.count({
+      where: { collectionRiderId: riderId, status: { in: [...COLLECTION_LIVE] } },
+    }),
+    prisma.order.count({
+      where: { stationRiderId: riderId, status: { in: [...STATION_LIVE] } },
+    }),
+    prisma.order.count({
+      where: {
+        collectionRiderId: riderId,
+        status: { in: ['at_office', 'paid', 'to_station', 'dispatched'] },
+      },
+    }),
+    prisma.order.count({ where: { stationRiderId: riderId, status: 'dispatched' } }),
   ]);
-  return { carrying, delivered };
+  return { carrying: collecting + running, delivered: collected + dispatched };
 }
 
 /**
@@ -197,7 +220,11 @@ ridersRouter.delete('/:id', requireAdmin, requirePermission('riders:manage'), as
     return res.status(404).json({ error: 'Rider not found' });
   }
 
-  const orders = await prisma.order.count({ where: { riderId: target.id } });
+  const orders = await prisma.order.count({
+    where: {
+      OR: [{ collectionRiderId: target.id }, { stationRiderId: target.id }],
+    },
+  });
   if (orders > 0) {
     const parcels = `${orders} parcel${orders === 1 ? '' : 's'}`;
     return res.status(409).json({

@@ -37,51 +37,91 @@ import { smsCost, toGhanaMsisdn, toGsm7 } from './sms.js';
  * Every SMS is billed, on every order, forever, so each one has to carry
  * something the customer would otherwise have to ring up and ask:
  *
- *   booking_confirmed  sender     the receipt, and the code everything else
- *                                 is tracked with. One per BOOKING, not one
- *                                 per parcel.
- *   price_confirmed    sender     only when weighing changed the price. The
- *                                 terms page promises we say so before we
- *                                 dispatch, and this is that promise.
- *   rider_assigned     sender     who is coming and on what number, so an
- *                                 unknown caller at the gate is expected.
- *   out_for_delivery   RECIPIENT  the only person who has to be somewhere,
- *                                 and the only one who needs cash ready.
- *   delivered          sender     the outcome they paid for, and what was
- *                                 collected at the door.
- *   cancelled          sender     silence here is the worst failure in the
- *                                 system: a parcel that is simply never
- *                                 collected, with no explanation.
+ *   booking_confirmed     sender     the receipt, and the code everything else
+ *                                    is tracked with. One per BOOKING, not one
+ *                                    per parcel.
+ *   rider_assigned        sender     who is coming to collect and on what
+ *                                    number, so an unknown caller at the gate
+ *                                    is expected.
+ *   payment_request       PAYER      the bill. Sent once the parcel has been
+ *                                    weighed at the office, to whoever the
+ *                                    `payer` column names -- which may be the
+ *                                    recipient, so that variant says who the
+ *                                    parcel is from. Nothing goes on a bus
+ *                                    before this is settled.
+ *   dispatched_sender     sender     the car number.
+ *   dispatched_recipient  RECIPIENT  the car number, and that it is theirs to
+ *                                    collect at the station. Without this they
+ *                                    cannot find the parcel at all.
+ *   cancelled             sender     silence here is the worst failure in the
+ *                                    system: a parcel that is simply never
+ *                                    collected, with no explanation.
+ *
+ * TWO EVENTS FOR ONE DISPATCH MESSAGE. The unique constraint below is per
+ * (orderId, event), which is what stops the automation texting twice -- and it
+ * means one event can only ever reach one person. The car number has to reach
+ * both ends, so it is two events carrying two differently-worded messages
+ * rather than one event bent into serving two audiences.
  *
  * And what does NOT earn one:
  *
- *   payment_received   folded into booking_confirmed. A prepaid order is
- *                      confirmed by the same automation pass that sees the
- *                      payment, so these two arrived in the same second
- *                      saying halves of one sentence, and were billed twice.
- *                      Retained in the enum for rows already written.
- *   delivered (to the recipient)  they are standing in front of the rider.
+ *   payment_received   folded into booking_confirmed, then made redundant
+ *                      entirely: payment_request is followed by the dispatch
+ *                      message, which is itself the proof the money landed.
+ *   anything after the bus  our job ends when the parcel is handed over at the
+ *                      station. We cannot see the far end, so we cannot honestly
+ *                      say a parcel was collected -- and a message that guesses
+ *                      is worse than no message.
+ *
+ * RETIRED with the door-delivery model: price_confirmed (became the bill),
+ * out_for_delivery and delivered (nobody is bringing it to a door). They still
+ * render, because rows written under that model record what customers were
+ * actually told and must read back as they were sent.
  */
 
 export type NotificationEvent =
   | 'booking_confirmed'
+  | 'rider_assigned'
+  | 'payment_request'
+  | 'dispatched_sender'
+  | 'dispatched_recipient'
+  | 'cancelled'
+  // Retired. Nothing queues these; they render so old rows still read.
   | 'payment_received'
   | 'price_confirmed'
-  | 'rider_assigned'
   | 'out_for_delivery'
-  | 'delivered'
-  | 'cancelled';
+  | 'delivered';
 
-/** Who each message is for. The one that goes to the recipient is deliberate. */
-const AUDIENCE: Record<NotificationEvent, 'sender' | 'recipient'> = {
+/**
+ * Who each message is for.
+ *
+ * `payer` is resolved per order rather than fixed here, because the bill goes
+ * to whoever is paying and that is a property of the parcel, not of the event.
+ */
+type Audience = 'sender' | 'recipient' | 'payer';
+
+const AUDIENCE: Record<NotificationEvent, Audience> = {
   booking_confirmed: 'sender',
+  rider_assigned: 'sender',
+  payment_request: 'payer',
+  dispatched_sender: 'sender',
+  // The only message that reaches somebody who never dealt with us, and the
+  // one that matters most: without the car number they cannot find the parcel.
+  dispatched_recipient: 'recipient',
+  cancelled: 'sender',
+
   payment_received: 'sender',
   price_confirmed: 'sender',
-  rider_assigned: 'sender',
   out_for_delivery: 'recipient',
   delivered: 'sender',
-  cancelled: 'sender',
 };
+
+/** The audience for this event on this parcel, with `payer` settled. */
+function audienceFor(event: NotificationEvent, order: OrderFacts): 'sender' | 'recipient' {
+  const audience = AUDIENCE[event];
+  if (audience !== 'payer') return audience;
+  return order.payer === 'recipient' ? 'recipient' : 'sender';
+}
 
 /** What a template may draw on. Everything optional is absent on some orders. */
 export interface OrderFacts {
@@ -100,8 +140,11 @@ export interface OrderFacts {
   payer?: string | null;
   actualWeightKg?: unknown;
   bookingId?: string | null;
+  /** Whichever rider holds the leg this message is about. */
   riderName?: string | null;
   riderPhone?: string | null;
+  /** Set once the parcel is on a bus. The dispatched messages are built on it. */
+  busCarNumber?: string | null;
 }
 
 /** Facts about the wider event that are not on the order row itself. */
@@ -173,16 +216,68 @@ function render(
         const ref = context.bookingReference;
         return `We have your ${context.parcelCount} parcels. Prices confirm when we weigh each one. Use ${ref} to track them here: ${smsTrackingLink(ref)}`;
       }
-      if (order.paymentStatus === 'paid') {
-        return `Payment received and we have your parcel. Use ${code} ${track(code)}`;
-      }
-      if (order.paymentTiming === 'prepaid') {
-        return `We have your parcel and collect once your payment lands. Use ${code} ${track(code)}`;
-      }
-      return `We have your parcel. Payment is due on delivery. Use ${code} ${track(code)}`;
+      // One variant, because there is now only one way it goes: we weigh it at
+      // the office and ask for the money then. The old paid / prepaid / due-on-
+      // delivery split described a door delivery that does not happen.
+      return `We have your parcel. The price confirms when we weigh it. Use ${code} ${track(code)}`;
     }
 
-    // Retained so old rows still render. No longer queued.
+    case 'rider_assigned': {
+      const rider = order.riderName ? firstName(order.riderName) : null;
+      const who = rider ?? 'A rider';
+      const tail = `Track it here: ${smsTrackingLink(code)}`;
+      return order.riderPhone
+        ? `${who} is coming to collect ${code}. He will call from ${order.riderPhone}. ${tail}`
+        : `${who} is coming to collect ${code} and will call when he arrives. ${tail}`;
+    }
+
+    /**
+     * The bill, and the only message that asks for anything.
+     *
+     * It goes to whoever is paying, which may be the recipient — somebody who
+     * never dealt with us — so that variant names the sender. No tracking link
+     * on either: the action here is a MoMo transfer, and 38 characters of URL
+     * would buy nothing that the number and the code do not already give.
+     */
+    case 'payment_request': {
+      const was = context.previousAmount;
+      const weight = kg(order.actualWeightKg);
+      const weighed = weight ? `weighed ${weight}kg` : 'has been weighed';
+      const pay = `Pay ${amount} by MoMo to ${phone} and it goes on the bus.`;
+
+      if (order.payer === 'recipient') {
+        const from = firstName(order.senderName);
+        return `${from} has sent you a parcel, ${code}. It ${weighed}. ${pay}`;
+      }
+      return was !== undefined
+        ? `${code} ${weighed}, so the price is ${amount}, not ${formatAmount(was, order.currency)}. Pay by MoMo to ${phone} and it goes on the bus.`
+        : `${code} ${weighed}. ${pay}`;
+    }
+
+    /**
+     * On the bus. The car number is the whole message — it is the only handle
+     * either end has on the parcel once it has left us, and the reason this is
+     * the one event that texts two people.
+     */
+    case 'dispatched_sender': {
+      const bus = order.busCarNumber ?? '';
+      const to = firstName(order.recipientName);
+      return `${code} is on the bus, car number ${bus}. ${to} has been told the same. Call ${phone} if anything is wrong.`;
+    }
+
+    case 'dispatched_recipient': {
+      const bus = order.busCarNumber ?? '';
+      const from = firstName(order.senderName);
+      return `${from} has sent you a parcel on the bus, car number ${bus}. Collect it at the station. Call ${phone} if you need us.`;
+    }
+
+    case 'cancelled':
+      return order.paymentStatus === 'paid'
+        ? `${code} has been cancelled. We will call you about your refund. Call ${phone}.`
+        : `${code} has been cancelled and you have not been charged. Call ${phone} if this is a mistake.`;
+
+    // ---- Retired. Rendered only so rows written before the bus model still
+    // read back as what the customer was actually told.
     case 'payment_received':
       return `Payment received for ${code}. Thank you.`;
 
@@ -195,17 +290,6 @@ function render(
         : `${weighed} and the price is ${amount}. Track it here: ${smsTrackingLink(code)}`;
     }
 
-    case 'rider_assigned': {
-      const rider = order.riderName ? firstName(order.riderName) : null;
-      const who = rider ?? 'A rider';
-      const tail = `Track it here: ${smsTrackingLink(code)}`;
-      return order.riderPhone
-        ? `${who} is coming to collect ${code}. He will call from ${order.riderPhone}. ${tail}`
-        : `${who} is coming to collect ${code} and will call when he arrives. ${tail}`;
-    }
-
-    // The only message that goes to somebody who did not book with us, so it
-    // says who it is from and why they are hearing from us.
     case 'out_for_delivery': {
       const from = firstName(order.senderName);
       const owes = order.payer === 'recipient' && order.paymentStatus !== 'paid';
@@ -222,11 +306,6 @@ function render(
         ? `${code} was delivered to ${to} and ${amount} was collected. Thank you.`
         : `${code} was delivered to ${to}. Thank you for choosing us.`;
     }
-
-    case 'cancelled':
-      return order.paymentStatus === 'paid'
-        ? `${code} has been cancelled. We will call you about your refund. Call ${phone}.`
-        : `${code} has been cancelled and you have not been charged. Call ${phone} if this is a mistake.`;
   }
 }
 
@@ -264,8 +343,8 @@ export function renderMessage(
   context: NotificationContext = {}
 ): string {
   // Addressed to whoever the event is for: the sender on most, the recipient
-  // on the one that reaches somebody who never dealt with us.
-  const audience = AUDIENCE[event];
+  // on the dispatch message, and whoever is paying on the bill.
+  const audience = audienceFor(event, order);
   const name = firstName(audience === 'recipient' ? order.recipientName : order.senderName);
 
   const brand = (text: string) => (SMS_SENDER_ID_REGISTERED ? text : `${BRAND_NAME}: ${text}`);
@@ -292,7 +371,7 @@ export async function queueNotification(
   order: OrderFacts,
   context: NotificationContext = {}
 ): Promise<boolean> {
-  const audience = AUDIENCE[event];
+  const audience = audienceFor(event, order);
   const raw = audience === 'recipient' ? order.recipientPhone : order.senderPhone;
 
   // A number a provider will not accept is not worth a row. Queuing it would
@@ -337,16 +416,18 @@ export async function queueNotification(
 /**
  * The notification a status change earns, if any.
  *
- * `confirmed` is here for pay-on-delivery bookings, which are confirmed the
- * moment they are placed and so never pass through the payment rule that
- * notifies prepaid ones. `queued` is deliberately absent: the automation pass
- * queues `rider_assigned` itself, because only it knows which rider got the
- * job and on what number.
+ * Deliberately short, because most of the messages in this system are not
+ * earned by a status alone:
+ *
+ *  - `queued` is absent: only the automation pass knows WHICH rider took the
+ *    job and on what number, so it queues rider_assigned itself.
+ *  - `at_office` is absent: the bill cannot be written until the parcel has
+ *    been weighed, which is a separate act from arriving.
+ *  - `dispatched` is absent: it needs the car number, and it sends to two
+ *    people. routes/orders.ts queues both when it records the bus.
  */
 const STATUS_EVENTS: Partial<Record<string, NotificationEvent>> = {
   confirmed: 'booking_confirmed',
-  in_transit: 'out_for_delivery',
-  delivered: 'delivered',
   cancelled: 'cancelled',
 };
 
