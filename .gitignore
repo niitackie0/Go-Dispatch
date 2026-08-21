@@ -9,3 +9,6 @@ coverage/
 
 # Local dev database — server.ts seeds this on first boot.
 db.json
+
+# Internal planning. Operational detail and open weaknesses -- not for a public repo.
+go dispatch-pre-launch-checklist.md
