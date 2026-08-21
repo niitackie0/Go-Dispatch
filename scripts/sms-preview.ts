@@ -40,14 +40,31 @@ const base: OrderFacts = {
 
 const cases: { event: NotificationEvent; to: string; when: string; order?: Partial<OrderFacts>; context?: NotificationContext }[] = [
   {
-    event: 'booking_confirmed',
+    event: 'rider_assigned',
     to: 'sender',
-    when: 'one parcel',
+    when: 'the receipt and the collection notice, merged',
+    order: { riderName: 'Kwesi Mensah', riderPhone: '+233244123456' },
+  },
+  {
+    event: 'rider_assigned',
+    to: 'sender',
+    when: 'no number on file for the rider',
+    order: { riderName: 'Kwesi Mensah' },
+  },
+  {
+    event: 'rider_assigned',
+    to: 'sender',
+    when: 'WORST CASE: long customer name, long rider name',
+    order: {
+      senderName: 'Emmanuella Boatemaa',
+      riderName: 'Emmanuel Adjei-Mensah',
+      riderPhone: '+233244777001',
+    },
   },
   {
     event: 'booking_confirmed',
     to: 'sender',
-    when: 'three parcels booked together',
+    when: 'three parcels booked together (multi-parcel only)',
     context: { bookingReference: 'GDB-4821-330', parcelCount: 3 },
   },
   {
@@ -56,18 +73,6 @@ const cases: { event: NotificationEvent; to: string; when: string; order?: Parti
     when: 'WORST CASE: a company name, twelve parcels',
     order: { senderName: 'Ghana Commercial Enterprises Limited' },
     context: { bookingReference: 'GDB-4821-330', parcelCount: 12 },
-  },
-  {
-    event: 'rider_assigned',
-    to: 'sender',
-    when: 'rider has a number on file',
-    order: { riderName: 'Kwesi Mensah', riderPhone: '0244123456' },
-  },
-  {
-    event: 'rider_assigned',
-    to: 'sender',
-    when: 'no number on file',
-    order: { riderName: 'Kwesi Mensah' },
   },
   {
     event: 'payment_request',
@@ -107,8 +112,12 @@ const cases: { event: NotificationEvent; to: string; when: string; order?: Parti
   {
     event: 'dispatched_sender',
     to: 'sender',
-    when: 'WORST CASE: long recipient name',
-    order: { busCarNumber: 'GW 12345 26', recipientName: 'Emmanuella Boatemaa' },
+    when: 'WORST CASE: long names, long registration',
+    order: {
+      busCarNumber: 'GW 12345 26',
+      senderName: 'Emmanuella Boatemaa',
+      recipientName: 'Kwabena Adjei-Mensah',
+    },
   },
   {
     event: 'dispatched_recipient',
@@ -119,8 +128,12 @@ const cases: { event: NotificationEvent; to: string; when: string; order?: Parti
   {
     event: 'dispatched_recipient',
     to: 'RECIPIENT',
-    when: 'WORST CASE: long sender name',
-    order: { busCarNumber: 'GW 12345 26', senderName: 'Kwabena Adjei-Mensah' },
+    when: 'WORST CASE: long names, long registration',
+    order: {
+      busCarNumber: 'GW 12345 26',
+      senderName: 'Kwabena Adjei-Mensah',
+      recipientName: 'Emmanuella Boatemaa',
+    },
   },
   {
     event: 'cancelled',

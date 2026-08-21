@@ -268,10 +268,17 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
 
     // One confirmation for the visit, carrying the reference that finds every
     // parcel in it — not one text per tracking code, all in the same second.
-    await queueNotification(tx, 'booking_confirmed', orders[0], {
-      bookingReference: booking.reference,
-      parcelCount: orders.length,
-    });
+    //
+    // ONLY when there is more than one. A single parcel gets nothing until a
+    // rider is assigned, and that message is both the receipt and the
+    // collection notice; sending this as well would be the duplicate the merge
+    // was meant to remove.
+    if (orders.length > 1) {
+      await queueNotification(tx, 'booking_confirmed', orders[0], {
+        bookingReference: booking.reference,
+        parcelCount: orders.length,
+      });
+    }
 
     return { booking, orders };
     });

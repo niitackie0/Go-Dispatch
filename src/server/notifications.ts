@@ -6,6 +6,7 @@
 import type { Prisma } from '@prisma/client';
 import { CONTACT_PHONE, SMS_SENDER_ID_REGISTERED, BRAND_NAME, smsTrackingLink } from '../brand.js';
 import { formatAmount } from '../pricing.js';
+import { localPhone } from '../phone.js';
 import { smsCost, toGhanaMsisdn, toGsm7 } from './sms.js';
 
 /**
@@ -37,12 +38,13 @@ import { smsCost, toGhanaMsisdn, toGsm7 } from './sms.js';
  * Every SMS is billed, on every order, forever, so each one has to carry
  * something the customer would otherwise have to ring up and ask:
  *
- *   booking_confirmed     sender     the receipt, and the code everything else
- *                                    is tracked with. One per BOOKING, not one
- *                                    per parcel.
- *   rider_assigned        sender     who is coming to collect and on what
- *                                    number, so an unknown caller at the gate
- *                                    is expected.
+ *   booking_confirmed     sender     MULTI-PARCEL VISITS ONLY. One text for the
+ *                                    whole visit carrying the reference that
+ *                                    finds every parcel in it. A single parcel
+ *                                    gets nothing here -- see rider_assigned.
+ *   rider_assigned        sender     the receipt AND the collection notice in
+ *                                    one: we have the request, who is coming,
+ *                                    on what number, and the tracking code.
  *   payment_request       PAYER      the bill. Sent once the parcel has been
  *                                    weighed at the office, to whoever the
  *                                    `payer` column names -- which may be the
@@ -222,13 +224,32 @@ function render(
       return `We have your parcel. The price confirms when we weigh it. Use ${code} ${track(code)}`;
     }
 
+    /**
+     * The booking receipt AND the collection notice, in one message.
+     *
+     * These used to be two texts. The first said "we have your parcel" — which
+     * was not true, the parcel was still in the customer's hands — and it
+     * carried the same tracking code the second one carried, usually less than
+     * an hour later. Merged, on the customer's instruction, into the one moment
+     * where there is actually something to say.
+     *
+     * THIS IS THE TIGHTEST MESSAGE IN THE SET and the wording is load-bearing.
+     * It has to carry a greeting, the rider's name, a phone number, a tracking
+     * code and a URL. The link alone is 38 characters and the code another 11,
+     * so the prose gets what is left. Anything added here has to come out
+     * somewhere else — check with npm run sms:preview before touching it.
+     *
+     * The number is printed in local form (0244123456) rather than as stored
+     * (+233244123456): three characters cheaper, and it is how a Ghanaian
+     * reads a number back.
+     */
     case 'rider_assigned': {
       const rider = order.riderName ? firstName(order.riderName) : null;
       const who = rider ?? 'A rider';
-      const tail = `Track it here: ${smsTrackingLink(code)}`;
+      const tail = `Use ${code} to track here ${smsTrackingLink(code)}`;
       return order.riderPhone
-        ? `${who} is coming to collect ${code}. He will call from ${order.riderPhone}. ${tail}`
-        : `${who} is coming to collect ${code} and will call when he arrives. ${tail}`;
+        ? `We have your request. ${who} is collecting it, on ${localPhone(order.riderPhone)}\n\n${tail}`
+        : `We have your request. ${who} is collecting it and will call on arrival\n\n${tail}`;
     }
 
     /**
@@ -262,13 +283,13 @@ function render(
     case 'dispatched_sender': {
       const bus = order.busCarNumber ?? '';
       const to = firstName(order.recipientName);
-      return `${code} is on the bus, car number ${bus}. ${to} has been told the same. Call ${phone} if anything is wrong.`;
+      return `Your parcel to ${to} is on ${bus}\n\nUse ${code} to track here ${smsTrackingLink(code)}`;
     }
 
     case 'dispatched_recipient': {
       const bus = order.busCarNumber ?? '';
       const from = firstName(order.senderName);
-      return `${from} has sent you a parcel on the bus, car number ${bus}. Collect it at the station. Call ${phone} if you need us.`;
+      return `Your parcel from ${from} is on ${bus}\n\nUse ${code} to track here ${smsTrackingLink(code)}`;
     }
 
     case 'cancelled':
@@ -427,7 +448,16 @@ export async function queueNotification(
  *    people. routes/orders.ts queues both when it records the bus.
  */
 const STATUS_EVENTS: Partial<Record<string, NotificationEvent>> = {
-  confirmed: 'booking_confirmed',
+  // `confirmed` is deliberately absent. A single booking used to earn a text
+  // here saying "we have your parcel" -- which was not true, the parcel was
+  // still with the customer -- carrying a tracking code the collection notice
+  // repeated less than an hour later. The two are now one message, sent when a
+  // rider is actually assigned. See rider_assigned.
+  //
+  // The COST of that: a parcel booked for tomorrow is silent until roughly an
+  // hour before pickup, and a parcel nobody can be assigned to is silent until
+  // somebody frees up. A multi-parcel booking still gets its own confirmation,
+  // because merging there would mean one text per parcel instead of one.
   cancelled: 'cancelled',
 };
 

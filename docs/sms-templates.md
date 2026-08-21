@@ -2,22 +2,21 @@
 
 ```
 Dear {name}
-We have your parcel. The price confirms when we weigh it. Use {code} to track it here: {link}
+We have your request. {rider} is collecting it, on {riderPhone}
+
+Use {code} to track here {link}
+```
+
+```
+Dear {name}
+We have your request. {rider} is collecting it and will call on arrival
+
+Use {code} to track here {link}
 ```
 
 ```
 Dear {name}
 We have your {n} parcels. Prices confirm when we weigh each one. Use {ref} to track them here: {refLink}
-```
-
-```
-Dear {name}
-{rider} is coming to collect {code}. He will call from {riderPhone}. Track it here: {link}
-```
-
-```
-Dear {name}
-{rider} is coming to collect {code} and will call when he arrives. Track it here: {link}
 ```
 
 ```
@@ -37,12 +36,16 @@ Dear {name}
 
 ```
 Dear {name}
-{code} is on the bus, car number {bus}. {recipient} has been told the same. Call {office} if anything is wrong.
+Your parcel to {recipient} is on {bus}
+
+Use {code} to track here {link}
 ```
 
 ```
 Dear {name}
-{sender} has sent you a parcel on the bus, car number {bus}. Collect it at the station. Call {office} if you need us.
+Your parcel from {sender} is on {bus}
+
+Use {code} to track here {link}
 ```
 
 ```
@@ -65,7 +68,7 @@ Dear {name}
 | `{sender}` | Sender's first name |
 | `{recipient}` | Recipient's first name |
 | `{rider}` | Rider's first name, or `A rider` |
-| `{riderPhone}` | Rider's number |
+| `{riderPhone}` | Rider's number, local form: `0244123456` |
 | `{code}` | `GD-4821-330` |
 | `{ref}` | `GDB-4821-330` |
 | `{n}` | Number of parcels |
@@ -77,3 +80,7 @@ Dear {name}
 | `{office}` | `054 030 4994` |
 
 Source: `src/server/notifications.ts`. `npm run sms:preview` prints them filled in.
+
+The first one is the tightest in the set — 10 to 20 characters spare depending on
+the names. Adding words to it needs `npm run sms:preview` run first, or it
+becomes two messages and bills twice on every parcel.

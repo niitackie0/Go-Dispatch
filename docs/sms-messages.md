@@ -60,53 +60,72 @@ outbox keeps queuing and nothing goes out.
 
 | # | Message | Goes to | Fires when |
 |---|---------|---------|------------|
-| 1 | Booking confirmed | Sender | A booking is accepted |
-| 2 | Rider assigned | Sender | Automation gives the **collection** to a courier |
+| 1 | Request received, rider coming | Sender | Automation gives the **collection** to a courier |
+| 2 | Booking confirmed | Sender | **Several parcels** booked in one visit |
 | 3 | Payment request | **Whoever pays** | The parcel is weighed at the office |
 | 4 | On the bus → sender | Sender | The car number is recorded |
 | 5 | On the bus → recipient | **Recipient** | The same moment |
 | 6 | Cancelled | Sender | The order is cancelled |
 
-A typical parcel therefore produces **four** texts: three to the sender
-(booked, rider coming, on the bus) and one to the recipient (car number) — plus
-the bill, which goes to whichever of them is paying.
+A single parcel produces **four** texts: three to the sender (rider coming, the
+bill, on the bus) and one to the recipient (car number). Message 2 only appears
+when somebody sends several parcels at once.
 
 ---
 
-## 1. Booking confirmed → the sender
+## 1. Request received, rider coming → the sender
 
-The receipt. It carries the code everything else is tracked with, so it is the
-one message that must never fail to arrive.
+The receipt **and** the collection notice, in one message. It carries the code
+everything else is tracked with, so it is the one message that must never fail
+to arrive.
 
-**Fires when** a booking is accepted, which is now immediately and regardless of
-who is paying. Money is no longer a gate at the front of the process — it moved
-to the other end, where it gates the bus.
-
-> **Dear Henry**
-> **We have your parcel. The price confirms when we weigh it. Use GD-4821-330 to track it here: go-dispatch.onrender.com/t/GD-4821-330**
-
-Several parcels in one booking is **one message** carrying the booking
-reference, not one text per tracking code:
-
-> **Dear Henry**
-> **We have your 3 parcels. Prices confirm when we weigh each one. Use GDB-4821-330 to track them here: go-dispatch.onrender.com/t/GDB-4821-330**
-
----
-
-## 2. Rider assigned → the sender
-
-So that an unknown number calling at the gate is expected, and so the sender has
-somebody to ring if the rider is late.
+These used to be two texts. The first went out at booking and said "we have your
+parcel" — which was not true, the parcel was still in the customer's hands — and
+it carried the same tracking code the second one carried less than an hour
+later. They were merged into the one moment where there is something to say.
 
 **Fires when** the automation pass assigns a courier to the **collection** — the
 parcel is `confirmed`, its collection window is within the hour, and a rider is
 free.
 
+> **Dear Henry**
+> **We have your request. Kwesi is collecting it, on 0244123456**
+>
+> **Use GD-4821-330 to track here go-dispatch.onrender.com/t/GD-4821-330**
+
+No number on file for the rider:
+
+> **Dear Henry**
+> **We have your request. Kwesi is collecting it and will call on arrival**
+>
+> **Use GD-4821-330 to track here go-dispatch.onrender.com/t/GD-4821-330**
+
+**What the merge costs.** A parcel booked for tomorrow is now silent until about
+an hour before collection, and a parcel the fleet is too busy to assign is
+silent until somebody frees up. The booking screen shows the tracking code, so
+nobody is left without it — but if that silence ever produces phone calls, this
+is the reason.
+
+**This is the tightest message in the set**, 10 to 20 characters spare depending
+on the names. It carries a greeting, a rider, a phone number, a code and a URL;
+the link alone is 38 characters. Run `npm run sms:preview` before changing a
+word of it.
+
 The **station run** deliberately sends nothing. Nobody needs a text saying a
 parcel crossed the office yard, and the car number is what actually matters.
 
+---
+
+## 2. Booking confirmed → the sender (several parcels only)
+
+One text for a whole visit, carrying the reference that finds every parcel in
+it, rather than one text per tracking code all in the same second.
+
+**Fires when** a booking of **more than one** parcel is accepted. A single
+parcel gets nothing here — message 1 covers it.
+
 > **Dear Henry**
-> **Kwesi is coming to collect GD-4821-330. He will call from 0244123456. Track it here: go-dispatch.onrender.com/t/GD-4821-330**
+> **We have your 3 parcels. Prices confirm when we weigh each one. Use GDB-4821-330 to track them here: go-dispatch.onrender.com/t/GDB-4821-330**
 
 ---
 
@@ -153,15 +172,20 @@ dispatch recorded without them going out is a parcel nobody can find.
 **Refused unless the parcel is paid for.** Past the station there is nothing we
 can do to collect and nobody of ours at the far end to do it.
 
-To the sender:
+To the sender — named by where it is *going*:
 
 > **Dear Henry**
-> **GD-4821-330 is on the bus, car number GT 4821 24. Ama has been told the same. Call 054 030 4994 if anything is wrong.**
+> **Your parcel to Ama is on GT 4821 24**
+>
+> **Use GD-4821-330 to track here go-dispatch.onrender.com/t/GD-4821-330**
 
-To the recipient:
+To the recipient — named by where it is *from*, because otherwise this is a text
+from a company they have never heard of:
 
 > **Dear Ama**
-> **Henry has sent you a parcel on the bus, car number GT 4821 24. Collect it at the station. Call 054 030 4994 if you need us.**
+> **Your parcel from Henry is on GT 4821 24**
+>
+> **Use GD-4821-330 to track here go-dispatch.onrender.com/t/GD-4821-330**
 
 **Two events for one message.** The `(orderId, event)` unique constraint — the
 thing that stops the automation texting twice — means one event can only ever
@@ -193,6 +217,7 @@ Already paid for:
 
 | Not sent | Why |
 |----------|-----|
+| A separate booking confirmation for one parcel | It said "we have your parcel" when the parcel was still with the customer, and repeated a tracking code the collection notice carried an hour later. Folded into message 1. |
 | Anything after the bus | Our job ends at the station. We cannot see the far end, so we cannot honestly say a parcel was collected — and a message that guesses is worse than no message. |
 | A "payment received" receipt | The dispatch message follows it and is itself the proof the money landed. |
 | A text when the station run is assigned | Nobody needs to know a parcel crossed the office yard. |
@@ -284,7 +309,7 @@ different merchant or till number, that is the one line to change.
 | `src/server/sms.ts` | GSM-7 sanitising, segment counting, Ghanaian number normalising |
 | `src/server/smsProvider.ts` | The only file that talks to Arkesel |
 | `src/server/outbox.ts` | The worker: batching, retries, giving up |
-| `src/server/automations.ts` | Triggers messages 1 and 2 |
+| `src/server/automations.ts` | Triggers message 1 |
 | `src/server/routes/orders.ts` | Triggers messages 4, 5 and 6 |
-| `src/server/routes/bookings.ts` | Triggers message 1 for a whole booking, and message 3 at weigh-in |
+| `src/server/routes/bookings.ts` | Triggers message 2 for a multi-parcel booking, and message 3 at weigh-in |
 | `src/server/routes/rider.ts` | The courier's collection leg. Sends nothing itself |
