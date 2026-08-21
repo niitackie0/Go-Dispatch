@@ -65,20 +65,25 @@ one message that must never fail to arrive.
 It also fires if an admin moves an order into `confirmed` by hand from the
 dispatch board.
 
-> **Dear Henry, your parcel is booked. Code GD-4821-330. Payment is due on delivery. Track it with that code or call 054 030 4994.**
+> **Dear Henry**  
+> **We have your parcel. Payment is due on delivery. Use GD-4821-330 to track it here: go-dispatch.onrender.com/t/GD-4821-330**
 
 Paid up front:
 
-> **Dear Henry, payment received and your parcel is booked. Code GD-4821-330. Track it with that code or call 054 030 4994.**
+> **Dear Henry**  
+> **Payment received and we have your parcel. Use GD-4821-330 to track it here: go-dispatch.onrender.com/t/GD-4821-330**
 
 Prepaid, payment not in yet — sent only if an admin confirms such an order by
 hand, which is a decision to collect before being paid:
 
-> **Dear Henry, your parcel is booked. Code GD-4821-330. We collect once your payment lands. Call 054 030 4994 if you need a hand.**
+> **Dear Henry**  
+> **We have your parcel and collect once your payment lands. Use GD-4821-330 to track it here: go-dispatch.onrender.com/t/GD-4821-330**
 
 Several parcels in one booking:
 
-> **Dear Henry, your 3 parcels are booked. Reference GDB-4821-330 tracks them all. Prices confirm when we weigh each one. Call 054 030 4994.**
+> **We have your 3 parcels. Prices confirm when we weigh each one. Use GDB-4821-330 to track them here: go-dispatch.onrender.com/t/GDB-4821-330**
+>
+> *No greeting: with the brand prefix still on, this is one of two variants where the greeting is what would cost a second segment.*
 
 ---
 
@@ -93,7 +98,8 @@ This message is that promise.
 estimate**. If the price is unchanged, nothing sends: "your price is the same"
 is a text nobody needs and everybody pays for.
 
-> **Dear Henry, GD-4821-330 weighed 4.2kg. The price is GHS 60.00, not the GHS 50.00 estimated. Call 054 030 4994.**
+> **Dear Henry**  
+> **GD-4821-330 weighed 4.2kg, so the price is GHS 60.00, not GHS 50.00. Track it here: go-dispatch.onrender.com/t/GD-4821-330**
 
 ---
 
@@ -109,11 +115,13 @@ Riders are freed as soon as they finish, so this can happen at any tick.
 Not sent when an admin queues an order by hand, because only the automation pass
 knows which rider took it.
 
-> **Dear Henry, Kwesi is on the way to collect GD-4821-330. He will call when he arrives. His number is 0244123456.**
+> **Dear Henry**  
+> **Kwesi is coming to collect GD-4821-330. He will call from 0244123456. Track it here: go-dispatch.onrender.com/t/GD-4821-330**
 
 Without a number on file for the rider:
 
-> **Dear Henry, Kwesi is on the way to collect GD-4821-330. He will call you when he arrives.**
+> **Dear Henry**  
+> **Kwesi is coming to collect GD-4821-330 and will call when he arrives. Track it here: go-dispatch.onrender.com/t/GD-4821-330**
 
 ---
 
@@ -132,11 +140,13 @@ message 5.
 
 Recipient is paying at the door:
 
-> **Dear Ama, a parcel from Henry reaches you today. Code GD-4821-330. Have GHS 60.00 ready for the rider. Call 054 030 4994.**
+> **Dear Ama**  
+> **Henry has sent you a parcel, arriving today. Have GHS 60.00 ready for the rider. Track it here: go-dispatch.onrender.com/t/GD-4821-330**
 
 Already paid for:
 
-> **Dear Ama, a parcel from Henry reaches you today. Code GD-4821-330. The rider will call you. Call 054 030 4994.**
+> **Dear Ama**  
+> **Henry has sent you a parcel, arriving today. The rider will call you. Track it here: go-dispatch.onrender.com/t/GD-4821-330**
 
 ---
 
@@ -151,11 +161,13 @@ Not sent to the recipient — they are standing in front of the rider.
 
 Cash collected on delivery:
 
-> **Dear Henry, GD-4821-330 was delivered to Ama. GHS 60.00 was collected. Thank you.**
+> **Dear Henry**  
+> **GD-4821-330 was delivered to Ama and GHS 60.00 was collected. Thank you.**
 
 Prepaid:
 
-> **Dear Henry, GD-4821-330 was delivered to Ama. Thank you for choosing us.**
+> **Dear Henry**  
+> **GD-4821-330 was delivered to Ama. Thank you for choosing us.**
 
 ---
 
@@ -169,11 +181,13 @@ courier's link cannot.
 
 Nothing had been paid:
 
-> **Dear Henry, GD-4821-330 has been cancelled and you have not been charged. Call 054 030 4994 if this is a mistake.**
+> **Dear Henry**  
+> **GD-4821-330 has been cancelled and you have not been charged. Call 054 030 4994 if this is a mistake.**
 
 Already paid for:
 
-> **Dear Henry, GD-4821-330 has been cancelled. We will call you about your refund. Any questions, call 054 030 4994.**
+> **Dear Henry**  
+> **GD-4821-330 has been cancelled. We will call you about your refund. Call 054 030 4994.**
 
 ---
 
@@ -191,6 +205,27 @@ Already paid for:
 ---
 
 ## Rules every message obeys
+
+**One skeleton.** Every message is two lines:
+
+```
+Dear {name}
+{what happened}. {what it costs you}. Use {code} to track it here: {link}
+```
+
+A newline is in the GSM-7 basic set and costs one character — cheaper than the
+comma and space it replaces — so the structure is free, and the message reads as
+a notification rather than a paragraph.
+
+**The link goes last, with nothing after it.** A full stop touching a URL is
+swallowed into the link by some handsets, and a customer who taps a 404 does not
+try again. The tracking code is still spelled out even though the link ends in
+it: the link is for tapping, the code is for reading back down the phone, and
+those are two different acts by two different people.
+
+**Delivered and cancelled end on the phone number, not a link.** Both are the end
+of the parcel's story — there is nothing left to watch, and on a cancellation a
+number to call is worth more than a page to look at.
 
 **One billed segment.** An SMS is 160 characters only while every character is
 in the GSM-7 alphabet. A single curly apostrophe pasted from a document drops
@@ -210,11 +245,16 @@ message if it has not gone yet, so nobody is told about a delivery that was
 reversed two seconds later. Once a message has been *sent* it stays on the
 record — the honest repair for that is the next message, not a quiet delete.
 
-**Names are addressed, but never at double the price.** Messages open "Dear
-Henry," using the sender's name, or the recipient's on message 4. If somebody
-types a company name into the name field and the greeting is what tips the
-message into a second segment, the greeting is dropped rather than the cost
-doubled.
+**Names are addressed, but never at double the price.** Every message opens on a
+line of its own — "Dear Henry" — using the sender's name, or the recipient's on
+message 4. If the greeting is what tips a message into a second segment, the
+greeting is dropped rather than the cost doubled.
+
+At full length that happens to exactly two variants: a booking of several
+parcels, and an arriving-today to a long name owing a three-figure amount. Both
+only overflow *while the `GO DISPATCH: ` prefix is still being added* — which
+means the message dropping its greeting is also the message that still names us
+in the body. Register the sender ID and neither case can arise.
 
 **Bad numbers are refused, not queued.** Phone numbers are normalised to
 Ghanaian E.164 (`0554431300` → `233554431300`) when the row is written. A number
