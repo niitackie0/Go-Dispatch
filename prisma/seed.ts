@@ -5,8 +5,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
 /**
- * Seeds the baseline rows a fresh GO DISPATCH database needs: the price list,
- * one admin account, and the starting courier pool.
+ * Seeds the baseline rows a fresh GO DISPATCH database needs: the price list
+ * and one admin account.
+ *
+ * Deliberately NOT the fleet. Riders are added from the console by an owner --
+ * see the note where they used to be.
  *
  * Idempotent — every write is an upsert, so running it twice is harmless.
  * It deliberately does NOT create sample orders; those belong in a separate
@@ -24,12 +27,6 @@ const PRICING = {
   currency: 'GHS',
 };
 
-const RIDERS = [
-  { name: 'Kwesi Boateng', phone: '0244777001' },
-  { name: 'Yaw Antwi', phone: '0244777002' },
-  { name: 'Abena Nkrumah', phone: '0244777003' },
-];
-
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'owner@godispatch.local';
 
 async function main() {
@@ -40,14 +37,15 @@ async function main() {
   });
   console.log('✔ pricing config');
 
-  for (const rider of RIDERS) {
-    await prisma.rider.upsert({
-      where: { phone: rider.phone },
-      update: {},
-      create: rider,
-    });
-  }
-  console.log(`✔ ${RIDERS.length} riders`);
+  // NO RIDERS. The fleet starts empty and is filled in by an owner from the
+  // console (Fleet section), because a courier is a real person with a real
+  // handset: an invented one is a name on the dispatch board that nobody can
+  // ring, and a unit of capacity the assigner will hand a live parcel to.
+  //
+  // The three that used to be seeded here -- Kwesi, Yaw and Abena -- were
+  // exactly that, and they were indistinguishable on screen from staff who
+  // actually exist.
+  console.log('- no riders seeded; add them in the console');
 
   const existingAdmin = await prisma.adminUser.findUnique({
     where: { email: ADMIN_EMAIL },

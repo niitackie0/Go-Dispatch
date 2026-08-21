@@ -30,6 +30,7 @@ import {
   LogOut,
   ExternalLink,
   Users,
+  Bike,
   ShieldCheck,
   ChevronDown,
   PanelLeftClose,
@@ -55,6 +56,7 @@ import { advanceStatus, checkUndo, nextStatuses } from '../transitions.js';
 import { quote, formatAmount } from '../pricing.js';
 import type { Capability } from '../capabilities.js';
 import SelectModal from './SelectModal.js';
+import FleetManagement from './FleetManagement.js';
 import StaffManagement from './StaffManagement.js';
 import AccountSecurity from './AccountSecurity.js';
 import Tooltip from './Tooltip.js';
@@ -81,7 +83,7 @@ const STATUS_ORDER: { key: OrderStatus; label: string; bg: string; text: string;
   { key: 'cancelled', label: 'Cancelled', bg: 'bg-rose-500/10 border border-rose-500/20', text: 'text-rose-600', dot: 'bg-rose-500' },
 ];
 
-type SubTab = 'overview' | 'pipeline' | 'payments' | 'pricing' | 'staff' | 'account';
+type SubTab = 'overview' | 'pipeline' | 'payments' | 'fleet' | 'pricing' | 'staff' | 'account';
 
 /**
  * One day's money, split by where it physically is.
@@ -131,6 +133,7 @@ const NAV_ITEMS: {
   { key: 'overview', label: 'Overview', title: 'Overview', icon: TrendingUp },
   { key: 'pipeline', label: 'Dispatch board', title: 'Dispatch board', icon: Layers },
   { key: 'payments', label: 'Payments', title: 'Payments ledger', icon: CreditCard, capability: 'payments:read' },
+  { key: 'fleet', label: 'Fleet', title: 'Fleet', icon: Bike, capability: 'riders:read' },
   { key: 'pricing', label: 'Pricing', title: 'Pricing', icon: Settings, capability: 'pricing:write' },
   { key: 'staff', label: 'Staff accounts', title: 'Staff accounts', icon: Users, capability: 'staff:manage' },
   { key: 'account', label: 'My account', title: 'My account', icon: ShieldCheck },
@@ -164,6 +167,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   const canWriteOrders = can(user?.role, 'orders:write');
   const canRecordPayment = can(user?.role, 'payments:write');
   const canSetPricing = can(user?.role, 'pricing:write');
+  const canSeeRiders = can(user?.role, 'riders:read');
   const canManageStaff = can(user?.role, 'staff:manage');
 
   // The sections this role may open, in sidebar order. Memoised on the role so
@@ -2064,6 +2068,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
             )}
 
           </div>
+        </div>
+      )}
+
+      {activeSubTab === 'fleet' && canSeeRiders && (
+        <div className="animate-in fade-in duration-200" id="dash_subtab_fleet">
+          <FleetManagement token={token} currentUser={user} />
         </div>
       )}
 

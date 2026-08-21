@@ -8,8 +8,14 @@ import { randomToken } from './ids.js';
 import { queueNotification } from './notifications.js';
 import { prisma } from './prisma.js';
 
-/** Auto-queue an order once its pickup is within the hour. */
-const QUEUE_WINDOW_MS = 60 * 60 * 1000;
+/**
+ * Auto-queue an order once its pickup is within the hour.
+ *
+ * Exported because the fleet page counts the same set to show how many orders
+ * are waiting on capacity, and a second copy of this number would mean the
+ * console reporting a backlog the assigner does not agree it has.
+ */
+export const QUEUE_WINDOW_MS = 60 * 60 * 1000;
 
 /** How long a courier's self-service link stays usable once issued. */
 export const RIDER_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -97,6 +103,13 @@ export async function runAutomations(): Promise<string[]> {
     // ---- Rule B: pickup window + free rider -> auto-queue -------------------
     // Capacity lives here, not at confirmation: an order stays "confirmed
     // (awaiting rider)" for as long as the fleet is busy.
+    //
+    // THE QUEUE IS THE ANSWER TO A BUSY FLEET. Nothing is ever assigned to a
+    // rider who is carrying a parcel, and nothing is dropped either: due orders
+    // hold at `confirmed`, oldest pickup first, and the next pass hands them
+    // out. Because the release rule above runs first, a rider who marks a job
+    // delivered takes the front of that queue in the SAME pass -- so the wait
+    // is until somebody frees up, not until a human notices.
     const due = await tx.order.findMany({
       where: {
         status: 'confirmed',
@@ -106,8 +119,12 @@ export async function runAutomations(): Promise<string[]> {
     });
 
     if (due.length > 0) {
+      // Both flags, and they mean different things. `active` is employment,
+      // set by an owner on the fleet page; `available` is the next hour, owned
+      // by this pass. Somebody taken off the roster mid-shift keeps the parcel
+      // in their hands and is simply never offered another.
       const freeRiders = await tx.rider.findMany({
-        where: { available: true },
+        where: { active: true, available: true },
         orderBy: { createdAt: 'asc' },
       });
 

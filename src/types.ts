@@ -25,13 +25,30 @@ export type Payer = 'sender' | 'recipient';
 /** When the bill is settled: up front (gates confirmation) or at the door. */
 export type PaymentTiming = 'prepaid' | 'on_delivery';
 
+/**
+ * A courier on the roster.
+ *
+ * Not a console account. Riders never sign in -- they work from a per-order
+ * link, so there is no email, password or role here. See AdminUser for the
+ * people who do sign in; the two are deliberately separate registers.
+ */
 export interface Rider {
   id: string;
   name: string;
   phone: string;
-  /** False while the rider is carrying an active job. */
+  /** On the roster. Set by an owner; an inactive rider is never assigned work. */
+  active: boolean;
+  /** False while the rider is carrying an active job. Owned by the automation. */
   available: boolean;
   createdAt: string;
+}
+
+/** A rider plus what the fleet page needs to say about them right now. */
+export interface FleetRider extends Rider {
+  /** Parcels this rider is carrying: queued, picked up or in transit. */
+  carrying: number;
+  /** Parcels they have delivered, ever. Deleting a rider would lose this. */
+  delivered: number;
 }
 
 /** The job payload a courier sees behind their self-service link. */

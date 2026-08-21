@@ -127,18 +127,38 @@ model Session {
 // Fleet
 // ---------------------------------------------------------------------------
 
+/// A courier on the roster. NOT an account: riders never sign in to the
+/// console. They receive a per-order link (Order.riderToken) that can drive
+/// only their own parcel, which is why there is no password, no email and no
+/// role here. Staff accounts are AdminUser; these are two different registers
+/// of person and are deliberately not the same table.
 model Rider {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String   @unique
-  /// False while the rider is carrying an active job.
-  available Boolean  @default(true)
+  id    String @id @default(cuid())
+  name  String
+  /// E.164, normalised on the way in (src/phone.ts). Unique, because the phone
+  /// is how a rider is actually identified -- two rows for one handset would be
+  /// two capacity slots for one person.
+  phone String @unique
+
+  /// ON THE ROSTER. Set by an owner: hired, or gone/suspended. An inactive
+  /// rider is never assigned work, keeps their delivery history, and can be
+  /// brought back without re-typing anything.
+  active Boolean @default(true)
+
+  /// FREE RIGHT NOW. Owned by the automation pass, not by a human: it is
+  /// cleared when a job is assigned and set again when the last one finishes.
+  /// Distinct from `active` on purpose -- one is employment, the other is the
+  /// next sixty minutes, and a single flag for both means the release rule
+  /// silently un-suspends somebody who has left.
+  available Boolean @default(true)
+
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   orders Order[]
 
-  @@index([available])
+  /// The assignment query asks for both, in this order.
+  @@index([active, available])
   @@map("riders")
 }
 

@@ -163,7 +163,8 @@ flyer. The console and the customer site have both had the mobile and type pass.
 - Transactions on all multi-row writes; tracking-code collisions retried
 - Fixed a data leak: tracking search matched phone numbers by substring, so
   searching "0" returned nearly every order in the system
-- RBAC: four roles, one capability table, staff API with lockout guards
+- RBAC: three roles, one capability table, staff API with lockout guards
+  (`dispatcher` was retired into `support` -- it held exactly the same powers)
 - Staff Accounts screen: add staff, change roles, issue passwords, remove
 - My Account screen: change your own password, see where you are signed in,
   revoke individual sessions or every other device
@@ -187,6 +188,10 @@ flyer. The console and the customer site have both had the mobile and type pass.
   and 61 live sessions retired in one step, audit trail kept its attribution
 - Undo on the delivery workflow: one step, ten minutes, side effects reversed with it
 - Terms and tracking pages rebuilt; tooltips and a payments search in the console
+- Fleet screen: riders added, taken off and put back by an owner, kept separate
+  from staff accounts because a courier has a handset and a per-order link, not
+  a login. The seeded Kwesi/Yaw/Abena are gone -- a fresh database starts with
+  an empty fleet, and an empty fleet queues rather than inventing capacity
 - Reports lifted onto `feature-reports-pack` to be sold later as an upgrade
 - SMS decided and built: six events, one billed segment each, Arkesel wired but
   switched off — see docs/sms-messages.md

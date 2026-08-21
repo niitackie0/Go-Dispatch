@@ -105,6 +105,7 @@ export function serializeRider(row: RiderRow): Rider {
     id: row.id,
     name: row.name,
     phone: row.phone,
+    active: row.active,
     available: row.available,
     createdAt: row.createdAt.toISOString(),
   };

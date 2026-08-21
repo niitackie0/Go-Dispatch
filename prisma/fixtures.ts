@@ -5,6 +5,7 @@ import type { OrderStatus, PackageSize, PaymentStatus, PaymentTiming } from '../
 import { randomToken } from '../src/server/ids.js';
 import { quote, sizeForWeight } from '../src/pricing.js';
 import { CONTACT_PHONE } from '../src/brand.js';
+import { toE164 } from '../src/phone.js';
 
 /**
  * Every phone number in this file, and it is deliberately the office's own.
@@ -184,13 +185,29 @@ const FIXTURES: Fixture[] = [
 ];
 
 async function main() {
-  const riders = await prisma.rider.findMany({ orderBy: { createdAt: 'asc' } });
   const admin = await prisma.adminUser.findFirst({ orderBy: { createdAt: 'asc' } });
 
-  if (riders.length === 0 || !admin) {
-    console.error('Run `npm run db:seed` first — fixtures need riders and an admin.');
+  if (!admin) {
+    console.error('Run npm run db:seed first. Fixtures need an admin account.');
     process.exit(1);
   }
+
+  // ONE DEMO COURIER, and this script owns him.
+  //
+  // The seed no longer creates riders -- a real fleet is typed in by an owner,
+  // and invented couriers on a live board are somebody nobody can ring. But a
+  // fixture order that is out on the road needs somebody carrying it, so the
+  // demo rider is made here, where the demo data lives, and carries the office
+  // number for the same reason every other number in this file does.
+  // Stored E.164, the same shape POST /api/riders normalises to -- otherwise
+  // the demo rider is the one row on the fleet in a different format.
+  const demoRiderPhone = toE164(DEMO_PHONE) ?? DEMO_PHONE;
+  const demoRider = await prisma.rider.upsert({
+    where: { phone: demoRiderPhone },
+    update: {},
+    create: { name: 'Demo Courier', phone: demoRiderPhone },
+  });
+  const riders = [demoRider];
 
   // Priced by the same function the booking form quotes from and the server
   // charges by, against the rule actually in the database. A fixture with a
