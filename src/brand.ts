@@ -71,14 +71,18 @@ export function smsTrackingLink(code: string): string {
 export const SMS_SENDER_ID = 'GO DISPATCH';
 
 /**
- * Whether that registration has come through.
+ * Whether that registration has come through. It has.
  *
- * While false, messages arrive from a shortcode and have to name us in the
- * body, which costs 13 characters of a 160-character message every time. Flip
- * this the day the sender ID is approved and every template gets those
- * characters back — nothing else needs to change.
+ * Confirmed the only way it can be: by reading a received message on a
+ * handset. A clean send is not evidence — the provider accepts the sender
+ * field and returns a reference either way, and substitutes a shortcode
+ * silently if the ID was never approved.
+ *
+ * While this was false, every message carried a 13-character "GO DISPATCH: "
+ * prefix to say who it was from. Those characters are now back in every
+ * template, which is what lets the two longest variants keep their greeting.
  */
-export const SMS_SENDER_ID_REGISTERED = false;
+export const SMS_SENDER_ID_REGISTERED = true;
 
 export const OFFICE_ADDRESS = 'Adabraka, Accra';
 export const OFFICE_LANDMARK = 'Closer to Odorna Clinic';
