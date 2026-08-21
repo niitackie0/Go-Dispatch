@@ -2,16 +2,16 @@
 
 ```
 Dear {name}
-We have your request. {rider} is collecting it, on {riderPhone}
+We have received your delivery request and your order has been assigned to {rider}. He will call you from {riderPhone}
 
-Use {code} to track here {link}
+Use {code} to track your parcel here {link}
 ```
 
 ```
 Dear {name}
-We have your request. {rider} is collecting it and will call on arrival
+We have received your delivery request and your order has been assigned to {rider}. He will call you when he arrives
 
-Use {code} to track here {link}
+Use {code} to track your parcel here {link}
 ```
 
 ```

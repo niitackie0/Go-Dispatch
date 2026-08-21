@@ -230,26 +230,28 @@ function render(
      * These used to be two texts. The first said "we have your parcel" — which
      * was not true, the parcel was still in the customer's hands — and it
      * carried the same tracking code the second one carried, usually less than
-     * an hour later. Merged, on the customer's instruction, into the one moment
-     * where there is actually something to say.
+     * an hour later. Merged into the one moment where there is something to say.
      *
-     * THIS IS THE TIGHTEST MESSAGE IN THE SET and the wording is load-bearing.
-     * It has to carry a greeting, the rider's name, a phone number, a tracking
-     * code and a URL. The link alone is 38 characters and the code another 11,
-     * so the prose gets what is left. Anything added here has to come out
-     * somewhere else — check with npm run sms:preview before touching it.
+     * THIS MESSAGE IS TWO SEGMENTS, AND THAT IS DELIBERATE. It runs to about
+     * 205 characters, so every parcel is billed twice for it. The wording is
+     * the owner's, chosen knowing the cost: it greets the customer properly,
+     * says the request was received, names the rider, gives his number, and
+     * still hands over the code and the link.
      *
-     * The number is printed in local form (0244123456) rather than as stored
-     * (+233244123456): three characters cheaper, and it is how a Ghanaian
-     * reads a number back.
+     * If it ever needs to come back under 160, the link is where the room is —
+     * 38 characters, on a message that already carries the code. Do not trim
+     * the prose to get there without asking; it has been asked and answered.
+     *
+     * The number prints in local form (0244123456) rather than as stored
+     * (+233244123456), because that is how a Ghanaian reads a number back.
      */
     case 'rider_assigned': {
       const rider = order.riderName ? firstName(order.riderName) : null;
       const who = rider ?? 'A rider';
-      const tail = `Use ${code} to track here ${smsTrackingLink(code)}`;
+      const tail = `Use ${code} to track your parcel here ${smsTrackingLink(code)}`;
       return order.riderPhone
-        ? `We have your request. ${who} is collecting it, on ${localPhone(order.riderPhone)}\n\n${tail}`
-        : `We have your request. ${who} is collecting it and will call on arrival\n\n${tail}`;
+        ? `We have received your delivery request and your order has been assigned to ${who}. He will call you from ${localPhone(order.riderPhone)}\n\n${tail}`
+        : `We have received your delivery request and your order has been assigned to ${who}. He will call you when he arrives\n\n${tail}`;
     }
 
     /**

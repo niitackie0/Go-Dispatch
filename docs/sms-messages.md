@@ -67,9 +67,10 @@ outbox keeps queuing and nothing goes out.
 | 5 | On the bus → recipient | **Recipient** | The same moment |
 | 6 | Cancelled | Sender | The order is cancelled |
 
-A single parcel produces **four** texts: three to the sender (rider coming, the
-bill, on the bus) and one to the recipient (car number). Message 2 only appears
-when somebody sends several parcels at once.
+A single parcel produces **four messages** — three to the sender (rider coming,
+the bill, on the bus) and one to the recipient (car number) — but **five
+credits**, because message 1 is long enough to bill as two. Message 2 only
+appears when somebody sends several parcels at once.
 
 ---
 
@@ -89,16 +90,16 @@ parcel is `confirmed`, its collection window is within the hour, and a rider is
 free.
 
 > **Dear Henry**
-> **We have your request. Kwesi is collecting it, on 0244123456**
+> **We have received your delivery request and your order has been assigned to Kwesi. He will call you from 0244123456**
 >
-> **Use GD-4821-330 to track here go-dispatch.onrender.com/t/GD-4821-330**
+> **Use GD-4821-330 to track your parcel here go-dispatch.onrender.com/t/GD-4821-330**
 
 No number on file for the rider:
 
 > **Dear Henry**
-> **We have your request. Kwesi is collecting it and will call on arrival**
+> **We have received your delivery request and your order has been assigned to Kwesi. He will call you when he arrives**
 >
-> **Use GD-4821-330 to track here go-dispatch.onrender.com/t/GD-4821-330**
+> **Use GD-4821-330 to track your parcel here go-dispatch.onrender.com/t/GD-4821-330**
 
 **What the merge costs.** A parcel booked for tomorrow is now silent until about
 an hour before collection, and a parcel the fleet is too busy to assign is
@@ -106,10 +107,15 @@ silent until somebody frees up. The booking screen shows the tracking code, so
 nobody is left without it — but if that silence ever produces phone calls, this
 is the reason.
 
-**This is the tightest message in the set**, 10 to 20 characters spare depending
-on the names. It carries a greeting, a rider, a phone number, a code and a URL;
-the link alone is 38 characters. Run `npm run sms:preview` before changing a
-word of it.
+**This message is two credits, not one.** At about 207 characters it is over the
+160-character limit for a single SMS, so every parcel is billed twice for it.
+That is a decision about wording rather than an oversight: it greets the
+customer, confirms the request, names the rider, gives his number, and still
+hands over the code and the link. Every other message in this document is one
+credit.
+
+If it ever needs to come back under 160, the tracking link is where the room is
+— 38 characters on a message that already carries the code.
 
 The **station run** deliberately sends nothing. Nobody needs a text saying a
 parcel crossed the office yard, and the car number is what actually matters.
@@ -259,8 +265,9 @@ in the GSM-7 alphabet. A single curly apostrophe pasted from a document drops
 the limit to 70 and can turn one message into three. So text is sanitised into
 GSM-7 before it is queued — quotes straightened, dashes flattened, out-of-
 alphabet accents folded — and segments are measured, not assumed.
-`npm run sms:preview` prints every variant with its cost and flags any with
-under 20 characters of headroom.
+`npm run sms:preview` prints every variant with its cost, flags any with under
+20 characters of headroom, and warns when one runs to two segments — which
+message 1 deliberately does.
 
 **Nobody is texted twice.** The `(orderId, event)` unique constraint means a
 second attempt to queue the same event for the same order is discarded. This is
