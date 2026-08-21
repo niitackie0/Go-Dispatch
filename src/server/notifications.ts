@@ -4,7 +4,7 @@
  */
 
 import type { Prisma } from '@prisma/client';
-import { CONTACT_PHONE, SMS_SENDER_ID_REGISTERED, BRAND_NAME } from '../brand.js';
+import { CONTACT_PHONE, SMS_SENDER_ID_REGISTERED, BRAND_NAME, smsTrackingLink } from '../brand.js';
 import { formatAmount } from '../pricing.js';
 import { smsCost, toGhanaMsisdn, toGsm7 } from './sms.js';
 
@@ -134,11 +134,30 @@ function kg(value: unknown): string {
  * There is no "reply STOP" footer, on purpose. These are transactional
  * messages about a parcel somebody has actually sent, not marketing, and the
  * footer would cost about 25 characters on every message we ever send.
+ *
+ * THE LINK. `link` is the tap-through to this parcel's tracking page, or null
+ * when there was no room for it — renderMessage decides which, and calls this
+ * twice to find out (see the ladder there). Two rules keep the two versions
+ * honest:
+ *
+ *  - It replaces, never adds. The link takes the place of "Track it with that
+ *    code" and of the "call us" tail, because that tail exists only to tell
+ *    somebody how to find out more and the link does that better. At 38
+ *    characters it could not simply be appended: almost nothing would fit.
+ *  - The facts do not move. The tracking code, the price, the weight, the
+ *    rider, what is owed at the door — all of it reads identically either way.
+ *    The code stays printed in full even though the link ends in it, because
+ *    it is the thing a customer reads back down the phone.
+ *
+ * Two events deliberately get no link. `delivered` and `cancelled` are the end
+ * of the parcel's story: there is nothing left to watch, and on a cancellation
+ * a number to call is worth more than a page to look at.
  */
 function render(
   event: NotificationEvent,
   order: OrderFacts,
-  context: NotificationContext
+  context: NotificationContext,
+  link: string | null
 ): string {
   const code = order.trackingCode;
   const phone = CONTACT_PHONE;
@@ -149,15 +168,26 @@ function render(
       // Several parcels in one visit is one message with the reference that
       // finds them all, not one message per tracking code.
       if (context.bookingReference && (context.parcelCount ?? 1) > 1) {
-        return `your ${context.parcelCount} parcels are booked. Reference ${context.bookingReference} tracks them all. Prices confirm when we weigh each one. Call ${phone}.`;
+        // The link IS the reference, spelled out in its own last characters,
+        // so printing it twice is the one redundancy this message cannot
+        // afford — it is the longest one we send.
+        return link
+          ? `your ${context.parcelCount} parcels are booked. Prices confirm when we weigh each one. Track all ${context.parcelCount}: ${link}`
+          : `your ${context.parcelCount} parcels are booked. Reference ${context.bookingReference} tracks them all. Prices confirm when we weigh each one. Call ${phone}.`;
       }
       if (order.paymentStatus === 'paid') {
-        return `payment received and your parcel is booked. Code ${code}. Track it with that code or call ${phone}.`;
+        return link
+          ? `payment received and your parcel is booked. Code ${code}. Track: ${link}`
+          : `payment received and your parcel is booked. Code ${code}. Track it with that code or call ${phone}.`;
       }
       if (order.paymentTiming === 'prepaid') {
-        return `your parcel is booked. Code ${code}. We collect once your payment lands. Call ${phone} if you need a hand.`;
+        return link
+          ? `your parcel is booked. Code ${code}. We collect once your payment lands. Track: ${link}`
+          : `your parcel is booked. Code ${code}. We collect once your payment lands. Call ${phone} if you need a hand.`;
       }
-      return `your parcel is booked. Code ${code}. Payment is due on delivery. Track it with that code or call ${phone}.`;
+      return link
+        ? `your parcel is booked. Code ${code}. Payment is due on delivery. Track: ${link}`
+        : `your parcel is booked. Code ${code}. Payment is due on delivery. Track it with that code or call ${phone}.`;
     }
 
     // Retained so old rows still render. No longer queued.
@@ -168,17 +198,24 @@ function render(
       const was = context.previousAmount;
       const weight = kg(order.actualWeightKg);
       const weighed = weight ? `${code} weighed ${weight}kg.` : `${code} has been weighed.`;
-      return was !== undefined
-        ? `${weighed} The price is ${amount}, not the ${formatAmount(was, order.currency)} estimated. Call ${phone}.`
+      if (was !== undefined) {
+        const tail = link ? `Track: ${link}` : `Call ${phone}.`;
+        return `${weighed} The price is ${amount}, not the ${formatAmount(was, order.currency)} estimated. ${tail}`;
+      }
+      return link
+        ? `${weighed} The price is ${amount}. Track: ${link}`
         : `${weighed} The price is ${amount}. Call ${phone} if that is a problem.`;
     }
 
     case 'rider_assigned': {
       const rider = order.riderName ? firstName(order.riderName) : null;
-      if (!rider) return `a rider is on the way to collect ${code}. He will call you when he arrives.`;
+      // This one has no "how to find out more" tail to trade away, so the link
+      // is genuinely extra weight and survives only on the shorter variants.
+      const tail = link ? ` Track: ${link}` : '';
+      if (!rider) return `a rider is on the way to collect ${code}. He will call you when he arrives.${tail}`;
       return order.riderPhone
-        ? `${rider} is on the way to collect ${code}. He will call when he arrives. His number is ${order.riderPhone}.`
-        : `${rider} is on the way to collect ${code}. He will call you when he arrives.`;
+        ? `${rider} is on the way to collect ${code}. He will call from ${order.riderPhone} when he arrives.${tail}`
+        : `${rider} is on the way to collect ${code}. He will call you when he arrives.${tail}`;
     }
 
     // The only message that goes to somebody who did not book with us, so it
@@ -186,9 +223,10 @@ function render(
     case 'out_for_delivery': {
       const from = firstName(order.senderName);
       const owes = order.payer === 'recipient' && order.paymentStatus !== 'paid';
+      const tail = link ? `Track: ${link}` : `Call ${phone}.`;
       return owes
-        ? `a parcel from ${from} reaches you today. Code ${code}. Have ${amount} ready for the rider. Call ${phone}.`
-        : `a parcel from ${from} reaches you today. Code ${code}. The rider will call you. Call ${phone}.`;
+        ? `a parcel from ${from} reaches you today. Code ${code}. Have ${amount} ready for the rider. ${tail}`
+        : `a parcel from ${from} reaches you today. Code ${code}. The rider will call you. ${tail}`;
     }
 
     case 'delivered': {
@@ -220,8 +258,6 @@ export function renderMessage(
   order: OrderFacts,
   context: NotificationContext = {}
 ): string {
-  const body = render(event, order, context);
-
   // Addressed to whoever the event is for: the sender on most, the recipient
   // on the one that reaches somebody who never dealt with us. A name is worth
   // its ~12 characters here — an unaddressed text about a parcel reads like
@@ -230,14 +266,39 @@ export function renderMessage(
   const name = firstName(audience === 'recipient' ? order.recipientName : order.senderName);
 
   const brand = (text: string) => (SMS_SENDER_ID_REGISTERED ? text : `${BRAND_NAME}: ${text}`);
-  const plain = toGsm7(brand(body));
-  if (!name) return plain;
+  const greet = (text: string) => (name ? `Dear ${name}, ${text}` : text);
+  const finish = (text: string) => toGsm7(brand(greet(text)));
+
+  // What the link points at: the booking reference when one message covers
+  // several parcels — it finds all of them (src/server/routes/orders.ts) —
+  // and the parcel's own code otherwise.
+  const grouped = context.bookingReference && (context.parcelCount ?? 1) > 1;
+  const link = smsTrackingLink(grouped ? context.bookingReference! : order.trackingCode);
+
+  // The link goes in if, and only if, it is free. It is 38 characters against a
+  // 160-character budget already carrying a 13-character brand prefix, so on
+  // the longer templates there is simply no room, and a second segment is a
+  // doubled bill on every order forever — a worse deal than a customer typing
+  // a code they have been given anyway.
+  const linked = finish(render(event, order, context, link));
+  if (smsCost(linked).segments === 1) return linked;
+
+  // No room. Back to the message as it reads without one, and the original
+  // economy below it.
+  const body = render(event, order, context, null);
+  const greeted = finish(body);
+  if (!name) return greeted;
 
   // The greeting is a courtesy; the message is the point. Somebody who typed a
   // very long name, or a company name, into the name field must not cost twice
   // the postage for it — so if the courtesy is what tips this into a second
   // billed segment, the courtesy goes.
-  const greeted = toGsm7(brand(`Dear ${name}, ${body}`));
+  //
+  // Note the order: the link is dropped before the name is, never the other
+  // way round. A text with a URL in it and no name on it is the exact shape of
+  // every smishing message in circulation here, and a tap-through is not worth
+  // teaching customers to trust that shape.
+  const plain = toGsm7(brand(body));
   return smsCost(greeted).segments > smsCost(plain).segments ? plain : greeted;
 }
 

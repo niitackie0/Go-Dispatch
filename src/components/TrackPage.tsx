@@ -14,9 +14,15 @@ import { useRouter } from '../router.js';
  * and the search box is the answer's front door. A gradient hero would push the
  * box below the fold on the phone this is mostly used from.
  */
-export default function TrackPage() {
+/**
+ * `code` arrives from the /t/CODE short link in an SMS; ?code= is the long form
+ * the site's own links and anything already bookmarked still use. Either way
+ * TrackingView runs the search on mount, so somebody who tapped a link in a
+ * text sees their parcel rather than an empty search box.
+ */
+export default function TrackPage({ code }: { code?: string }) {
   const { search } = useRouter();
-  const initialCode = new URLSearchParams(search).get('code') || '';
+  const initialCode = code || new URLSearchParams(search).get('code') || '';
 
   return (
     <div className="animate-in fade-in duration-300">

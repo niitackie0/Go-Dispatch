@@ -37,6 +37,12 @@ export default function App() {
   let page: React.ReactNode;
   if (path === '/book') {
     page = <BookPage />;
+  } else if (path.startsWith('/t/')) {
+    // The short link printed in every SMS. It exists only to be short: at
+    // /track?code=GD-4821-330 the same link costs twelve more characters of a
+    // 160-character message, on every order, forever. See smsTrackingLink in
+    // src/brand.ts. Nothing links here from the site itself.
+    page = <TrackPage code={decodeURIComponent(path.slice('/t/'.length))} />;
   } else if (path === '/track') {
     page = <TrackPage />;
   } else if (path === '/policy') {

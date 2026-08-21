@@ -33,6 +33,35 @@ export const CONTACT_PHONE_E164 = '+233540304994';
 export const WHATSAPP_URL = 'https://wa.me/233540304994';
 
 /**
+ * The public site, as a customer reaches it.
+ *
+ * A literal rather than an environment variable on purpose: this is a business
+ * detail like the phone number, not a deployment knob, and brand.ts is bundled
+ * into the browser where process.env does not exist.
+ */
+export const PUBLIC_ORIGIN = 'https://go-dispatch.onrender.com';
+
+/**
+ * The tracking link as it appears in an SMS.
+ *
+ * Two economies, both bought with characters that would otherwise be billed on
+ * every message forever:
+ *
+ *  - No scheme. Phones autolink a bare host with a known TLD, so the eight
+ *    characters of "https://" buy nothing.
+ *  - /t/CODE, not /track?code=CODE. Twelve characters shorter, and the only
+ *    reason that route exists (see src/App.tsx).
+ *
+ * Which leaves 38 characters — a quarter of a single-segment message — so the
+ * templates in src/server/notifications.ts drop the link rather than pay for a
+ * second segment. A short custom domain is what buys that back: every character
+ * cut here is a character returned to every message, on every order.
+ */
+export function smsTrackingLink(code: string): string {
+  return `${PUBLIC_ORIGIN.replace(/^https?:\/\//, '')}/t/${code}`;
+}
+
+/**
  * The alphanumeric sender ID customers should see an SMS arrive from.
  *
  * Eleven characters is the GSM limit for one, and "GO DISPATCH" is exactly
