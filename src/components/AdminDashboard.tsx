@@ -48,7 +48,8 @@ import {
   OrderStatus,
   PaymentStatus,
   PackageSize,
-  AdminUser
+  AdminUser,
+  FleetRider
 } from '../types.js';
 import { can } from '../capabilities.js';
 import { AUTOMATION_ACTOR } from '../brand.js';
@@ -253,6 +254,17 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   const [submittingStatus, setSubmittingStatus] = useState(false);
   const [submittingPayment, setSubmittingPayment] = useState(false);
 
+  // Weigh-in. The office scale is what the customer is actually charged from —
+  // everything before it is the estimate the booking form quoted.
+  const [scaleWeight, setScaleWeight] = useState('');
+  const [submittingWeight, setSubmittingWeight] = useState(false);
+  const [weighNotice, setWeighNotice] = useState('');
+
+  // The fleet, for handing a parcel to a different courier.
+  const [fleet, setFleet] = useState<FleetRider[]>([]);
+  const [submittingRider, setSubmittingRider] = useState(false);
+  const [riderNotice, setRiderNotice] = useState('');
+
   // Pricing configuration inputs
   const [baseRateInput, setBaseRateInput] = useState('');
   const [includedKgInput, setIncludedKgInput] = useState('');
@@ -431,10 +443,27 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     }
   };
 
+  // The roster, for the courier picker in the drawer. Cheap and small, so it
+  // loads once rather than every time a drawer opens.
+  const fetchFleet = async () => {
+    if (!canSeeRiders) return;
+    try {
+      const res = await fetch('/api/riders', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setFleet(Array.isArray(data?.riders) ? data.riders : []);
+      }
+    } catch (err) {
+      // A missing roster costs the picker, not the board.
+      console.error('Failed to load the fleet', err);
+    }
+  };
+
   // Sync data loaders based on active views
   useEffect(() => {
     fetchStats();
     fetchPricing();
+    fetchFleet();
   }, []);
 
   useEffect(() => {
@@ -467,6 +496,11 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
   // Load Order Details Drawer on selection
   useEffect(() => {
+    // Notices belong to the order that produced them, not to the drawer.
+    setWeighNotice('');
+    setRiderNotice('');
+    setScaleWeight('');
+
     if (selectedOrderId) {
       loadOrderDetails(selectedOrderId);
     } else {
@@ -710,6 +744,93 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
       alert(err.message || 'Error occurred recording payment.');
     } finally {
       setSubmittingPayment(false);
+    }
+  };
+
+  /**
+   * Record the scale weight, which is what fixes the price.
+   *
+   * Until this happens an order carries the estimate the booking form quoted
+   * from a weight the customer guessed. The server re-prices against the live
+   * rule, writes the change to the timeline, and texts the sender — but only
+   * when the figure actually moved. "Your price is unchanged" is a message
+   * nobody needs and everybody pays for.
+   */
+  const handleWeigh = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrderId) return;
+
+    const weight = Number(scaleWeight);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      alert('Enter the weight from the scale.');
+      return;
+    }
+
+    setSubmittingWeight(true);
+    setWeighNotice('');
+    try {
+      const res = await fetch(`/api/bookings/parcels/${selectedOrderId}/weight`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ actualWeightKg: weight }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || 'That weight could not be saved.');
+
+      const currency = data?.order?.currency ?? 'GHS';
+      setWeighNotice(
+        data?.changed
+          ? `Price ${formatAmount(data.previousAmount, currency)} to ${formatAmount(data.order.priceAmount, currency)}. The sender has been texted.`
+          : 'Weighed. The price did not change, so no text was sent.'
+      );
+      setScaleWeight('');
+      await loadOrderDetails(selectedOrderId);
+      fetchOrders();
+      fetchStats();
+    } catch (err: any) {
+      alert(err.message || 'That weight could not be saved.');
+    } finally {
+      setSubmittingWeight(false);
+    }
+  };
+
+  /**
+   * Hand the parcel to somebody else, or drop it back into the queue.
+   *
+   * The assigner only ever gives work to a free rider, which cannot help when
+   * a bike breaks down halfway. Passing an empty choice unassigns, and the
+   * automation picks the parcel up again on its next pass.
+   */
+  const handleReassign = async (riderId: string) => {
+    if (!selectedOrderId) return;
+    setSubmittingRider(true);
+    setRiderNotice('');
+    try {
+      const res = await fetch(`/api/orders/${selectedOrderId}/rider`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ riderId: riderId || null }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || 'The courier could not be changed.');
+
+      // The one outcome that needs a human afterwards: the customer is holding
+      // a text naming somebody who is no longer coming, and the duplicate guard
+      // means no second text can correct it.
+      setRiderNotice(
+        data?.customerToldPreviousRider
+          ? `Changed — but the sender was already texted that ${data.previousRiderName ?? 'the previous courier'} was coming. Ring them.`
+          : riderId
+            ? 'Courier changed, and the sender has been texted.'
+            : 'Back in the queue for the next free rider.'
+      );
+      await loadOrderDetails(selectedOrderId);
+      fetchOrders();
+      fetchFleet();
+    } catch (err: any) {
+      alert(err.message || 'The courier could not be changed.');
+    } finally {
+      setSubmittingRider(false);
     }
   };
 
@@ -2215,6 +2336,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 <span className="text-slate-400">
                   {selectedOrderDetails.order.currency}{' '}
                   {(selectedOrderDetails.order.priceAmount / 100).toFixed(2)}
+                  {/* Said here because this figure is quoted down the phone. An
+                      unweighed parcel is carrying a guess the customer made at
+                      home, and nothing else on this screen admitted that. */}
+                  {!selectedOrderDetails.order.priceConfirmedAt && (
+                    <span className="ml-1 text-amber-600">estimate</span>
+                  )}
                 </span>
               </span>
             )
@@ -2273,11 +2400,103 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 <p className="mt-3 border-t border-slate-200 pt-3 text-sm text-slate-600">
                   Collection {formatPickup(selectedOrderDetails.order.scheduledPickupAt)}
                   <span className="text-slate-300"> · </span>
-                  {selectedOrderDetails.order.packageWeightKg}kg
+                  {selectedOrderDetails.order.actualWeightKg
+                    ? `${selectedOrderDetails.order.actualWeightKg}kg on the scale`
+                    : `${selectedOrderDetails.order.packageWeightKg}kg declared`}
                   <span className="text-slate-300"> · </span>
                   {selectedOrderDetails.order.packageDescription}
                 </p>
               </div>
+
+              {/* ---------- WEIGH-IN ----------
+                  The price on every other screen is an estimate until this
+                  happens: the booking form quotes from a weight the customer
+                  guessed at home. Weighing re-prices against the live rule and,
+                  if the figure moved, texts the sender — which is the promise
+                  the terms page makes about not charging a difference quietly. */}
+              {canWriteOrders && (
+                selectedOrderDetails.order.priceConfirmedAt ? (
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Weighed</p>
+                    <p className="mt-1 text-sm text-slate-900">
+                      {selectedOrderDetails.order.actualWeightKg}kg on the office scale
+                      <span className="text-slate-300"> · </span>
+                      price confirmed at{' '}
+                      {formatAmount(
+                        selectedOrderDetails.order.priceAmount,
+                        selectedOrderDetails.order.currency
+                      )}
+                    </p>
+                    {/* Survives the panel switching to this branch, which is
+                        what a successful weigh-in causes. */}
+                    {weighNotice && (
+                      <p className="mt-2 text-sm font-medium text-emerald-700">{weighNotice}</p>
+                    )}
+                  </div>
+                ) : selectedOrderDetails.order.paymentStatus === 'paid' ? (
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Weigh-in</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Already paid for, so it cannot be re-priced. The estimate stands.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleWeigh} className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 space-y-3">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-amber-800">Weigh it in</p>
+                      <p className="mt-1 text-sm text-amber-800/80">
+                        The price is still the{' '}
+                        {formatAmount(
+                          selectedOrderDetails.order.priceAmount,
+                          selectedOrderDetails.order.currency
+                        )}{' '}
+                        estimate from {selectedOrderDetails.order.packageWeightKg}kg declared.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        id="input_scale_weight"
+                        type="number" step="0.01" min="0.01" max="100" required
+                        value={scaleWeight}
+                        onChange={(e) => setScaleWeight(e.target.value)}
+                        placeholder="Weight from the scale, in kg"
+                        className="flex-1 min-h-11 rounded-xl border border-amber-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                      />
+                      <button
+                        id="btn_confirm_weight"
+                        type="submit"
+                        disabled={submittingWeight}
+                        className="min-h-11 px-5 flex items-center justify-center gap-2 rounded-xl bg-amber-600 text-sm font-semibold text-white hover:bg-amber-500 transition-colors cursor-pointer disabled:opacity-60"
+                      >
+                        {submittingWeight ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                        Confirm
+                      </button>
+                    </div>
+
+                    {/* What it will cost, before committing to it. Priced by the
+                        same function the server charges by, against the same
+                        live rule, so this cannot promise a figure and then
+                        record a different one. */}
+                    {pricing && Number(scaleWeight) > 0 && (() => {
+                      const next = quote(Number(scaleWeight), pricing).total;
+                      const was = selectedOrderDetails.order.priceAmount;
+                      const currency = selectedOrderDetails.order.currency;
+                      return (
+                        <p className="text-sm font-medium text-amber-900">
+                          {next === was
+                            ? `Stays at ${formatAmount(was, currency)} — no text sent.`
+                            : `${formatAmount(was, currency)} → ${formatAmount(next, currency)}. The sender gets a text saying so.`}
+                        </p>
+                      );
+                    })()}
+
+                    {weighNotice && (
+                      <p className="text-sm font-medium text-emerald-700">{weighNotice}</p>
+                    )}
+                  </form>
+                )
+              )}
 
               {/* Who to ring. Both numbers, because either end can go wrong. */}
               <div className="grid gap-3 sm:grid-cols-2">
@@ -2301,14 +2520,61 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
               </div>
 
-              {/* Who is carrying it. The link they used to work from is gone --
-                  see the note on serializeOrder. */}
+              {/* Who is carrying it, and the way to change that.
+                  The assigner only ever gives work to a FREE rider, which is
+                  right until a bike breaks down halfway — so this picker will
+                  knowingly put a second parcel on a busy rider. The person
+                  clicking can see the road; the automation cannot. */}
               <div className="rounded-2xl border border-slate-200 p-4">
                 <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Courier</p>
                 <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-900">
                   <Truck className="h-4 w-4 text-red-600" />
                   {selectedOrderDetails.order.riderName || 'Unassigned'}
                 </p>
+
+                {canWriteOrders &&
+                  selectedOrderDetails.order.status !== 'delivered' &&
+                  selectedOrderDetails.order.status !== 'cancelled' && (
+                    <div className="mt-3 space-y-2">
+                      <SelectModal
+                        value={selectedOrderDetails.order.riderId ?? ''}
+                        disabled={submittingRider}
+                        onChange={handleReassign}
+                        title="Who is carrying this?"
+                        placeholder="Choose a courier"
+                        subtitle="Riders already carrying something can still be given this one — you can see the road, the assigner cannot."
+                        options={[
+                          {
+                            value: '',
+                            label: 'Nobody — back in the queue',
+                            hint: 'The next free rider picks it up automatically.',
+                          },
+                          ...fleet
+                            .filter((r) => r.active)
+                            .map((r) => ({
+                              value: r.id,
+                              label: r.name,
+                              hint:
+                                r.carrying > 0
+                                  ? `Already carrying ${r.carrying}`
+                                  : 'Free',
+                            })),
+                        ]}
+                        className="w-full min-h-11 rounded-xl border border-slate-200 px-3.5 text-sm font-medium text-slate-700 flex items-center justify-between gap-2 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+
+                      {submittingRider && (
+                        <p className="flex items-center gap-2 text-sm text-slate-500">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Changing the courier…
+                        </p>
+                      )}
+
+                      {riderNotice && (
+                        <p className="text-sm font-medium text-slate-700">{riderNotice}</p>
+                      )}
+                    </div>
+                  )}
               </div>
 
               {/* Moves the Advance button does not cover. */}

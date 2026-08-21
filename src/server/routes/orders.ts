@@ -13,9 +13,9 @@ import { canTransition, checkUndo, isTerminal, nextStatuses, UNDO_NOTE_PREFIX } 
 import { isRegion, REGION_NAMES } from '../../regions.js';
 import { quote, sizeForWeight } from '../../pricing.js';
 import { currentRule } from './pricing.js';
-import { runAutomations } from '../automations.js';
+import { runAutomations, RIDER_TOKEN_TTL_MS } from '../automations.js';
 import { notifyForStatus, unqueueForStatus } from '../notifications.js';
-import { withTrackingCode } from '../ids.js';
+import { randomToken, withTrackingCode } from '../ids.js';
 import { prisma } from '../prisma.js';
 import { serializeHistory, serializeOrder, serializePayment } from '../serialize.js';
 import { publicActionLimit, publicReadLimit, publicWriteLimit } from '../rateLimit.js';
@@ -507,6 +507,184 @@ ordersRouter.patch('/:id/status', requireAdmin, requirePermission('orders:write'
     success: true,
     order: settled ? serializeOrder(settled) : null,
     history: serializeHistory(history),
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   ADMIN: HAND A PARCEL TO A DIFFERENT RIDER
+   --------------------------------------------------------------------------- */
+
+/**
+ * Move a parcel from one courier to another, or take it off a courier entirely.
+ *
+ * The automation only ever assigns to a rider who is FREE, which is right for
+ * the normal case and useless for the one that actually needs a human: a bike
+ * breaks down, somebody is sent home ill, a parcel is handed over at a junction
+ * because two riders are going the same way. None of those are states the
+ * assigner can reach on its own, and without this the parcel stays with
+ * whoever cannot carry it.
+ *
+ * So this is deliberately a manual override and behaves like one -- it will put
+ * a second parcel on a rider who is already carrying one, because the person
+ * clicking can see the road and the assigner cannot. What it will NOT do is
+ * assign to somebody who is off the fleet: that flag means "not working here",
+ * and no view of the road changes it.
+ *
+ * Passing riderId: null unassigns, dropping the parcel back to `confirmed` so
+ * the automation can pick it up again on its next pass.
+ */
+ordersRouter.patch('/:id/rider', requireAdmin, requirePermission('orders:write'), async (req, res) => {
+  const admin = req.admin!;
+  const { riderId } = req.body ?? {};
+
+  if (riderId !== null && typeof riderId !== 'string') {
+    return res.status(400).json({ error: 'Choose a rider, or clear the assignment' });
+  }
+
+  const existing = await prisma.order.findUnique({
+    where: { id: req.params.id },
+    include: { rider: true },
+  });
+  if (!existing) return res.status(404).json({ error: 'Order not found' });
+
+  // A delivered or cancelled parcel is a record, not a job. Changing who
+  // carried it would rewrite history -- and the day's cash-with-couriers
+  // figure, which is built from exactly this column.
+  if (existing.status === 'delivered' || existing.status === 'cancelled') {
+    return res.status(400).json({
+      error: `This parcel is ${existing.status} and its courier is part of the record.`,
+    });
+  }
+
+  if (existing.riderId === riderId) {
+    return res.status(400).json({
+      error: riderId ? 'That parcel is already with this rider.' : 'That parcel has no rider.',
+    });
+  }
+
+  let rider = null;
+  if (riderId) {
+    rider = await prisma.rider.findUnique({ where: { id: riderId } });
+    if (!rider) return res.status(404).json({ error: 'Rider not found' });
+    if (!rider.active) {
+      return res.status(400).json({
+        error: `${rider.name} is off the fleet. Put them back on first.`,
+      });
+    }
+  }
+
+  const previousRider = existing.rider;
+
+  const result = await prisma.$transaction(async (tx) => {
+    // The parcel moves to `queued` when it gets a courier and back to
+    // `confirmed` when it loses one -- but only from the states before pickup.
+    // Something already picked up stays picked up: the parcel is physically in
+    // a bag, and rewriting its status to match the paperwork would tell the
+    // customer it had been un-collected.
+    const beforePickup = existing.status === 'confirmed' || existing.status === 'queued';
+    const status = beforePickup ? (riderId ? 'queued' : 'confirmed') : existing.status;
+
+    const order = await tx.order.update({
+      where: { id: existing.id },
+      data: {
+        riderId,
+        status,
+        // A courier who is handed a parcel needs a working link for it, and the
+        // old one is fine to keep: it is scoped to the order, not the person,
+        // and the person holding it has just been replaced on this parcel.
+        ...(riderId
+          ? {
+              riderToken: existing.riderToken ?? randomToken(),
+              riderTokenExpiresAt: new Date(Date.now() + RIDER_TOKEN_TTL_MS),
+            }
+          : {}),
+      },
+      include: { rider: true },
+    });
+
+    if (rider) {
+      await tx.rider.update({ where: { id: rider.id }, data: { available: false } });
+    }
+
+    // Free the rider we took it off, unless they are still carrying something
+    // else. The automation's release rule only looks at finished parcels, so
+    // without this a rider handing over a job stays marked busy until their
+    // next delivery completes.
+    if (previousRider) {
+      const stillCarrying = await tx.order.count({
+        where: {
+          riderId: previousRider.id,
+          status: { in: ['queued', 'picked_up', 'in_transit'] },
+        },
+      });
+      if (stillCarrying === 0) {
+        await tx.rider.update({ where: { id: previousRider.id }, data: { available: true } });
+      }
+    }
+
+    const note = rider
+      ? previousRider
+        ? `Reassigned from ${previousRider.name} to ${rider.name}`
+        : `Assigned to ${rider.name}`
+      : `Taken off ${previousRider?.name ?? 'the courier'} — back in the queue`;
+
+    const history = await tx.statusHistory.create({
+      data: {
+        orderId: order.id,
+        status: order.status,
+        note,
+        changedByAdminId: admin.id,
+        changedByName: admin.name,
+      },
+    });
+
+    /**
+     * The customer was told a name. Whether they can be told the new one
+     * depends on whether the first message has gone.
+     *
+     * `rider_assigned` is unique per (orderId, event), which is what stops the
+     * automation texting twice. Here that constraint gets in the way: while
+     * the original is still PENDING it can be deleted and re-queued, so the
+     * customer only ever receives the truth. Once it has been SENT, the
+     * constraint holds and no second text is possible -- deleting a sent row
+     * would only destroy the record of having told them.
+     *
+     * That case is handed back to the caller rather than swallowed, because
+     * somebody is expecting a call from a rider who is no longer coming, and
+     * a phone call is the repair.
+     */
+    const pending = await tx.notification.deleteMany({
+      where: { orderId: order.id, event: 'rider_assigned', status: 'pending' },
+    });
+
+    const alreadySent = await tx.notification.findFirst({
+      where: { orderId: order.id, event: 'rider_assigned' },
+      select: { id: true },
+    });
+
+    if (rider && !alreadySent) {
+      await queueNotification(tx, 'rider_assigned', {
+        ...order,
+        riderName: rider.name,
+        riderPhone: rider.phone,
+      });
+    }
+
+    return {
+      order,
+      history,
+      // True when the customer holds a text naming somebody else, and no
+      // further text can correct it.
+      customerToldPreviousRider: Boolean(alreadySent) && pending.count === 0,
+    };
+  });
+
+  res.json({
+    success: true,
+    order: serializeOrder(result.order),
+    history: serializeHistory(result.history),
+    previousRiderName: previousRider?.name ?? null,
+    customerToldPreviousRider: result.customerToldPreviousRider,
   });
 });
 
