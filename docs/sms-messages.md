@@ -28,7 +28,13 @@ giving up. Errors that retrying cannot fix — an unregistered sender ID, a
 number that is not a Ghanaian mobile — fail immediately instead of burning five
 attempts to learn the same thing.
 
-**Sending is off until `SMS_PROVIDER=arkesel` is set in `.env`.**
+**Sending is live.** `SMS_PROVIDER` is set to Arkesel and the **GO DISPATCH**
+sender ID is registered, so messages arrive from the brand name and carry no
+prefix in the body. Clearing `SMS_PROVIDER` in `.env` is the off switch: the
+outbox keeps queuing and nothing goes out.
+
+For the wording itself in template form — every placeholder and how much of a
+segment each one costs — see [`sms-templates.md`](sms-templates.md).
 
 ---
 
@@ -274,17 +280,18 @@ npm run sms:outbox -- --send # actually send the queue
 **Provider:** Arkesel. The API key is in `.env` as `SMS_API_KEY`; the balance is
 visible in `npm run sms:outbox` once sending is on.
 
-**Before switching on:**
+**Switching on — all three are done, kept here as the record:**
 
-1. Clear the stale queue. Confirmations from test bookings are still pending
-   against real numbers and would all send the moment the worker starts.
-   `npm run sms:outbox` lists them.
-2. Register the sender ID **GO DISPATCH** with Arkesel — 11 characters, which is
-   the GSM maximum. Until it is approved, messages arrive from a shortcode and
-   every template carries a 13-character `GO DISPATCH: ` prefix to say who it is
-   from. Once approved, set `SMS_SENDER_ID_REGISTERED = true` in `src/brand.ts`
-   and every message gets those characters back.
-3. Set `SMS_PROVIDER=arkesel` in `.env`. That is the switch.
+1. ~~Clear the stale queue.~~ Confirmations from test bookings were pending
+   against real numbers and would all have sent the moment the worker started.
+   `npm run sms:outbox` lists what is queued.
+2. ~~Register the sender ID **GO DISPATCH** with Arkesel~~ — 11 characters,
+   which is the GSM maximum. Approved, and `SMS_SENDER_ID_REGISTERED = true` in
+   `src/brand.ts`, so messages arrive from the name rather than a shortcode.
+   While it was unregistered, every template carried a 13-character
+   `GO DISPATCH: ` prefix to say who it was from; setting that flag back to
+   `false` costs every message those characters again.
+3. ~~Set `SMS_PROVIDER` in `.env`.~~ That is the switch, and it is on.
 
 ## Where the code is
 
