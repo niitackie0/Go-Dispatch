@@ -39,7 +39,7 @@ export const WHATSAPP_URL = 'https://wa.me/233540304994';
  * detail like the phone number, not a deployment knob, and brand.ts is bundled
  * into the browser where process.env does not exist.
  */
-export const PUBLIC_ORIGIN = 'https://go-dispatch.onrender.com';
+export const PUBLIC_ORIGIN = 'https://godispatchgh.com';
 
 /**
  * The tracking link as it appears in an SMS.
@@ -52,10 +52,20 @@ export const PUBLIC_ORIGIN = 'https://go-dispatch.onrender.com';
  *  - /t/CODE, not /track?code=CODE. Twelve characters shorter, and the only
  *    reason that route exists (see src/App.tsx).
  *
- * Which leaves 38 characters — a quarter of a single-segment message — so the
- * templates in src/server/notifications.ts drop the link rather than pay for a
- * second segment. A short custom domain is what buys that back: every character
- * cut here is a character returned to every message, on every order.
+ * Which left 38 characters on the old go-dispatch.onrender.com address — a
+ * quarter of a single-segment message. godispatchgh.com brings that to 30, and
+ * those eight characters are returned to every message, on every order, for as
+ * long as the domain is renewed.
+ *
+ * What they actually buy is headroom, not a visible change. No variant drops
+ * its greeting today — renderMessage only does that when one would otherwise
+ * cost a second segment, and none does. The saving shows up in the tightest
+ * templates, which run 15 to 18 characters short of a second credit: it is
+ * eight more characters of customer name they can absorb before somebody is
+ * billed twice. Run `npm run sms:preview` after touching any template.
+ *
+ * Which is also why this is the wrong place to ever put `www.`: four characters
+ * of every SMS, forever, for nothing.
  */
 export function smsTrackingLink(code: string): string {
   return `${PUBLIC_ORIGIN.replace(/^https?:\/\//, '')}/t/${code}`;

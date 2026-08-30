@@ -113,7 +113,7 @@ code, then try their phone number instead. Any format works: `024…`, `+233…`
 with spaces or without. If neither finds it, the parcel is genuinely not in the
 system and the booking did not complete.
 
-**The whole site is down.** Check https://go-dispatch.onrender.com/api/health.
+**The whole site is down.** Check https://godispatchgh.com/api/health.
 If it says `{"ok":true}` the site is up and the problem is somewhere else. If it
 does not answer at all, or says the database is unreachable, that is real.
 
