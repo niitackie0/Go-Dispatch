@@ -51,8 +51,15 @@ function Num({ children, dark = false }: { children: React.ReactNode; dark?: boo
 const MIN_KG = 1;
 const MAX_KG = 50;
 
-/** The status flow a parcel moves through, in customer words. */
-const FLOW = ['Booked', 'Rider collects', 'Weighed', 'On the road', 'Delivered'];
+/**
+ * The status flow a parcel moves through, in customer words.
+ *
+ * It ends at the bus because that is where our part ends. "Delivered" was here
+ * and it was a promise nobody at this company makes -- the recipient collects
+ * from a station, and we cannot see the far end well enough to claim anything
+ * past the moment the parcel is handed over.
+ */
+const FLOW = ['Booked', 'Rider collects', 'Weighed', 'Paid', 'On the bus'];
 
 /**
  * What we will not carry.
@@ -171,7 +178,7 @@ const NEVER: { label: string; icon: React.ReactNode }[] = [
   },
 ];
 
-/** Not refused — just not a surprise on the doorstep. */
+/** Not refused — just not a surprise when it reaches our scale. */
 const ASK_FIRST: { label: string; note: string; icon: React.ReactNode }[] = [
   {
     label: 'Perishable food',
@@ -460,8 +467,8 @@ export default function Home() {
                       d: 'A rider brings your parcel in and it goes on the scale. That weight sets the price — everything before it, here and in the booking form, is an estimate.',
                     },
                     {
-                      t: 'The recipient pays',
-                      d: 'Each parcel is settled at the door it arrives at. Send three to three regions and you hand over nothing.',
+                      t: 'Collected at the station',
+                      d: 'An intercity bus carries it and we text the registration to both of you. Your recipient collects it at the station — we are not a door-to-door service.',
                     },
                   ].map((f) => (
                     <div key={f.t} className="border-b border-slate-200 py-4">
@@ -530,7 +537,11 @@ export default function Home() {
                   className="mt-5 rounded-xl border border-slate-200 bg-white p-5 text-center"
                   aria-live="polite"
                 >
-                  <span className="block text-sm text-slate-500">The recipient pays</span>
+                  {/* Not "the recipient pays": who settles the bill is chosen
+                      per parcel at booking, and it is asked for after weighing
+                      rather than on arrival. The figure here is an estimate
+                      either way -- the scale at the office sets the real one. */}
+                  <span className="block text-sm text-slate-500">Estimated price</span>
                   <span className="mt-1 block font-display text-4xl font-semibold tabular-nums text-slate-900">
                     {formatAmount(priced.total, priced.currency)}
                   </span>

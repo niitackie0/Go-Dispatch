@@ -50,7 +50,13 @@ export type PaymentProvider = 'manual' | 'momo';
 /** Who settles the bill for a delivery. */
 export type Payer = 'sender' | 'recipient';
 
-/** When the bill is settled: up front (gates confirmation) or at the door. */
+/**
+ * When the bill is settled: up front (gates confirmation), or after the parcel
+ * has been weighed at the office (gates the bus). `on_delivery` is the older
+ * of the two names and no longer describes a delivery -- nothing is handed
+ * over at a door; it means "not prepaid", and the money is asked for once the
+ * scale has set the real price.
+ */
 export type PaymentTiming = 'prepaid' | 'on_delivery';
 
 /**
@@ -130,7 +136,7 @@ export interface RiderJob {
   priceAmount: number;
   currency: string;
   paymentStatus: PaymentStatus;
-  /** True when the courier must collect money at the door. */
+  /** True when the bill is settled after weighing rather than up front. */
   cashToCollect: boolean;
   payer?: Payer;
 }

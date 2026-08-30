@@ -92,6 +92,18 @@ ordersRouter.get('/track', publicReadLimit, async (req, res) => {
       scheduledPickupAt: order.scheduledPickupAt.toISOString(),
       status: order.status,
       paymentStatus: order.paymentStatus,
+      // The registration of the bus it went out on. Once a parcel is
+      // dispatched this is the only handle either end has on it, and the
+      // recipient is collecting it from a station rather than waiting at
+      // home -- so withholding it here would mean the tracking page knows
+      // where the parcel is and will not say.
+      //
+      // Not a disclosure: it is already texted to BOTH the sender and the
+      // recipient (dispatched_sender / dispatched_recipient in
+      // src/server/notifications.ts). This page needs a tracking code or a
+      // phone number to answer at all, so it reaches nobody the message did
+      // not already reach -- it is here for the person who has lost the text.
+      busCarNumber: order.busCarNumber ?? null,
       createdAt: order.createdAt.toISOString(),
       timeline: order.statusHistory.map((h) => ({
         status: h.status,

@@ -67,7 +67,8 @@ const blankParcel = (key: number, region = ''): ParcelDraft => ({
  *
  *  - Every price here is an ESTIMATE. Parcels are weighed at the office and
  *    the weighed figure is what is charged.
- *  - The RECIPIENT pays, per parcel, at their door. There is no payment step
+ *  - The bill is settled after weighing at the office, by whoever the parcel
+ *    names as payer, and nothing goes on a bus until it is. There is no payment step
  *    because the sender is not being asked for money.
  */
 /**
@@ -272,14 +273,15 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           </h2>
           <p className="mt-2 text-slate-600">
             A rider will come to your address and collect. We weigh each parcel back at
-            the office, and each recipient pays for theirs when it arrives.
+            the office and text you the bill — once it is settled the parcel goes on an
+            intercity bus, and whoever is receiving it collects it at the station.
           </p>
 
           {/* One parcel needs one code, and it is the tracking code. Leading
               with a booking reference here handed people two numbers where one
               would do, and only one of them is the one they will be asked for.
               Several parcels genuinely travel apart — different riders,
-              different days, different doors — so each keeps its own code and
+              different days, different buses — so each keeps its own code and
               the reference is the thing that holds the set together. Either
               one works in the tracking box. */}
           <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 flex items-start justify-between gap-3">

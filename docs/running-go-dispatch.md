@@ -11,27 +11,46 @@ days, so most mornings it opens straight to the board.
 
 ## The day, in order
 
-**A parcel is booked.** It arrives on the dispatch board as *Requested*, and
-the sender gets a text with their reference. Nothing has been promised yet.
+The order is the order the board enforces — `src/transitions.ts` refuses
+anything else, so you cannot skip a step by accident.
 
-**Weigh it.** Open the order, enter the weight from the scale. That fixes the
-price — until then it is an estimate. If the weighed price differs from the
-estimate, the sender is texted about it automatically. If it does not, they are
-not, because "your price is unchanged" is a message nobody needs.
+**A parcel is booked.** It arrives on the dispatch board as *Requested*.
+Nothing has been promised yet, and nothing is texted yet either.
 
 **Confirm it.** *Requested → Confirmed* says the office has committed to
 collecting it. After this the sender can no longer cancel online; they have to
 ring you.
 
 **It queues itself.** When the collection window opens, the system assigns a
-free courier and marks it *Queued*. You do not do this by hand.
+free courier and marks it *For collection*. You do not do this by hand. This is
+the point the sender is texted — one message that is both the receipt and the
+collection notice, naming the rider and his number.
 
-**The courier moves it.** *Picked Up*, *In Transit*, *Delivered*. Support can
-also move these from the console when a courier phones in.
+**The rider collects it.** *Collected*. The parcel is now on its way in to
+Adabraka.
 
-**The money settles.** For a parcel paid at the door, marking it *Delivered*
-records the payment automatically. For a prepaid one, you record the payment
-when it arrives.
+**It reaches the office.** *At the office*. Now weigh it: open the order and
+enter the weight from the scale. That fixes the price — everything before it,
+on the site and in the booking form, was an estimate — and it texts the bill to
+whoever the parcel names as payer, which may be the recipient rather than the
+sender.
+
+**The money settles.** *Paid*, once the MoMo lands. Record it with **I have the
+money**. This is a gate, not a formality: **nothing goes on a bus before it is
+paid for.** Past the station we have no leverage and nobody at the far end, so
+this is the last point at which the money can still be asked for.
+
+**It goes to the station.** *To the station* if a rider runs it round, or
+straight to *On the bus* if somebody walks it there. Either is legal.
+
+**On the bus.** *Dispatched*, and you record the bus registration when you mark
+it. That texts both the sender and the recipient the car number.
+
+**That is the end of our job.** There is no status after *On the bus*, and the
+board will not offer one. The recipient collects the parcel at the station in
+the destination town. We cannot see the far end, so we do not claim to — a
+status saying a parcel was collected would be a guess, and a guess is worse
+than silence.
 
 ---
 

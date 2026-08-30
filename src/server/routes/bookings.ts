@@ -35,7 +35,8 @@ export const bookingsRouter = asyncRouter();
  *    that happens, and the response says so explicitly so the customer is told
  *    rather than surprised.
  *  - The recipient pays, per parcel. Three parcels are three separate bills
- *    settled at three different doors, so no payment row is created up front.
+ *    billed separately once each has been weighed, so no payment row is
+ *    created up front.
  */
 
 const MAX_PARCELS = 20;
@@ -247,7 +248,8 @@ bookingsRouter.post('/', publicWriteLimit, async (req, res) => {
             currency: rule.currency,
             status: 'requested',
             paymentStatus: 'pending',
-            // The person receiving it settles the bill at the door.
+            // The person receiving it settles the bill after weighing, by
+            // MoMo, before the parcel goes on a bus.
             payer: 'recipient',
             paymentTiming: 'on_delivery',
           },
