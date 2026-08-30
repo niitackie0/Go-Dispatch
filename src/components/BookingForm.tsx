@@ -170,7 +170,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
         const p = parcels[i];
         const at = `Parcel ${i + 1}: `;
         if (!p.destinationRegion) return `${at}choose the region it is going to`;
-        if (!p.dropoffAddress.trim()) return `${at}delivery address is required`;
+        if (!p.dropoffAddress.trim()) return `${at}recipient's address is required`;
         if (!p.recipientName.trim()) return `${at}recipient's name is required`;
         if (!p.recipientPhone.trim()) return `${at}recipient's phone number is required`;
         if (!(Number(p.packageWeightKg) > 0)) return `${at}give us a rough weight`;
@@ -440,7 +440,10 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
                 <RegionPicker value={p.destinationRegion} onChange={(v) => patch(p.key, 'destinationRegion', v)} />
               </div>
               <div>
-                <label className={label}>Delivery address *</label>
+                {/* Not "Delivery address": nobody delivers to it. It is on
+                    record so the office knows which town the parcel is bound
+                    for, and so the recipient can be told where to collect. */}
+                <label className={label}>Recipient&rsquo;s address in the region *</label>
                 <textarea rows={2} className={`${field} resize-none`} value={p.dropoffAddress} onChange={(e) => patch(p.key, 'dropoffAddress', e.target.value)} placeholder="e.g. Lamashegu, near the Total station" />
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
@@ -476,8 +479,8 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           </button>
 
           <p className="text-base text-slate-500">
-            Each parcel gets its own tracking code and can go to a different region. The
-            recipient pays for theirs when it arrives.
+            Each parcel gets its own tracking code and can go to a different region. Each
+            one is weighed and billed on its own, and each is paid for before it travels.
           </p>
         </div>
 
@@ -529,8 +532,14 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               price is the one charged.
             </p>
             <p className="text-base text-amber-900">
-              <strong className="font-semibold">The recipient pays.</strong> Each parcel is
-              settled by the person receiving it, when it arrives.
+              <strong className="font-semibold">The recipient pays, before it travels.</strong>{' '}
+              We text them the bill once the parcel has been weighed. It goes on the bus once
+              that is settled — nothing travels unpaid.
+            </p>
+            <p className="text-base text-amber-900">
+              <strong className="font-semibold">They collect it at the station.</strong> An
+              intercity bus carries it and we text you both the registration. We are not a
+              door-to-door service.
             </p>
           </div>
         </div>
