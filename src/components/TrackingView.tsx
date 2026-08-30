@@ -212,6 +212,28 @@ type UnplacedStatus = Exclude<OrderStatus, RailStatus | keyof typeof FOLDED | 'c
 type NothingLeftOver<T extends never> = T;
 export type _EveryStatusIsOnTheRail = NothingLeftOver<UnplacedStatus>;
 
+/**
+ * The status as a customer should read it.
+ *
+ * The pill used to print `order.status.replace('_', ' ')`, which is the
+ * database's word rather than anybody's: "at office", "to station",
+ * "dispatched". The rail beside it already said "At the office" and "On the
+ * bus", so the same parcel was described two ways in one card.
+ */
+function statusLabel(status: OrderStatus): string {
+  const node = STEPS.find((s) => s.key === status);
+  if (node) return node.label;
+
+  const OTHER: Record<Exclude<OrderStatus, RailStatus>, string> = {
+    paid: 'Paid',
+    cancelled: 'Cancelled',
+    awaiting_payment: 'Awaiting payment',
+    in_transit: 'In transit',
+    delivered: 'Delivered',
+  };
+  return OTHER[status as Exclude<OrderStatus, RailStatus>] ?? status.replace(/_/g, ' ');
+}
+
 function stepIndex(status: OrderStatus): number {
   if (status === 'cancelled') return -1;
   const folded = (FOLDED as Partial<Record<OrderStatus, OrderStatus>>)[status] ?? status;
@@ -403,7 +425,7 @@ function Road({ timeline }: { timeline: PublicOrder['timeline'] }) {
 
               <div className={isLatest ? 'pb-0' : 'pb-5'}>
                 <p className={`text-base ${isLatest ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
-                  {event.note || STEPS.find((s) => s.key === event.status)?.label || event.status.replace('_', ' ')}
+                  {event.note || statusLabel(event.status)}
                 </p>
                 <p className="text-base text-slate-500 tabular-nums">{formatWhen(event.changedAt)}</p>
               </div>
@@ -538,7 +560,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                     STATUS_TONE[order.status] ?? 'bg-slate-500/10 border-slate-500/20 text-slate-700'
                   }`}
                 >
-                  {order.status.replace('_', ' ')}
+                  {statusLabel(order.status)}
                 </span>
               </div>
 

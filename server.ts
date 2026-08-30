@@ -148,15 +148,36 @@ app.use('/api', (err: unknown, req: Request, res: Response, _next: NextFunction)
  * without waiting for someone to click something in the dashboard.
  */
 const AUTOMATION_TICK_MS = 60 * 1000;
-setInterval(() => {
-  runAutomations()
-    .then((actions) => {
-      if (actions.length > 0) {
-        console.log(`[automation] ${actions.length} action(s):`, actions.join(' | '));
-      }
-    })
-    .catch((err) => report(err, { at: 'automation' }));
-}, AUTOMATION_TICK_MS);
+
+/**
+ * Whether this process is the one that runs the rules.
+ *
+ * On by default, because the single Render instance IS the one that runs them
+ * and a flag that has to be remembered to get normal behaviour is a flag that
+ * takes the service down.
+ *
+ * Set AUTOMATION=off when a second process points at the same database -- a
+ * laptop running `npm run dev` against production to look at something, or a
+ * screen recording. The pass assigns riders and moves orders on, and while the
+ * unique constraint on (orderId, event) stops anyone being texted twice, a
+ * second loop still competes with the real one over live parcels. Nothing about
+ * looking at the site should move somebody's delivery along.
+ */
+const automationEnabled = (process.env.AUTOMATION ?? '').trim().toLowerCase() !== 'off';
+
+if (automationEnabled) {
+  setInterval(() => {
+    runAutomations()
+      .then((actions) => {
+        if (actions.length > 0) {
+          console.log(`[automation] ${actions.length} action(s):`, actions.join(' | '));
+        }
+      })
+      .catch((err) => report(err, { at: 'automation' }));
+  }, AUTOMATION_TICK_MS);
+} else {
+  console.log('[automation] OFF (AUTOMATION=off). Nothing will be assigned or advanced by this process.');
+}
 
 /**
  * Outbox tick — sends the notifications the rules queued.
