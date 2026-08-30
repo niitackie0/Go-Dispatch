@@ -1,0 +1,5 @@
+# Regenerable, and large. `hyperframes render` rebuilds the MP4 from index.html
+# and assets/ in about four and a half minutes, so the 15 MB binary does not
+# need to sit in this repo's history forever.
+snapshots/
+*.mp4
