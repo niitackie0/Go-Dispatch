@@ -4,6 +4,7 @@
  */
 
 import type { NextFunction, Request, Response } from 'express';
+import { PUBLIC_ORIGIN } from '../brand.js';
 
 /**
  * Response headers that close the browser-side holes.
@@ -90,6 +91,46 @@ const CSP = [
   "img-src 'self' data:",
   "connect-src 'self'",
 ].join('; ');
+
+/**
+ * One address, not two.
+ *
+ * Adding godispatchgh.com to Render does not take go-dispatch.onrender.com
+ * away — both keep answering, with the same site, on the same certificate.
+ * That is two live copies of a shop, and it costs three separate things:
+ * Google indexes whichever it finds first and splits the ranking across both,
+ * a customer who bookmarked the old one never sees the new one, and an SMS
+ * that says godispatchgh.com is not obviously the same business as the tab
+ * somebody already has open.
+ *
+ * So the old address stops serving and starts pointing. 301 rather than 302,
+ * because this is permanent and a permanent redirect is the only one search
+ * engines transfer ranking through.
+ *
+ * TWO THINGS THIS DELIBERATELY DOES NOT DO:
+ *
+ *  - It does not touch /api/health. Render polls that endpoint on the
+ *    onrender host to decide whether this instance is alive, and a 301 is not
+ *    a 200 — redirecting it would mark a perfectly healthy service unhealthy
+ *    and roll the deploy back. This is the whole reason the path check is
+ *    here rather than the middleware simply being registered later, where a
+ *    reorder could silently undo it.
+ *
+ *  - It only ever redirects away from `.onrender.com`. Not "any host that is
+ *    not canonical" — that reads as tidier and is a trap: Render's internal
+ *    health probes, an IP-based request and anything else unforeseen would be
+ *    bounced too. The old public address is a known, finite thing, so name it.
+ */
+export function canonicalHost(req: Request, res: Response, next: NextFunction): void {
+  if (process.env.NODE_ENV !== 'production') return next();
+  if (req.path === '/api/health') return next();
+
+  // req.hostname strips any :port and, with trust proxy set, reads
+  // X-Forwarded-Host — which is the name the customer actually typed.
+  if (!req.hostname.toLowerCase().endsWith('.onrender.com')) return next();
+
+  res.redirect(301, `${PUBLIC_ORIGIN}${req.originalUrl}`);
+}
 
 /**
  * How many proxies sit in front of us.

@@ -11,7 +11,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { runAutomations } from './src/server/automations.js';
 import { prisma } from './src/server/prisma.js';
-import { securityHeaders, trustProxyHops } from './src/server/security.js';
+import { canonicalHost, securityHeaders, trustProxyHops } from './src/server/security.js';
 import { catchProcessFailures, report, requestId } from './src/server/errors.js';
 import { drainOutbox, outboxSummary } from './src/server/outbox.js';
 import { smsEnabled, smsProviderName } from './src/server/smsProvider.js';
@@ -67,6 +67,12 @@ app.disable('x-powered-by');
 
 app.use(requestId);
 app.use(securityHeaders);
+
+// go-dispatch.onrender.com sends visitors to godispatchgh.com and stops being
+// a second copy of the site. Registered here, ahead of everything, but it
+// exempts /api/health itself -- see the note in security.ts for why that
+// exemption cannot be left to registration order.
+app.use(canonicalHost);
 
 // A body limit, said out loud. Express defaults to 100kb; the largest thing
 // anyone legitimately posts here is a twenty-parcel booking, which is nowhere

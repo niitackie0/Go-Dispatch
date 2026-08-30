@@ -75,12 +75,20 @@ Dear {name}
 | `{amount}` `{oldAmount}` | `GHS 60.00` |
 | `{weight}` | `4.2` |
 | `{bus}` | `GT 4821 24` |
-| `{link}` | `go-dispatch.onrender.com/t/{code}` |
-| `{refLink}` | `go-dispatch.onrender.com/t/{ref}` |
+| `{link}` | `godispatchgh.com/t/{code}` |
+| `{refLink}` | `godispatchgh.com/t/{ref}` |
 | `{office}` | `054 030 4994` |
 
 Source: `src/server/notifications.ts`. `npm run sms:preview` prints them filled in.
 
-The first one is the tightest in the set — 10 to 20 characters spare depending on
-the names. Adding words to it needs `npm run sms:preview` run first, or it
-becomes two messages and bills twice on every parcel.
+The first one is two segments already and always has been — see
+`docs/sms-messages.md` for why that wording is worth the second credit.
+
+Of the ones that fit in a single segment, the tightest are the recipient-pays
+bill (19 characters spare at worst) and the multi-parcel confirmation (17).
+Adding words to either needs `npm run sms:preview` run first, or it becomes two
+messages and bills twice on every parcel.
+
+Moving from `go-dispatch.onrender.com` to `godispatchgh.com` returned eight
+characters to every message carrying `{link}` or `{refLink}`. That is why the
+multi-parcel confirmation now has 17 characters of room instead of 9.

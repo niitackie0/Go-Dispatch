@@ -151,7 +151,66 @@ signed in.
 
 ---
 
-## 5. Turning SMS on — deliberately, and second
+## 5. The custom domain
+
+`godispatchgh.com`, registered on Porkbun. Two dashboards, in this order.
+
+**Render** — Settings → Custom Domains → Add Custom Domain. Type the apex and
+nothing else:
+
+```
+godispatchgh.com
+```
+
+No `www.`, no `https://`, no trailing slash, whatever the placeholder in the
+field suggests. Render then shows the DNS records to create — read them off
+that screen rather than copying an IP out of a document like this one, which
+goes stale the day Render renumbers.
+
+Apex rather than `www` for a reason that is not aesthetic: the address is
+inside every SMS carrying a tracking link, so `www.` would cost four characters
+of every message, on every order, forever. The move from
+`go-dispatch.onrender.com` to `godispatchgh.com` was worth eight characters in
+the other direction — see `src/brand.ts`.
+
+**Porkbun** — DNS → add exactly what Render displayed. Porkbun supports `ALIAS`
+at the apex; take it over a bare `A` record if Render offers both, because an
+`ALIAS` follows Render's hostname and survives them changing the address behind
+it. Then wait: verification is usually minutes, the TLS certificate a little
+longer, and neither is worth debugging in the first quarter of an hour.
+
+**Then the code.** `PUBLIC_ORIGIN` in `src/brand.ts` is a literal, not an
+environment variable — it is a business detail like the phone number, and it is
+bundled into the browser where `process.env` does not exist. It is already set
+to the new domain, so this is only a note for the next time it moves.
+
+**The old address keeps answering, and that is the trap.** Adding a custom
+domain does not retire `go-dispatch.onrender.com`; both serve the same site on
+the same certificate, which is two live copies of one shop. `canonicalHost` in
+`src/server/security.ts` 301s the onrender host to `PUBLIC_ORIGIN` so there is
+one address. Two things about it are load-bearing:
+
+- It exempts `/api/health`. Render polls that path on the onrender host to
+  decide whether the instance is alive, and a 301 is not a 200 — redirecting it
+  marks a healthy service unhealthy and rolls the deploy back.
+- It redirects away from `.onrender.com` only, never from "any host that is not
+  canonical". The tidier-sounding version bounces Render's internal probes and
+  anything else unforeseen.
+
+Check both after the certificate is live:
+
+```bash
+curl -i https://godispatchgh.com/api/health
+curl -sI https://go-dispatch.onrender.com/ | head -3
+curl -sI https://go-dispatch.onrender.com/api/health | head -3
+```
+
+Expect `{"ok":true}` from the first, a `301` to `https://godispatchgh.com/`
+from the second, and a plain `200` — **not** a redirect — from the third.
+
+---
+
+## 6. Turning SMS on — deliberately, and second
 
 Deploy once with `SMS_PROVIDER` empty. Messages queue in the outbox and nothing
 is sent, so a mistake in step 1 costs nothing but a redeploy.
@@ -169,7 +228,7 @@ When the service is up and you have placed one real booking end to end:
 
 ---
 
-## 6. Still outstanding after this
+## 7. Still outstanding after this
 
 Deployment is not launch. From the pre-launch checklist, these remain and none
 of them are Render settings:

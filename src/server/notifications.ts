@@ -337,7 +337,7 @@ function render(
  *
  *     Dear Ama
  *     Henry has sent you a parcel, arriving today. Have GHS 60.00 ready for
- *     the rider. Track it here: go-dispatch.onrender.com/t/GD-4821-330
+ *     the rider. Track it here: godispatchgh.com/t/GD-4821-330
  *
  * The greeting is a line of its own. A newline is in the GSM-7 basic set and
  * costs exactly one character (src/server/sms.ts), which is cheaper than the

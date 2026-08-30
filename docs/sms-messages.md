@@ -92,14 +92,14 @@ free.
 > **Dear Henry**
 > **We have received your delivery request and your order has been assigned to Kwesi. He will call you from 0244123456**
 >
-> **Use GD-4821-330 to track your parcel here go-dispatch.onrender.com/t/GD-4821-330**
+> **Use GD-4821-330 to track your parcel here godispatchgh.com/t/GD-4821-330**
 
 No number on file for the rider:
 
 > **Dear Henry**
 > **We have received your delivery request and your order has been assigned to Kwesi. He will call you when he arrives**
 >
-> **Use GD-4821-330 to track your parcel here go-dispatch.onrender.com/t/GD-4821-330**
+> **Use GD-4821-330 to track your parcel here godispatchgh.com/t/GD-4821-330**
 
 **What the merge costs.** A parcel booked for tomorrow is now silent until about
 an hour before collection, and a parcel the fleet is too busy to assign is
@@ -107,15 +107,19 @@ silent until somebody frees up. The booking screen shows the tracking code, so
 nobody is left without it — but if that silence ever produces phone calls, this
 is the reason.
 
-**This message is two credits, not one.** At about 207 characters it is over the
-160-character limit for a single SMS, so every parcel is billed twice for it.
+**This message is two credits, not one.** At 199 characters — 207 with a long
+customer name and a long rider name — it is over the 160-character limit for a
+single SMS, so every parcel is billed twice for it.
 That is a decision about wording rather than an oversight: it greets the
 customer, confirms the request, names the rider, gives his number, and still
 hands over the code and the link. Every other message in this document is one
 credit.
 
 If it ever needs to come back under 160, the tracking link is where the room is
-— 38 characters on a message that already carries the code.
+— 30 characters on a message that already carries the code. Note that the move
+to godispatchgh.com already took eight characters off it and did not close the
+gap: this message is 39 over, not 8 over, so shortening the address was never
+going to be what fixed it. The wording is.
 
 The **station run** deliberately sends nothing. Nobody needs a text saying a
 parcel crossed the office yard, and the car number is what actually matters.
@@ -131,7 +135,7 @@ it, rather than one text per tracking code all in the same second.
 parcel gets nothing here — message 1 covers it.
 
 > **Dear Henry**
-> **We have your 3 parcels. Prices confirm when we weigh each one. Use GDB-4821-330 to track them here: go-dispatch.onrender.com/t/GDB-4821-330**
+> **We have your 3 parcels. Prices confirm when we weigh each one. Use GDB-4821-330 to track them here: godispatchgh.com/t/GDB-4821-330**
 
 ---
 
@@ -146,8 +150,13 @@ with us — so that variant says who the parcel is from.
 changed: this is the invoice, and a parcel that is weighed and never billed sits
 on a shelf while everyone waits for the other to move.
 
-No tracking link on this one. The action is a MoMo transfer, and 38 characters
+No tracking link on this one. The action is a MoMo transfer, and 30 characters
 of URL would buy nothing the number and the code do not already give.
+
+Which makes this the tightest single-segment message in the set now — the
+recipient-pays variant runs to 141 characters with a long name and a
+three-figure amount, 19 short of a second credit. It is the one message the
+shorter domain could not help, because it never carried the link.
 
 Weighing changed the price:
 
@@ -183,7 +192,7 @@ To the sender — named by where it is *going*:
 > **Dear Henry**
 > **Your parcel to Ama is on GT 4821 24**
 >
-> **Use GD-4821-330 to track here go-dispatch.onrender.com/t/GD-4821-330**
+> **Use GD-4821-330 to track here godispatchgh.com/t/GD-4821-330**
 
 To the recipient — named by where it is *from*, because otherwise this is a text
 from a company they have never heard of:
@@ -191,7 +200,7 @@ from a company they have never heard of:
 > **Dear Ama**
 > **Your parcel from Henry is on GT 4821 24**
 >
-> **Use GD-4821-330 to track here go-dispatch.onrender.com/t/GD-4821-330**
+> **Use GD-4821-330 to track here godispatchgh.com/t/GD-4821-330**
 
 **Two events for one message.** The `(orderId, event)` unique constraint — the
 thing that stops the automation texting twice — means one event can only ever
