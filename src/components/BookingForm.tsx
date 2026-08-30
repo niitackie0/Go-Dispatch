@@ -538,8 +538,8 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
             </p>
             <p className="text-base text-amber-900">
               <strong className="font-semibold">They collect it at the station.</strong> An
-              intercity bus carries it and we text you both the registration. We are not a
-              door-to-door service.
+              intercity bus carries it and we text you both the registration, and it is
+              usually there within 24 to 48 hours.
             </p>
           </div>
         </div>
