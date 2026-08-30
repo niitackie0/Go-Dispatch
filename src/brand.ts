@@ -55,10 +55,14 @@ export const PUBLIC_ORIGIN = 'https://godispatchgh.com';
  * Which left 38 characters on the old go-dispatch.onrender.com address — a
  * quarter of a single-segment message. godispatchgh.com brings that to 30, and
  * those eight characters are returned to every message, on every order, for as
- * long as the domain is renewed. They are not spent anywhere: renderMessage
- * drops the greeting only when a variant would otherwise cost a second segment,
- * so the saving is taken automatically by the two longest templates, which now
- * keep their "Dear —" more often than they did.
+ * long as the domain is renewed.
+ *
+ * What they actually buy is headroom, not a visible change. No variant drops
+ * its greeting today — renderMessage only does that when one would otherwise
+ * cost a second segment, and none does. The saving shows up in the tightest
+ * templates, which run 17 to 19 characters short of a second credit: it is
+ * eight more characters of customer name they can absorb before somebody is
+ * billed twice. Run `npm run sms:preview` after touching any template.
  *
  * Which is also why this is the wrong place to ever put `www.`: four characters
  * of every SMS, forever, for nothing.
