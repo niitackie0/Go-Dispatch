@@ -207,7 +207,7 @@ export default function PolicyPage() {
               id="collection"
               n={3}
               title="Collection and delivery"
-              gist="A rider collects from your address. The recipient collects from the station."
+              gist="A rider collects from your address. The recipient collects from the station, usually within 24 to 48 hours."
             >
               <p>
                 You choose a collection day and time when booking, and a rider comes to your
@@ -222,10 +222,11 @@ export default function PolicyPage() {
               <p>
                 We then hand the parcel to an intercity bus and text the registration to you
                 and to the person receiving it. <strong>They collect it at the bus station
-                in the destination town</strong> — we do not bring it to an address. Travel
-                times depend on the route and are{' '}
-                <ToConfirm>not guaranteed — confirm the target window per region</ToConfirm>.
-                You can follow every status change with your tracking code.
+                in the destination town</strong> — we do not bring it to an address. A parcel
+                normally reaches the destination station <strong>within 24 to 48 hours</strong>
+                of collection. You can follow every status change with your tracking code.
+                Longer routes sit at the upper end of that window, and clause 5 covers the
+                delays nobody controls — weather, road closures, a bus that does not run.
               </p>
               <p>
                 Our responsibility ends when the parcel is handed to the bus operator. What
