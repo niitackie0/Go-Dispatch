@@ -25,6 +25,8 @@ interface PublicOrder {
   scheduledPickupAt: string;
   status: OrderStatus;
   paymentStatus: string;
+  /** Registration of the bus it went out on. Null until it is dispatched. */
+  busCarNumber: string | null;
   createdAt: string;
   timeline: {
     status: OrderStatus;
@@ -36,19 +38,34 @@ interface PublicOrder {
 /**
  * The journey, as a customer understands it.
  *
- * Six steps, named for what happened rather than for the status column that
- * records it — "Collected", not "picked_up". `awaiting_payment` is not a step:
- * a parcel waiting on payment has not moved, so it sits at Booked and says so
- * in the status line instead of inventing a seventh node.
+ * Named for what happened rather than for the status column that records it —
+ * "Collected", not "picked_up".
+ *
+ * IT ENDS AT THE BUS, and that is the point of this rail. It used to end at
+ * "Delivered", which was a promise this company does not make: a rider collects
+ * the parcel to the office, it is weighed and billed there, and an intercity
+ * bus carries it to a station the recipient collects it from. Nobody brings it
+ * to a door. The last thing we can honestly claim is which bus it is on, so
+ * that is where the rail stops.
+ *
+ * `paid` is deliberately not a node. Money is not a movement — a parcel that
+ * has been paid for is still sitting on the office floor — so it folds onto
+ * "At the office" and the status line carries the difference. Same reasoning
+ * that kept the old `awaiting_payment` off the rail.
  */
-const STEPS: { key: OrderStatus; label: string; short: string }[] = [
+const STEPS = [
   { key: 'requested', label: 'Booked', short: 'Booked' },
   { key: 'confirmed', label: 'Confirmed', short: 'Confirmed' },
   { key: 'queued', label: 'Rider assigned', short: 'Rider' },
   { key: 'picked_up', label: 'Collected', short: 'Collected' },
-  { key: 'in_transit', label: 'On the road', short: 'On the road' },
-  { key: 'delivered', label: 'Delivered', short: 'Delivered' },
-];
+  { key: 'at_office', label: 'At the office', short: 'Office' },
+  { key: 'to_station', label: 'To the station', short: 'Station' },
+  { key: 'dispatched', label: 'On the bus', short: 'On the bus' },
+  // `as const satisfies` and not a plain annotation, deliberately. Typing this
+  // as `{ key: OrderStatus; ... }[]` widens every key back to the full union,
+  // which silently makes the coverage assertion below vacuous -- it was, and
+  // it passed a deliberately broken build without a word.
+] as const satisfies readonly { key: OrderStatus; label: string; short: string }[];
 
 /**
  * Cancelling, for the person who booked it.
@@ -158,10 +175,69 @@ function CancelPanel({ order, onCancelled }: { order: PublicOrder; onCancelled: 
 }
 
 /** Where on the rail this order sits. Cancelled orders are off the rail entirely. */
+/**
+ * Statuses that are real but are not their own node on the rail, plus the
+ * retired ones an old row can still carry.
+ *
+ * Folded the same way the bus-model migration folded them
+ * (20260821140100_bus_model_columns), so a parcel booked under the old model
+ * reads here as it reads in the console.
+ */
+const FOLDED = {
+  paid: 'at_office',             // settled, and still on the office floor
+  awaiting_payment: 'at_office', // retired
+  in_transit: 'to_station',      // retired
+  delivered: 'dispatched',       // retired — the furthest we can honestly claim
+} satisfies Partial<Record<OrderStatus, OrderStatus>>;
+
+/**
+ * Every status must be either a node on the rail, folded onto one, or
+ * cancelled — and this line is what enforces it.
+ *
+ * A compile-time assertion rather than a comment, because the bug it prevents
+ * is the one this file actually shipped with. `stepIndex` ends in `?? 0`, so a
+ * status missing from both lists does not throw and does not warn: it reports
+ * a parcel that is already on a bus as "Step 1 of 7 — Booked". Every bus-model
+ * status was in exactly that state — at_office, paid, to_station and
+ * dispatched all silently rendered as Booked — and nothing caught it, because
+ * nothing could.
+ *
+ * Add a status to OrderStatus without placing it here and the build fails,
+ * naming the status it cannot show.
+ */
+type RailStatus = (typeof STEPS)[number]['key'];
+type UnplacedStatus = Exclude<OrderStatus, RailStatus | keyof typeof FOLDED | 'cancelled'>;
+
+/** Compiles only when T is `never`. The constraint is the whole mechanism. */
+type NothingLeftOver<T extends never> = T;
+export type _EveryStatusIsOnTheRail = NothingLeftOver<UnplacedStatus>;
+
+/**
+ * The status as a customer should read it.
+ *
+ * The pill used to print `order.status.replace('_', ' ')`, which is the
+ * database's word rather than anybody's: "at office", "to station",
+ * "dispatched". The rail beside it already said "At the office" and "On the
+ * bus", so the same parcel was described two ways in one card.
+ */
+function statusLabel(status: OrderStatus): string {
+  const node = STEPS.find((s) => s.key === status);
+  if (node) return node.label;
+
+  const OTHER: Record<Exclude<OrderStatus, RailStatus>, string> = {
+    paid: 'Paid',
+    cancelled: 'Cancelled',
+    awaiting_payment: 'Awaiting payment',
+    in_transit: 'In transit',
+    delivered: 'Delivered',
+  };
+  return OTHER[status as Exclude<OrderStatus, RailStatus>] ?? status.replace(/_/g, ' ');
+}
+
 function stepIndex(status: OrderStatus): number {
   if (status === 'cancelled') return -1;
-  if (status === 'awaiting_payment') return 0;
-  const i = STEPS.findIndex((s) => s.key === status);
+  const folded = (FOLDED as Partial<Record<OrderStatus, OrderStatus>>)[status] ?? status;
+  const i = STEPS.findIndex((s) => s.key === folded);
   return i === -1 ? 0 : i;
 }
 
@@ -176,28 +252,60 @@ function statusLine(order: PublicOrder): string {
   switch (order.status) {
     case 'requested':
       return 'Booked. We are confirming the details now.';
-    case 'awaiting_payment':
-      return 'Waiting for your payment. We collect once it lands.';
     case 'confirmed':
       return 'Confirmed. A rider is assigned before collection.';
     case 'queued':
       return 'A rider is on the way to collect it.';
     case 'picked_up':
-      return 'Collected. It is with us now.';
+      return 'Collected. On its way to our office to be weighed.';
+
+    // The office is where the price stops being an estimate and the bill is
+    // asked for, so this one status is two different sentences depending on
+    // whether the money has landed. Nothing goes on a bus before it does.
+    case 'at_office':
+      return order.paymentStatus === 'paid'
+        ? 'Weighed and paid for. It goes on the next bus.'
+        : 'Weighed at our office. Once the bill is settled it goes on the next bus.';
+    case 'paid':
+      return 'Paid. It goes on the next bus.';
+    case 'to_station':
+      return 'On its way to the station.';
+
+    // The end of our part, and the only message that has to tell somebody
+    // where to physically go. The registration is the whole value of it.
+    case 'dispatched':
+      return order.busCarNumber
+        ? `On bus ${order.busCarNumber}. ${order.recipientName} collects it at the station.`
+        : `On the bus. ${order.recipientName} collects it at the station.`;
+
+    case 'cancelled':
+      return 'This booking was cancelled.';
+
+    // Retired with the door-delivery model. Nothing sets these; an order placed
+    // before the bus model can still carry one, and it has to read as what that
+    // customer was actually told at the time rather than as a blank line.
+    case 'awaiting_payment':
+      return 'Waiting for your payment. We collect once it lands.';
     case 'in_transit':
       return `On the road to ${order.dropoffAddress}.`;
     case 'delivered':
       return `Delivered to ${order.recipientName}.`;
-    case 'cancelled':
-      return 'This booking was cancelled.';
     default:
       return '';
   }
 }
 
 const STATUS_TONE: Partial<Record<OrderStatus, string>> = {
-  delivered: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700',
+  // Green is the end of the line, and the end of the line is the bus.
+  dispatched: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700',
+  to_station: 'bg-red-500/10 border-red-500/20 text-red-700',
+  // Amber is "you owe us something" -- at_office is where the bill is asked
+  // for, and a parcel sits there until it is settled.
+  at_office: 'bg-amber-500/10 border-amber-500/20 text-amber-700',
   cancelled: 'bg-red-500/10 border-red-500/20 text-red-700',
+
+  // Retired, kept so old rows keep the colour they were shown in.
+  delivered: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700',
   in_transit: 'bg-red-500/10 border-red-500/20 text-red-700',
   awaiting_payment: 'bg-amber-500/10 border-amber-500/20 text-amber-700',
 };
@@ -317,7 +425,7 @@ function Road({ timeline }: { timeline: PublicOrder['timeline'] }) {
 
               <div className={isLatest ? 'pb-0' : 'pb-5'}>
                 <p className={`text-base ${isLatest ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
-                  {event.note || STEPS.find((s) => s.key === event.status)?.label || event.status.replace('_', ' ')}
+                  {event.note || statusLabel(event.status)}
                 </p>
                 <p className="text-base text-slate-500 tabular-nums">{formatWhen(event.changedAt)}</p>
               </div>
@@ -452,7 +560,7 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                     STATUS_TONE[order.status] ?? 'bg-slate-500/10 border-slate-500/20 text-slate-700'
                   }`}
                 >
-                  {order.status.replace('_', ' ')}
+                  {statusLabel(order.status)}
                 </span>
               </div>
 

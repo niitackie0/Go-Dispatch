@@ -19,19 +19,33 @@ import type { OrderStatus } from './types.js';
  * This file must stay free of server-only imports so it can be bundled.
  */
 export const ALLOWED_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
-  // A new booking either needs paying for, or is confirmed outright when the
-  // money is due on delivery.
-  requested: ['awaiting_payment', 'confirmed', 'cancelled'],
-  // Normally cleared by automation when payment lands; an admin may also
-  // confirm by hand after taking payment another way.
-  awaiting_payment: ['confirmed', 'cancelled'],
+  // Placed, and accepted by the office.
+  requested: ['confirmed', 'cancelled'],
+  // Waiting for a collection rider. The automation moves it on.
   confirmed: ['queued', 'cancelled'],
+  // A rider has the collection.
   queued: ['picked_up', 'cancelled'],
-  picked_up: ['in_transit', 'cancelled'],
-  in_transit: ['delivered', 'cancelled'],
-  // Terminal. Reopening a finished order is an override, not a transition.
-  delivered: [],
+  // Collected from the sender, on its way in.
+  picked_up: ['at_office', 'cancelled'],
+  // At the office. Weighed and billed here, and it goes no further until the
+  // money is in -- past the station we have no leverage and nobody at the far
+  // end, so `paid` is the gate on the whole rest of the journey.
+  at_office: ['paid', 'cancelled'],
+  // Paid for. Either a rider takes it to the station, or a staff member walks
+  // it round and it is marked dispatched directly.
+  paid: ['to_station', 'dispatched', 'cancelled'],
+  to_station: ['dispatched', 'cancelled'],
+  // THE END OF OUR JOB. The parcel is on a bus and both ends have the car
+  // number. What happens at the far end is not something we can observe, so
+  // there is nothing honest to move to.
+  dispatched: [],
   cancelled: [],
+
+  // Retired. No route in, and none out but a cancellation, so an order left
+  // stranded in one by the old model can still be closed.
+  awaiting_payment: ['at_office', 'cancelled'],
+  in_transit: ['dispatched', 'cancelled'],
+  delivered: [],
 };
 
 /** The statuses an order in `from` may legally move to. */
@@ -47,12 +61,17 @@ export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
  * The single step the "Advance" button takes — the happy path forwards,
  * ignoring cancellation.
  *
- * `awaiting_payment` deliberately has no advance action: it is payment-gated
- * and clears itself once the money lands, so offering a button here would
- * invite an admin to dispatch something nobody has paid for.
+ * `at_office` deliberately has no advance action. The only way out of it is
+ * `paid`, and that is not a button somebody should press because the parcel is
+ * in front of them -- it is recorded when MoMo actually lands, through the
+ * payment panel. A one-click advance here would put unpaid parcels on buses.
+ *
+ * `paid` advances to `to_station` rather than straight to `dispatched`: the
+ * further of the two moves needs a car number, which a single click cannot
+ * supply.
  */
 export function advanceStatus(from: OrderStatus): OrderStatus | null {
-  if (from === 'awaiting_payment') return null;
+  if (from === 'at_office' || from === 'awaiting_payment') return null;
   return nextStatuses(from).find((s) => s !== 'cancelled') ?? null;
 }
 
@@ -80,10 +99,10 @@ export function isTerminal(status: OrderStatus): boolean {
  * the job. Cancelling later is not a harder button, it is a refund and a
  * wasted trip, and neither of those should happen without a person involved.
  *
- * `confirmed` is excluded on purpose. It means the office has committed to
- * collecting, and for a prepaid parcel it means the money has arrived.
+ * `confirmed` is excluded on purpose: it means the office has committed to
+ * collecting, and a rider may already be on the way.
  */
-export const SENDER_CANCELLABLE: readonly OrderStatus[] = ['requested', 'awaiting_payment'];
+export const SENDER_CANCELLABLE: readonly OrderStatus[] = ['requested'];
 
 export function senderMayCancel(status: OrderStatus): boolean {
   return SENDER_CANCELLABLE.includes(status);

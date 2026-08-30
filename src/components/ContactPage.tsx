@@ -99,7 +99,8 @@ export default function ContactPage() {
               <p className="mt-3 text-lg text-slate-600 max-w-xl">
                 Book a collection and a rider comes to your address anywhere in Accra. We
                 weigh each parcel back at the office, and that weighed price is what the
-                recipient pays when it arrives.
+                recipient pays — once it is settled the parcel goes on a bus, and they
+                collect it at the station.
               </p>
               <Link
                 to="/book"

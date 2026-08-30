@@ -30,6 +30,7 @@ import {
   LogOut,
   ExternalLink,
   Users,
+  Bike,
   ShieldCheck,
   ChevronDown,
   PanelLeftClose,
@@ -47,14 +48,17 @@ import {
   OrderStatus,
   PaymentStatus,
   PackageSize,
-  AdminUser
+  AdminUser,
+  FleetRider
 } from '../types.js';
+import { riderLegOf, LIVE_ORDER_STATUSES } from '../types.js';
 import { can } from '../capabilities.js';
 import { AUTOMATION_ACTOR } from '../brand.js';
 import { advanceStatus, checkUndo, nextStatuses } from '../transitions.js';
 import { quote, formatAmount } from '../pricing.js';
 import type { Capability } from '../capabilities.js';
 import SelectModal from './SelectModal.js';
+import FleetManagement from './FleetManagement.js';
 import StaffManagement from './StaffManagement.js';
 import AccountSecurity from './AccountSecurity.js';
 import Tooltip from './Tooltip.js';
@@ -70,26 +74,47 @@ interface AdminDashboardProps {
 
 // Order status list in correct workflow order.
 // `dot` is the solid colour used by the pipeline distribution bar and status dots.
+// Labels say what somebody in the office would say out loud, not what the enum
+// is called: a parcel is "at the office", not "at_office", and the last state
+// is "On the bus" because that is the fact staff are checking for.
 const STATUS_ORDER: { key: OrderStatus; label: string; bg: string; text: string; dot: string }[] = [
   { key: 'requested', label: 'Requested', bg: 'bg-slate-500/10 border border-slate-500/20', text: 'text-slate-600', dot: 'bg-slate-500' },
-  { key: 'awaiting_payment', label: 'Awaiting Payment', bg: 'bg-orange-500/10 border border-orange-500/20', text: 'text-orange-600', dot: 'bg-orange-500' },
   { key: 'confirmed', label: 'Confirmed', bg: 'bg-amber-500/10 border border-amber-500/20', text: 'text-amber-600', dot: 'bg-amber-500' },
-  { key: 'queued', label: 'Queued', bg: 'bg-blue-500/10 border border-blue-500/20', text: 'text-blue-600', dot: 'bg-blue-500' },
-  { key: 'picked_up', label: 'Picked Up', bg: 'bg-fuchsia-500/10 border border-fuchsia-500/20', text: 'text-fuchsia-600', dot: 'bg-fuchsia-500' },
-  { key: 'in_transit', label: 'In Transit', bg: 'bg-sky-500/10 border border-sky-500/20', text: 'text-sky-600', dot: 'bg-sky-500' },
-  { key: 'delivered', label: 'Delivered', bg: 'bg-emerald-500/10 border border-emerald-500/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
+  { key: 'queued', label: 'For collection', bg: 'bg-blue-500/10 border border-blue-500/20', text: 'text-blue-600', dot: 'bg-blue-500' },
+  { key: 'picked_up', label: 'Collected', bg: 'bg-fuchsia-500/10 border border-fuchsia-500/20', text: 'text-fuchsia-600', dot: 'bg-fuchsia-500' },
+  { key: 'at_office', label: 'At the office', bg: 'bg-orange-500/10 border border-orange-500/20', text: 'text-orange-600', dot: 'bg-orange-500' },
+  { key: 'paid', label: 'Paid', bg: 'bg-teal-500/10 border border-teal-500/20', text: 'text-teal-600', dot: 'bg-teal-500' },
+  { key: 'to_station', label: 'To the station', bg: 'bg-sky-500/10 border border-sky-500/20', text: 'text-sky-600', dot: 'bg-sky-500' },
+  { key: 'dispatched', label: 'On the bus', bg: 'bg-emerald-500/10 border border-emerald-500/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
   { key: 'cancelled', label: 'Cancelled', bg: 'bg-rose-500/10 border border-rose-500/20', text: 'text-rose-600', dot: 'bg-rose-500' },
+
+  // Retired with the door-delivery model. Kept at the end so an old row still
+  // renders with a name and a colour rather than falling through to raw enum
+  // text -- they are gone from the workflow, not from the database.
+  { key: 'awaiting_payment', label: 'Awaiting payment (old)', bg: 'bg-slate-500/10 border border-slate-400/20', text: 'text-slate-500', dot: 'bg-slate-400' },
+  { key: 'in_transit', label: 'In transit (old)', bg: 'bg-slate-500/10 border border-slate-400/20', text: 'text-slate-500', dot: 'bg-slate-400' },
+  { key: 'delivered', label: 'Delivered (old)', bg: 'bg-slate-500/10 border border-slate-400/20', text: 'text-slate-500', dot: 'bg-slate-400' },
 ];
 
-type SubTab = 'overview' | 'pipeline' | 'payments' | 'pricing' | 'staff' | 'account';
+/** The statuses the board offers as filters and moves. Retired ones excluded. */
+const LIVE_STATUS_ORDER = STATUS_ORDER.filter((s) => LIVE_ORDER_STATUSES.includes(s.key));
+
+type SubTab = 'overview' | 'pipeline' | 'payments' | 'fleet' | 'pricing' | 'staff' | 'account';
 
 /**
  * One day's money, split by where it physically is.
  *
- * `inOffice` is what an admin recorded, so it arrived here. `withCouriers` is
- * what was taken at a door and has not been handed in. The distinction is not
- * payment method -- cash and mobile money both arrive as `manual` -- it is who
- * is standing where, which is the only thing a cash box can be checked against.
+ * The split is by who put the row there: `recordedByStaff` is money somebody at
+ * the office saw and keyed in, `automatic` is a provider callback settling a
+ * bill with no human involved.
+ *
+ * It used to be "in the office" versus "with a courier". Nothing is paid at a
+ * door any more -- the parcel is weighed at the office, billed by SMS, and
+ * settled by MoMo before it goes on a bus -- so the question the panel answers
+ * changed with the workflow.
+ *
+ * `owing` is the number to watch: parcels weighed, billed, and stuck at the
+ * office because nobody has paid. They are going nowhere until they clear.
  */
 interface DayCash {
   date: string;
@@ -97,20 +122,20 @@ interface DayCash {
   total: number;
   count: number;
   inOffice: { amount: number; count: number };
-  withCouriers: { amount: number; count: number };
-  couriers: { name: string; amount: number; count: number }[];
+  recordedByStaff: { amount: number; count: number };
+  automatic: { amount: number; count: number };
   lines: {
     trackingCode: string;
     amount: number;
     provider: string;
     at: string;
-    heldBy: string;
+    recordedBy: string;
     note?: string;
   }[];
   owing: {
     amount: number;
     count: number;
-    orders: { trackingCode: string; amount: number; rider?: string }[];
+    orders: { trackingCode: string; amount: number; payer?: string; waitingSince: string }[];
   };
 }
 
@@ -131,6 +156,7 @@ const NAV_ITEMS: {
   { key: 'overview', label: 'Overview', title: 'Overview', icon: TrendingUp },
   { key: 'pipeline', label: 'Dispatch board', title: 'Dispatch board', icon: Layers },
   { key: 'payments', label: 'Payments', title: 'Payments ledger', icon: CreditCard, capability: 'payments:read' },
+  { key: 'fleet', label: 'Fleet', title: 'Fleet', icon: Bike, capability: 'riders:read' },
   { key: 'pricing', label: 'Pricing', title: 'Pricing', icon: Settings, capability: 'pricing:write' },
   { key: 'staff', label: 'Staff accounts', title: 'Staff accounts', icon: Users, capability: 'staff:manage' },
   { key: 'account', label: 'My account', title: 'My account', icon: ShieldCheck },
@@ -164,6 +190,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   const canWriteOrders = can(user?.role, 'orders:write');
   const canRecordPayment = can(user?.role, 'payments:write');
   const canSetPricing = can(user?.role, 'pricing:write');
+  const canSeeRiders = can(user?.role, 'riders:read');
   const canManageStaff = can(user?.role, 'staff:manage');
 
   // The sections this role may open, in sidebar order. Memoised on the role so
@@ -248,6 +275,23 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   const [paymentRef, setPaymentRef] = useState('');
   const [submittingStatus, setSubmittingStatus] = useState(false);
   const [submittingPayment, setSubmittingPayment] = useState(false);
+
+  // Weigh-in. The office scale is what the customer is actually charged from —
+  // everything before it is the estimate the booking form quoted.
+  const [scaleWeight, setScaleWeight] = useState('');
+  const [submittingWeight, setSubmittingWeight] = useState(false);
+  const [weighNotice, setWeighNotice] = useState('');
+
+  // The fleet, for handing a parcel to a different courier.
+  const [fleet, setFleet] = useState<FleetRider[]>([]);
+  const [submittingRider, setSubmittingRider] = useState(false);
+  const [riderNotice, setRiderNotice] = useState('');
+
+  // The bus. The last thing that happens to a parcel, and the only place its
+  // car number is ever written.
+  const [busNumber, setBusNumber] = useState('');
+  const [submittingBus, setSubmittingBus] = useState(false);
+  const [busNotice, setBusNotice] = useState('');
 
   // Pricing configuration inputs
   const [baseRateInput, setBaseRateInput] = useState('');
@@ -427,10 +471,27 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     }
   };
 
+  // The roster, for the courier picker in the drawer. Cheap and small, so it
+  // loads once rather than every time a drawer opens.
+  const fetchFleet = async () => {
+    if (!canSeeRiders) return;
+    try {
+      const res = await fetch('/api/riders', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setFleet(Array.isArray(data?.riders) ? data.riders : []);
+      }
+    } catch (err) {
+      // A missing roster costs the picker, not the board.
+      console.error('Failed to load the fleet', err);
+    }
+  };
+
   // Sync data loaders based on active views
   useEffect(() => {
     fetchStats();
     fetchPricing();
+    fetchFleet();
   }, []);
 
   useEffect(() => {
@@ -463,6 +524,13 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
   // Load Order Details Drawer on selection
   useEffect(() => {
+    // Notices belong to the order that produced them, not to the drawer.
+    setWeighNotice('');
+    setRiderNotice('');
+    setBusNotice('');
+    setScaleWeight('');
+    setBusNumber('');
+
     if (selectedOrderId) {
       loadOrderDetails(selectedOrderId);
     } else {
@@ -626,7 +694,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
    * work last.
    */
   const boardOrders = useMemo(() => {
-    const finished = (o: Order) => o.status === 'delivered' || o.status === 'cancelled';
+    // Finished = it is on a bus, or it never went. Both are the end of our part.
+    const finished = (o: Order) => o.status === 'dispatched' || o.status === 'cancelled';
     const due = (o: Order) => new Date(o.scheduledPickupAt).getTime();
     const now = Date.now();
 
@@ -709,6 +778,143 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     }
   };
 
+  /**
+   * Record the scale weight, which is what fixes the price.
+   *
+   * Until this happens an order carries the estimate the booking form quoted
+   * from a weight the customer guessed. The server re-prices against the live
+   * rule, writes the change to the timeline, and texts the sender — but only
+   * when the figure actually moved. "Your price is unchanged" is a message
+   * nobody needs and everybody pays for.
+   */
+  const handleWeigh = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrderId) return;
+
+    const weight = Number(scaleWeight);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      alert('Enter the weight from the scale.');
+      return;
+    }
+
+    setSubmittingWeight(true);
+    setWeighNotice('');
+    try {
+      const res = await fetch(`/api/bookings/parcels/${selectedOrderId}/weight`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ actualWeightKg: weight }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || 'That weight could not be saved.');
+
+      const currency = data?.order?.currency ?? 'GHS';
+      const payer = data?.order?.payer === 'recipient' ? 'The recipient' : 'The sender';
+      setWeighNotice(
+        data?.changed
+          ? `Price ${formatAmount(data.previousAmount, currency)} to ${formatAmount(data.order.priceAmount, currency)}. ${payer} has been sent the bill.`
+          : `${payer} has been sent the bill for ${formatAmount(data?.order?.priceAmount ?? 0, currency)}.`
+      );
+      setScaleWeight('');
+      await loadOrderDetails(selectedOrderId);
+      fetchOrders();
+      fetchStats();
+    } catch (err: any) {
+      alert(err.message || 'That weight could not be saved.');
+    } finally {
+      setSubmittingWeight(false);
+    }
+  };
+
+  /**
+   * Hand the parcel to somebody else, or drop it back into the queue.
+   *
+   * The assigner only ever gives work to a free rider, which cannot help when
+   * a bike breaks down halfway. Passing an empty choice unassigns, and the
+   * automation picks the parcel up again on its next pass.
+   */
+  const handleReassign = async (riderId: string) => {
+    if (!selectedOrderId) return;
+    setSubmittingRider(true);
+    setRiderNotice('');
+    try {
+      const res = await fetch(`/api/orders/${selectedOrderId}/rider`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ riderId: riderId || null }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || 'The courier could not be changed.');
+
+      // The one outcome that needs a human afterwards: the customer is holding
+      // a text naming somebody who is no longer coming, and the duplicate guard
+      // means no second text can correct it.
+      setRiderNotice(
+        data?.customerToldPreviousRider
+          ? `Changed — but the sender was already texted that ${data.previousRiderName ?? 'the previous courier'} was coming. Ring them.`
+          : riderId
+            ? 'Courier changed, and the sender has been texted.'
+            : 'Back in the queue for the next free rider.'
+      );
+      await loadOrderDetails(selectedOrderId);
+      fetchOrders();
+      fetchFleet();
+    } catch (err: any) {
+      alert(err.message || 'The courier could not be changed.');
+    } finally {
+      setSubmittingRider(false);
+    }
+  };
+
+  /**
+   * Put it on the bus, and finish with it.
+   *
+   * The car number is the last fact we record and the only one the customer
+   * can act on afterwards -- it is what both the sender and the recipient are
+   * texted, and the only way either of them finds the parcel at the far end.
+   * So it is typed at the office, where somebody can read it back, rather than
+   * at a roadside; and a wrong one cannot be corrected by a second text, so it
+   * is worth a second look before pressing this.
+   */
+  const handleDispatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrderId) return;
+
+    setSubmittingBus(true);
+    setBusNotice('');
+    try {
+      const res = await fetch(`/api/orders/${selectedOrderId}/dispatch`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ busCarNumber: busNumber }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || 'That could not be recorded.');
+
+      // Which messages actually went. A number we cannot text is not a failed
+      // dispatch, but it is something to know while the parcel is still here.
+      const missed = [
+        data?.textedSender ? null : 'the sender',
+        data?.textedRecipient ? null : 'the recipient',
+      ].filter(Boolean);
+
+      setBusNotice(
+        missed.length === 0
+          ? 'On the bus. Both ends have been texted the car number.'
+          : `On the bus, but we could not text ${missed.join(' or ')} — no usable number on file. Ring them.`
+      );
+      setBusNumber('');
+      await loadOrderDetails(selectedOrderId);
+      fetchOrders();
+      fetchStats();
+      fetchFleet();
+    } catch (err: any) {
+      alert(err.message || 'That could not be recorded.');
+    } finally {
+      setSubmittingBus(false);
+    }
+  };
+
   // Update dynamic Pricing Config
   const handleUpdatePricing = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -788,7 +994,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     const midnight = new Date();
     midnight.setHours(0, 0, 0, 0);
     const days = Math.floor((at.getTime() - midnight.getTime()) / 86_400_000);
-    const settled = order.status === 'delivered' || order.status === 'cancelled';
+    const settled = order.status === 'dispatched' || order.status === 'cancelled';
 
     if (settled) {
       if (days === 0) return `Today ${time}`;
@@ -815,7 +1021,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
    */
   const isLateForPickup = (order: Order) =>
     new Date(order.scheduledPickupAt).getTime() < Date.now() &&
-    ['requested', 'awaiting_payment', 'confirmed', 'queued'].includes(order.status);
+    ['requested', 'confirmed', 'queued'].includes(order.status);
 
   /** "3d", "6h", "45m" — how long something has been sitting. */
   const formatAge = (iso: string) => {
@@ -842,14 +1048,17 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     // Orders that need a human to do something. One reason per order — the
     // first that matches, most urgent first.
     const attention = allOrdersForStats
-      .filter((o) => o.status !== 'delivered' && o.status !== 'cancelled')
+      .filter((o) => o.status !== 'dispatched' && o.status !== 'cancelled')
       .map((o) => {
         const idle = hoursSince(o.updatedAt || o.createdAt);
         let reason: string | null = null;
-        if (o.status === 'awaiting_payment' && idle >= 24) reason = 'Awaiting payment';
+        // A parcel weighed and billed that nobody has paid for is the one
+        // that goes nowhere at all -- it cannot even be given to a rider.
+        if (o.status === 'at_office' && o.paymentStatus !== 'paid' && idle >= 4) reason = 'Billed, not paid';
         else if (o.status === 'requested' && idle >= 2) reason = 'Not yet confirmed';
-        else if (o.status === 'queued' && !o.riderName) reason = 'No rider assigned';
-        else if ((o.status === 'picked_up' || o.status === 'in_transit') && idle >= 24) reason = 'On the road over a day';
+        else if (o.status === 'queued' && !riderLegOf(o).name) reason = 'No rider assigned';
+        else if (o.status === 'paid' && idle >= 4) reason = 'Paid, still not on a bus';
+        else if ((o.status === 'picked_up' || o.status === 'to_station') && idle >= 24) reason = 'On the road over a day';
         return reason ? { order: o, reason, idle } : null;
       })
       .filter((x): x is { order: Order; reason: string; idle: number } => x !== null)
@@ -864,9 +1073,9 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     // Who is carrying what right now.
     const carrying = new Map<string, number>();
     for (const o of allOrdersForStats) {
-      if (!o.riderName) continue;
-      if (o.status === 'queued' || o.status === 'picked_up' || o.status === 'in_transit') {
-        carrying.set(o.riderName, (carrying.get(o.riderName) ?? 0) + 1);
+      if (!riderLegOf(o).name) continue;
+      if (o.status === 'queued' || o.status === 'picked_up' || o.status === 'to_station') {
+        carrying.set(riderLegOf(o).name, (carrying.get(riderLegOf(o).name) ?? 0) + 1);
       }
     }
     const riders = [...carrying.entries()]
@@ -879,7 +1088,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
       unpaidCount: unpaid.length,
       today: {
         booked: allOrdersForStats.filter((o) => isToday(o.createdAt)).length,
-        delivered: allOrdersForStats.filter((o) => o.status === 'delivered' && isToday(o.updatedAt)).length,
+        delivered: allOrdersForStats.filter((o) => o.status === 'dispatched' && isToday(o.updatedAt)).length,
         cancelled: allOrdersForStats.filter((o) => o.status === 'cancelled' && isToday(o.updatedAt)).length,
       },
       riders,
@@ -1167,7 +1376,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   <dl className="mt-3 space-y-2">
                     {([
                       ['Booked', overview.today.booked],
-                      ['Delivered', overview.today.delivered],
+                      ['On the bus', overview.today.delivered],
                       ['Cancelled', overview.today.cancelled],
                     ] as const).map(([label, value]) => (
                       <div key={label} className="flex items-baseline justify-between">
@@ -1286,9 +1495,9 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
               {/* Dispatch pipeline — one card: distribution bar + clickable status segments */}
               {(() => {
-                const rows = STATUS_ORDER.map((s) => ({ ...s, count: stats?.counts[s.key] || 0 }));
+                const rows = LIVE_STATUS_ORDER.map((s) => ({ ...s, count: stats?.counts[s.key] || 0 }));
                 const total = rows.reduce((sum, s) => sum + s.count, 0);
-                const active = rows.filter((s) => s.key !== 'delivered' && s.key !== 'cancelled')
+                const active = rows.filter((s) => s.key !== 'dispatched' && s.key !== 'cancelled')
                                    .reduce((sum, s) => sum + s.count, 0);
 
                 return (
@@ -1404,7 +1613,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 placeholder="All statuses"
                 options={[
                   { value: '', label: 'All statuses' },
-                  ...STATUS_ORDER.map((s) => ({ value: s.key, label: s.label })),
+                  ...LIVE_STATUS_ORDER.map((s) => ({ value: s.key, label: s.label })),
                 ]}
                 className="w-full min-h-12 flex items-center justify-between gap-2 rounded-2xl border border-slate-200/80 bg-white px-3.5 text-left text-sm text-slate-900 hover:border-slate-300 focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-colors cursor-pointer"
               />
@@ -1491,8 +1700,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     {pageOrders.map((order, i) => {
                       const theme = STATUS_ORDER.find((x) => x.key === order.status) || STATUS_ORDER[0];
                       const late = isLateForPickup(order);
-                      const settled = order.status === 'delivered' || order.status === 'cancelled';
-                      const unassigned = !order.riderName && !settled;
+                      const settled = order.status === 'dispatched' || order.status === 'cancelled';
+                      const unassigned = !riderLegOf(order).name && !settled;
 
                       return (
                         <button
@@ -1514,13 +1723,13 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                                 unassigned
                                   ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
-                                  : order.riderName
+                                  : riderLegOf(order).name
                                     ? 'bg-slate-100 text-slate-600'
                                     : 'bg-slate-50 text-slate-300'
                               }`}
-                              title={order.riderName || 'No rider assigned'}
+                              title={riderLegOf(order).name || 'No rider assigned'}
                             >
-                              {order.riderName ? initials(order.riderName) : '?'}
+                              {riderLegOf(order).name ? initials(riderLegOf(order).name) : '?'}
                             </span>
 
                             <span className="min-w-0 flex-1">
@@ -1545,8 +1754,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                               {/* Line three: who and where to. */}
                               <span className="block truncate text-sm text-slate-500">
-                                {order.riderName ? (
-                                  <>{order.riderName} <span className="text-slate-300">·</span> </>
+                                {riderLegOf(order).name ? (
+                                  <>{riderLegOf(order).name} <span className="text-slate-300">·</span> </>
                                 ) : (
                                   <span className="font-medium text-red-600">Unassigned <span className="text-slate-300">·</span> </span>
                                 )}
@@ -1657,32 +1866,34 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
 
                 <div className="px-5 py-4">
-                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Should be here</p>
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Keyed in by staff</p>
                   <p className="mt-1 text-2xl font-medium text-slate-900 tabular-nums tracking-tight">
-                    {dayCash.currency} {(dayCash.inOffice.amount / 100).toFixed(2)}
+                    {dayCash.currency} {(dayCash.recordedByStaff.amount / 100).toFixed(2)}
                   </p>
-                  <p className="mt-0.5 text-sm text-slate-500">recorded in the office</p>
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    across {dayCash.recordedByStaff.count} payment{dayCash.recordedByStaff.count === 1 ? '' : 's'}
+                  </p>
                 </div>
 
                 <div className="px-5 py-4">
-                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Still with couriers</p>
+                  <p className="text-xs font-medium uppercase tracking-wider text-amber-700">Waiting to be paid</p>
                   <p
                     className={
                       'mt-1 text-2xl font-medium tabular-nums tracking-tight ' +
-                      (dayCash.withCouriers.amount > 0 ? 'text-amber-700' : 'text-slate-900')
+                      (dayCash.owing.amount > 0 ? 'text-amber-700' : 'text-slate-900')
                     }
                   >
-                    {dayCash.currency} {(dayCash.withCouriers.amount / 100).toFixed(2)}
+                    {dayCash.currency} {(dayCash.owing.amount / 100).toFixed(2)}
                   </p>
                   <p className="mt-0.5 text-sm text-slate-500">
-                    {dayCash.couriers.length === 0
-                      ? 'nothing to hand in'
-                      : 'from ' + dayCash.couriers.length + ' courier' + (dayCash.couriers.length === 1 ? '' : 's')}
+                    {dayCash.owing.count === 0
+                      ? 'nothing stuck at the office'
+                      : dayCash.owing.count + ' parcel' + (dayCash.owing.count === 1 ? '' : 's') + ' going nowhere'}
                   </p>
                 </div>
               </div>
 
-              {(dayCash.couriers.length > 0 || dayCash.owing.count > 0 || dayCash.lines.length > 0) && (
+              {(dayCash.owing.count > 0 || dayCash.lines.length > 0) && (
                 <>
                   <button
                     onClick={() => setCashOpen((v) => !v)}
@@ -1694,34 +1905,20 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
                   {cashOpen && (
                     <div className="border-t border-slate-100 px-5 py-4 space-y-5">
-                      {dayCash.couriers.length > 0 && (
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">To hand in</p>
-                          <ul className="mt-2 space-y-1.5">
-                            {dayCash.couriers.map((c) => (
-                              <li key={c.name} className="flex items-baseline justify-between gap-4">
-                                <span className="text-sm text-slate-700">{c.name}</span>
-                                <span className="text-sm font-medium text-slate-900 tabular-nums">
-                                  {dayCash.currency} {(c.amount / 100).toFixed(2)}
-                                  <span className="font-normal text-slate-400"> · {c.count}</span>
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
                       {dayCash.owing.count > 0 && (
                         <div>
                           <p className="text-xs font-medium uppercase tracking-wider text-amber-700">
-                            Delivered today and still owing
+                            Billed and not paid
                           </p>
                           <ul className="mt-2 space-y-1.5">
                             {dayCash.owing.orders.map((o) => (
                               <li key={o.trackingCode} className="flex items-baseline justify-between gap-4">
                                 <span className="font-mono text-sm text-slate-700">
                                   {o.trackingCode}
-                                  {o.rider && <span className="font-sans text-slate-400"> · {o.rider}</span>}
+                                  <span className="font-sans text-slate-400">
+                                    {' · '}
+                                    {o.payer === 'recipient' ? 'recipient pays' : 'sender pays'}
+                                  </span>
                                 </span>
                                 <span className="text-sm font-medium text-amber-800 tabular-nums">
                                   {dayCash.currency} {(o.amount / 100).toFixed(2)}
@@ -1730,8 +1927,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                             ))}
                           </ul>
                           <p className="mt-2 text-sm text-slate-500">
-                            This should be zero by close. Anything here is a parcel that reached
-                            somebody without the money reaching us.
+                            Every one of these is a parcel on a shelf. Nothing goes on a bus until it
+                            is paid for, so this list is the queue that is not moving.
                           </p>
                         </div>
                       )}
@@ -1744,7 +1941,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                               <li key={l.trackingCode + '-' + i} className="flex items-baseline justify-between gap-4">
                                 <span className="min-w-0 truncate font-mono text-sm text-slate-600">
                                   {l.trackingCode}
-                                  <span className="font-sans text-slate-400"> · {l.heldBy}</span>
+                                  <span className="font-sans text-slate-400"> · {l.recordedBy}</span>
                                 </span>
                                 <span className="shrink-0 text-sm text-slate-700 tabular-nums">
                                   {dayCash.currency} {(l.amount / 100).toFixed(2)}
@@ -2067,6 +2264,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
         </div>
       )}
 
+      {activeSubTab === 'fleet' && canSeeRiders && (
+        <div className="animate-in fade-in duration-200" id="dash_subtab_fleet">
+          <FleetManagement token={token} currentUser={user} />
+        </div>
+      )}
+
       {activeSubTab === 'staff' && canManageStaff && (
         <div className="animate-in fade-in duration-200" id="dash_subtab_staff">
           <StaffManagement token={token} currentUser={user} />
@@ -2205,6 +2408,12 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 <span className="text-slate-400">
                   {selectedOrderDetails.order.currency}{' '}
                   {(selectedOrderDetails.order.priceAmount / 100).toFixed(2)}
+                  {/* Said here because this figure is quoted down the phone. An
+                      unweighed parcel is carrying a guess the customer made at
+                      home, and nothing else on this screen admitted that. */}
+                  {!selectedOrderDetails.order.priceConfirmedAt && (
+                    <span className="ml-1 text-amber-600">estimate</span>
+                  )}
                 </span>
               </span>
             )
@@ -2263,11 +2472,110 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 <p className="mt-3 border-t border-slate-200 pt-3 text-sm text-slate-600">
                   Collection {formatPickup(selectedOrderDetails.order.scheduledPickupAt)}
                   <span className="text-slate-300"> · </span>
-                  {selectedOrderDetails.order.packageWeightKg}kg
+                  {selectedOrderDetails.order.actualWeightKg
+                    ? `${selectedOrderDetails.order.actualWeightKg}kg on the scale`
+                    : `${selectedOrderDetails.order.packageWeightKg}kg declared`}
                   <span className="text-slate-300"> · </span>
                   {selectedOrderDetails.order.packageDescription}
                 </p>
               </div>
+
+              {/* ---------- WEIGH-IN ----------
+                  The price on every other screen is an estimate until this
+                  happens: the booking form quotes from a weight the customer
+                  guessed at home. Weighing re-prices against the live rule and,
+                  if the figure moved, texts the sender — which is the promise
+                  the terms page makes about not charging a difference quietly. */}
+              {canWriteOrders && (
+                selectedOrderDetails.order.priceConfirmedAt ? (
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Weighed</p>
+                    {/* The weight can be absent on a parcel whose price was
+                        confirmed before the scale was wired into the console.
+                        Printing a bare "kg" there reads as a broken field. */}
+                    <p className="mt-1 text-sm text-slate-900">
+                      {selectedOrderDetails.order.actualWeightKg
+                        ? `${selectedOrderDetails.order.actualWeightKg}kg on the office scale · `
+                        : ''}
+                      price confirmed at{' '}
+                      {formatAmount(
+                        selectedOrderDetails.order.priceAmount,
+                        selectedOrderDetails.order.currency
+                      )}
+                    </p>
+                    {/* Survives the panel switching to this branch, which is
+                        what a successful weigh-in causes. */}
+                    {weighNotice && (
+                      <p className="mt-2 text-sm font-medium text-emerald-700">{weighNotice}</p>
+                    )}
+                  </div>
+                ) : selectedOrderDetails.order.paymentStatus === 'paid' ? (
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Weigh-in</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Already paid for, so it cannot be re-priced. The estimate stands.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleWeigh} className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 space-y-3">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-amber-800">Weigh it in</p>
+                      <p className="mt-1 text-sm text-amber-800/80">
+                        Still the{' '}
+                        {formatAmount(
+                          selectedOrderDetails.order.priceAmount,
+                          selectedOrderDetails.order.currency
+                        )}{' '}
+                        estimate from {selectedOrderDetails.order.packageWeightKg}kg declared. Confirming
+                        the scale weight sends the bill and is what lets the parcel travel.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        id="input_scale_weight"
+                        type="number" step="0.01" min="0.01" max="100" required
+                        value={scaleWeight}
+                        onChange={(e) => setScaleWeight(e.target.value)}
+                        placeholder="Weight from the scale, in kg"
+                        className="flex-1 min-h-11 rounded-xl border border-amber-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                      />
+                      <button
+                        id="btn_confirm_weight"
+                        type="submit"
+                        disabled={submittingWeight}
+                        className="min-h-11 px-5 flex items-center justify-center gap-2 rounded-xl bg-amber-600 text-sm font-semibold text-white hover:bg-amber-500 transition-colors cursor-pointer disabled:opacity-60"
+                      >
+                        {submittingWeight ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                        Confirm
+                      </button>
+                    </div>
+
+                    {/* What it will cost, before committing to it. Priced by the
+                        same function the server charges by, against the same
+                        live rule, so this cannot promise a figure and then
+                        record a different one. */}
+                    {pricing && Number(scaleWeight) > 0 && (() => {
+                      const next = quote(Number(scaleWeight), pricing).total;
+                      const was = selectedOrderDetails.order.priceAmount;
+                      const currency = selectedOrderDetails.order.currency;
+                      const payer =
+                        selectedOrderDetails.order.payer === 'recipient' ? 'the recipient' : 'the sender';
+                      return (
+                        <p className="text-sm font-medium text-amber-900">
+                          {next === was
+                            ? `${formatAmount(was, currency)}, unchanged. The bill goes to ${payer}.`
+                            : `${formatAmount(was, currency)} → ${formatAmount(next, currency)}. The bill goes to ${payer}.`}
+                        </p>
+                      );
+                    })()}
+
+                    {weighNotice && (
+                      <p className="text-sm font-medium text-emerald-700">{weighNotice}</p>
+                    )}
+                  </form>
+                )
+              )}
 
               {/* Who to ring. Both numbers, because either end can go wrong. */}
               <div className="grid gap-3 sm:grid-cols-2">
@@ -2291,15 +2599,138 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 </div>
               </div>
 
-              {/* Who is carrying it. The link they used to work from is gone --
-                  see the note on serializeOrder. */}
+              {/* Who is carrying it, and the way to change that.
+                  The assigner only ever gives work to a FREE rider, which is
+                  right until a bike breaks down halfway — so this picker will
+                  knowingly put a second parcel on a busy rider. The person
+                  clicking can see the road; the automation cannot. */}
               <div className="rounded-2xl border border-slate-200 p-4">
                 <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Courier</p>
                 <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-900">
                   <Truck className="h-4 w-4 text-red-600" />
-                  {selectedOrderDetails.order.riderName || 'Unassigned'}
+                  {riderLegOf(selectedOrderDetails.order).name || 'Unassigned'}
                 </p>
+
+                {canWriteOrders &&
+                  selectedOrderDetails.order.status !== 'dispatched' &&
+                  selectedOrderDetails.order.status !== 'cancelled' && (
+                    <div className="mt-3 space-y-2">
+                      <SelectModal
+                        value={riderLegOf(selectedOrderDetails.order).id ?? ''}
+                        disabled={submittingRider}
+                        onChange={handleReassign}
+                        title="Who is carrying this?"
+                        placeholder="Choose a courier"
+                        subtitle="Riders already carrying something can still be given this one — you can see the road, the assigner cannot."
+                        options={[
+                          {
+                            value: '',
+                            label: 'Nobody — back in the queue',
+                            hint: 'The next free rider picks it up automatically.',
+                          },
+                          ...fleet
+                            .filter((r) => r.active)
+                            .map((r) => ({
+                              value: r.id,
+                              label: r.name,
+                              hint:
+                                r.carrying > 0
+                                  ? `Already carrying ${r.carrying}`
+                                  : 'Free',
+                            })),
+                        ]}
+                        className="w-full min-h-11 rounded-xl border border-slate-200 px-3.5 text-sm font-medium text-slate-700 flex items-center justify-between gap-2 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+
+                      {submittingRider && (
+                        <p className="flex items-center gap-2 text-sm text-slate-500">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Changing the courier…
+                        </p>
+                      )}
+
+                      {riderNotice && (
+                        <p className="text-sm font-medium text-slate-700">{riderNotice}</p>
+                      )}
+                    </div>
+                  )}
               </div>
+
+              {/* ---------- THE BUS ----------
+                  The end of our job. Recorded here rather than from a courier's
+                  phone because the car number is what both ends are texted, and
+                  a wrong one cannot be corrected by another message. */}
+              {canWriteOrders && (
+                // STATUS FIRST, not the car number. A parcel migrated across
+                // from the old door-delivery model is dispatched and has no car
+                // number, because there was never one to record -- keying off
+                // the number offered to dispatch a parcel that had already gone.
+                selectedOrderDetails.order.status === 'dispatched' ? (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-emerald-800">On the bus</p>
+                    {selectedOrderDetails.order.busCarNumber ? (
+                      <>
+                        <p className="mt-1 text-lg font-semibold text-slate-900 tracking-tight">
+                          {selectedOrderDetails.order.busCarNumber}
+                        </p>
+                        <p className="mt-0.5 text-sm text-slate-600">
+                          Both the sender and the recipient were texted this number.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="mt-1 text-sm text-slate-600">
+                        No car number on record — this parcel went out before we started
+                        keeping them.
+                      </p>
+                    )}
+                    {busNotice && (
+                      <p className="mt-2 text-sm font-medium text-emerald-700">{busNotice}</p>
+                    )}
+                  </div>
+                ) : selectedOrderDetails.order.status === 'cancelled' ? null : selectedOrderDetails.order.paymentStatus !== 'paid' ? (
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">The bus</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Not paid for yet. Nothing goes on a bus until it clears — past the
+                      station there is no way to collect.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleDispatch} className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-3">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-emerald-800">Put it on the bus</p>
+                      <p className="mt-1 text-sm text-emerald-800/80">
+                        Both the sender and the recipient are texted this number. Read it back
+                        before you press — it cannot be corrected by another text.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        id="input_bus_number"
+                        type="text" required maxLength={32}
+                        value={busNumber}
+                        onChange={(e) => setBusNumber(e.target.value)}
+                        placeholder="Car number, e.g. GT 4821 24"
+                        className="flex-1 min-h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-semibold uppercase text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                      />
+                      <button
+                        id="btn_confirm_bus"
+                        type="submit"
+                        disabled={submittingBus}
+                        className="min-h-11 px-5 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors cursor-pointer disabled:opacity-60"
+                      >
+                        {submittingBus ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                        Dispatch
+                      </button>
+                    </div>
+
+                    {busNotice && (
+                      <p className="text-sm font-medium text-emerald-700">{busNotice}</p>
+                    )}
+                  </form>
+                )
+              )}
 
               {/* Moves the Advance button does not cover. */}
               {canWriteOrders && nextStatuses(selectedOrderDetails.order.status).filter(

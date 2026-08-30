@@ -7,6 +7,27 @@ work out why a customer says they got no message. The exact text lives in
 `src/server/notifications.ts` — this describes it, and
 `npm run sms:preview` prints it.
 
+For the wording alone, in template form with the placeholders left in, see
+[`sms-templates.md`](sms-templates.md).
+
+---
+
+## The job these messages describe
+
+GO DISPATCH is **not** door-to-door delivery, and the messages only make sense
+against what actually happens:
+
+1. Somebody books a parcel.
+2. A rider is assigned to **collect** it from them.
+3. The rider brings it **to the office**.
+4. It is **weighed**. The price is fixed and the bill goes out.
+5. It is **paid** by MoMo. Nothing moves before this.
+6. A rider runs it to the **station** and hands it to an intercity **bus**.
+7. The **car number** is texted to both ends. **That is the end of our job.**
+
+The recipient collecting from the bus is not something we can see, so there is
+no message about it. A text claiming a parcel was delivered would be a guess.
+
 ---
 
 ## How sending works at all
@@ -28,7 +49,10 @@ giving up. Errors that retrying cannot fix — an unregistered sender ID, a
 number that is not a Ghanaian mobile — fail immediately instead of burning five
 attempts to learn the same thing.
 
-**Sending is off until `SMS_PROVIDER=arkesel` is set in `.env`.**
+**Sending is live.** `SMS_PROVIDER` is set to Arkesel and the **GO DISPATCH**
+sender ID is registered, so messages arrive from the brand name and carry no
+prefix in the body. Clearing `SMS_PROVIDER` in `.env` is the off switch: the
+outbox keeps queuing and nothing goes out.
 
 ---
 
@@ -36,138 +60,153 @@ attempts to learn the same thing.
 
 | # | Message | Goes to | Fires when |
 |---|---------|---------|------------|
-| 1 | Booking confirmed | Sender | A booking is accepted, or a prepaid one is paid for |
-| 2 | Price confirmed | Sender | Weighing the parcel **changed** the price |
-| 3 | Rider assigned | Sender | Automation gives the job to a courier |
-| 4 | Out for delivery | **Recipient** | The parcel moves to *in transit* |
-| 5 | Delivered | Sender | The parcel is marked *delivered* |
+| 1 | Request received, rider coming | Sender | Automation gives the **collection** to a courier |
+| 2 | Booking confirmed | Sender | **Several parcels** booked in one visit |
+| 3 | Payment request | **Whoever pays** | The parcel is weighed at the office |
+| 4 | On the bus → sender | Sender | The car number is recorded |
+| 5 | On the bus → recipient | **Recipient** | The same moment |
 | 6 | Cancelled | Sender | The order is cancelled |
 
-A typical pay-on-delivery parcel therefore produces **four** texts: three to the
-sender (booked, rider coming, delivered) and one to the recipient (arriving
-today). At roughly 1 credit each, 466 credits is about 115 deliveries.
+A single parcel produces **four messages** — three to the sender (rider coming,
+the bill, on the bus) and one to the recipient (car number) — but **five
+credits**, because message 1 is long enough to bill as two. Message 2 only
+appears when somebody sends several parcels at once.
 
 ---
 
-## 1. Booking confirmed → the sender
+## 1. Request received, rider coming → the sender
 
-The receipt. It carries the code everything else is tracked with, so it is the
-one message that must never fail to arrive.
+The receipt **and** the collection notice, in one message. It carries the code
+everything else is tracked with, so it is the one message that must never fail
+to arrive.
 
-**Fires from three places:**
+These used to be two texts. The first went out at booking and said "we have your
+parcel" — which was not true, the parcel was still in the customer's hands — and
+it carried the same tracking code the second one carried less than an hour
+later. They were merged into the one moment where there is something to say.
 
-| Path | What happens |
-|------|--------------|
-| `POST /api/orders/book` with pay-on-delivery | The order is created already `confirmed`, and this sends immediately. |
-| `POST /api/orders/book` with prepaid | **Nothing sends yet.** The order waits in `awaiting_payment`. When the payment lands — an admin recording it with `POST /api/orders/:id/pay`, or the automation pass seeing it — the order is auto-confirmed and *this* is what sends. |
-| `POST /api/bookings` (several parcels at once) | **One message for the whole visit**, carrying the booking reference rather than one text per tracking code. |
+**Fires when** the automation pass assigns a courier to the **collection** — the
+parcel is `confirmed`, its collection window is within the hour, and a rider is
+free.
 
-It also fires if an admin moves an order into `confirmed` by hand from the
-dispatch board.
-
-> **Dear Henry**  
-> **We have your parcel. Payment is due on delivery. Use GD-4821-330 to track it here: godispatchgh.com/t/GD-4821-330**
-
-Paid up front:
-
-> **Dear Henry**  
-> **Payment received and we have your parcel. Use GD-4821-330 to track it here: godispatchgh.com/t/GD-4821-330**
-
-Prepaid, payment not in yet — sent only if an admin confirms such an order by
-hand, which is a decision to collect before being paid:
-
-> **Dear Henry**  
-> **We have your parcel and collect once your payment lands. Use GD-4821-330 to track it here: godispatchgh.com/t/GD-4821-330**
-
-Several parcels in one booking:
-
-> **We have your 3 parcels. Prices confirm when we weigh each one. Use GDB-4821-330 to track them here: godispatchgh.com/t/GDB-4821-330**
+> **Dear Henry**
+> **We have received your delivery request and your order has been assigned to Kwesi. He will call you from 0244123456**
 >
-> *No greeting: with the brand prefix still on, this is one of two variants where the greeting is what would cost a second segment.*
+> **Use GD-4821-330 to track your parcel here godispatchgh.com/t/GD-4821-330**
+
+No number on file for the rider:
+
+> **Dear Henry**
+> **We have received your delivery request and your order has been assigned to Kwesi. He will call you when he arrives**
+>
+> **Use GD-4821-330 to track your parcel here godispatchgh.com/t/GD-4821-330**
+
+**What the merge costs.** A parcel booked for tomorrow is now silent until about
+an hour before collection, and a parcel the fleet is too busy to assign is
+silent until somebody frees up. The booking screen shows the tracking code, so
+nobody is left without it — but if that silence ever produces phone calls, this
+is the reason.
+
+**This message is two credits, not one.** At 199 characters — 207 with a long
+customer name and a long rider name — it is over the 160-character limit for a
+single SMS, so every parcel is billed twice for it.
+That is a decision about wording rather than an oversight: it greets the
+customer, confirms the request, names the rider, gives his number, and still
+hands over the code and the link. Every other message in this document is one
+credit.
+
+If it ever needs to come back under 160, the tracking link is where the room is
+— 30 characters on a message that already carries the code. Note that the move
+to godispatchgh.com already took eight characters off it and did not close the
+gap: this message is 39 over, not 8 over, so shortening the address was never
+going to be what fixed it. The wording is.
+
+The **station run** deliberately sends nothing. Nobody needs a text saying a
+parcel crossed the office yard, and the car number is what actually matters.
 
 ---
 
-## 2. Price confirmed → the sender
+## 2. Booking confirmed → the sender (several parcels only)
 
-The terms page promises that if a parcel weighs more than declared we will get
-in touch *before* dispatching it, rather than charging the difference quietly.
-This message is that promise.
+One text for a whole visit, carrying the reference that finds every parcel in
+it, rather than one text per tracking code all in the same second.
 
-**Fires when:** staff record the scale weight —
-`PATCH /api/bookings/parcels/:id/weight` — **and the new price differs from the
-estimate**. If the price is unchanged, nothing sends: "your price is the same"
-is a text nobody needs and everybody pays for.
+**Fires when** a booking of **more than one** parcel is accepted. A single
+parcel gets nothing here — message 1 covers it.
 
-> **Dear Henry**  
-> **GD-4821-330 weighed 4.2kg, so the price is GHS 60.00, not GHS 50.00. Track it here: godispatchgh.com/t/GD-4821-330**
+> **Dear Henry**
+> **We have your 3 parcels. Prices confirm when we weigh each one. Use GDB-4821-330 to track them here: godispatchgh.com/t/GDB-4821-330**
 
 ---
 
-## 3. Rider assigned → the sender
+## 3. Payment request → whoever is paying
 
-So that an unknown number calling at the gate is expected, and so the sender has
-somebody to ring if the rider is late.
+The bill, and the only message that asks for anything. It goes to the person the
+`payer` column names, which may be the **recipient** — somebody who never dealt
+with us — so that variant says who the parcel is from.
 
-**Fires when:** the automation pass assigns a courier — the parcel is
-`confirmed`, its collection window is within the hour, and a rider is free.
-Riders are freed as soon as they finish, so this can happen at any tick.
+**Fires when** staff record the scale weight —
+`PATCH /api/bookings/parcels/:id/weight`. **Every time**, not only when the price
+changed: this is the invoice, and a parcel that is weighed and never billed sits
+on a shelf while everyone waits for the other to move.
 
-Not sent when an admin queues an order by hand, because only the automation pass
-knows which rider took it.
+No tracking link on this one. The action is a MoMo transfer, and 30 characters
+of URL would buy nothing the number and the code do not already give.
 
-> **Dear Henry**  
-> **Kwesi is coming to collect GD-4821-330. He will call from 0244123456. Track it here: godispatchgh.com/t/GD-4821-330**
+Which makes this the tightest single-segment message in the set now — the
+recipient-pays variant runs to 141 characters with a long name and a
+three-figure amount, 19 short of a second credit. It is the one message the
+shorter domain could not help, because it never carried the link.
 
-Without a number on file for the rider:
+Weighing changed the price:
 
-> **Dear Henry**  
-> **Kwesi is coming to collect GD-4821-330 and will call when he arrives. Track it here: godispatchgh.com/t/GD-4821-330**
+> **Dear Henry**
+> **GD-4821-330 weighed 4.2kg, so the price is GHS 60.00, not GHS 50.00. Pay by MoMo to 054 030 4994 and it goes on the bus.**
 
----
+The estimate was right:
 
-## 4. Out for delivery → **the recipient**
+> **Dear Henry**
+> **GD-4821-330 weighed 4.2kg. Pay GHS 60.00 by MoMo to 054 030 4994 and it goes on the bus.**
 
-The only message that goes to somebody who never dealt with us, so it names the
-sender and identifies us. It is also the only one that tells anybody to have
-money ready.
+The recipient is paying:
 
-**Fires when:** the parcel moves to `in_transit`, from either
-`PATCH /api/orders/:id/status` (an admin advancing it) or
-`POST /api/rider/:token/status` (the courier's own link).
-
-The sender does **not** get this one. They care that it arrived, which is
-message 5.
-
-Recipient is paying at the door:
-
-> **Dear Ama**  
-> **Henry has sent you a parcel, arriving today. Have GHS 60.00 ready for the rider. Track it here: godispatchgh.com/t/GD-4821-330**
-
-Already paid for:
-
-> **Dear Ama**  
-> **Henry has sent you a parcel, arriving today. The rider will call you. Track it here: godispatchgh.com/t/GD-4821-330**
+> **Dear Ama**
+> **Henry has sent you a parcel, GD-4821-330. It weighed 4.2kg. Pay GHS 60.00 by MoMo to 054 030 4994 and it goes on the bus.**
 
 ---
 
-## 5. Delivered → the sender
+## 4 and 5. On the bus → **both ends**
 
-The outcome they paid for, and confirmation of any cash taken at the door.
+The car number, and the reason this is the one event that texts two people. Once
+the parcel is on a bus that number is the only handle either of them has on it.
 
-**Fires when:** the parcel moves to `delivered`, from either the dispatch board
-or the courier's link.
+**Fires when** an admin records the bus — `POST /api/orders/:id/dispatch`. Both
+messages are queued in the same transaction as the status change, because a
+dispatch recorded without them going out is a parcel nobody can find.
 
-Not sent to the recipient — they are standing in front of the rider.
+**Refused unless the parcel is paid for.** Past the station there is nothing we
+can do to collect and nobody of ours at the far end to do it.
 
-Cash collected on delivery:
+To the sender — named by where it is *going*:
 
-> **Dear Henry**  
-> **GD-4821-330 was delivered to Ama and GHS 60.00 was collected. Thank you.**
+> **Dear Henry**
+> **Your parcel to Ama is on GT 4821 24**
+>
+> **Use GD-4821-330 to track here godispatchgh.com/t/GD-4821-330**
 
-Prepaid:
+To the recipient — named by where it is *from*, because otherwise this is a text
+from a company they have never heard of:
 
-> **Dear Henry**  
-> **GD-4821-330 was delivered to Ama. Thank you for choosing us.**
+> **Dear Ama**
+> **Your parcel from Henry is on GT 4821 24**
+>
+> **Use GD-4821-330 to track here godispatchgh.com/t/GD-4821-330**
+
+**Two events for one message.** The `(orderId, event)` unique constraint — the
+thing that stops the automation texting twice — means one event can only ever
+reach one person. So these are `dispatched_sender` and `dispatched_recipient`,
+two differently-worded messages, rather than one event bent to serve two
+audiences.
 
 ---
 
@@ -176,17 +215,15 @@ Prepaid:
 Silence here was the worst gap in the system: a parcel that is simply never
 collected, and nobody told.
 
-**Fires when:** an order moves to `cancelled`. Only staff can cancel — a
-courier's link cannot.
+**Fires when** an order moves to `cancelled`. Only staff can cancel, except by
+the sender from the tracking page before a courier has been sent.
 
-Nothing had been paid:
-
-> **Dear Henry**  
+> **Dear Henry**
 > **GD-4821-330 has been cancelled and you have not been charged. Call 054 030 4994 if this is a mistake.**
 
 Already paid for:
 
-> **Dear Henry**  
+> **Dear Henry**
 > **GD-4821-330 has been cancelled. We will call you about your refund. Call 054 030 4994.**
 
 ---
@@ -195,12 +232,17 @@ Already paid for:
 
 | Not sent | Why |
 |----------|-----|
-| A separate "payment received" | The same automation pass sees the payment and confirms the booking, so this arrived in the same second as the confirmation, saying half of one sentence, and was billed twice. Message 1 now mentions the payment when there was one. |
-| "Delivered" to the recipient | They are standing in front of the rider. |
-| "Out for delivery" to the sender | They want to know it arrived, not that it left. |
+| A separate booking confirmation for one parcel | It said "we have your parcel" when the parcel was still with the customer, and repeated a tracking code the collection notice carried an hour later. Folded into message 1. |
+| Anything after the bus | Our job ends at the station. We cannot see the far end, so we cannot honestly say a parcel was collected — and a message that guesses is worse than no message. |
+| A "payment received" receipt | The dispatch message follows it and is itself the proof the money landed. |
+| A text when the station run is assigned | Nobody needs to know a parcel crossed the office yard. |
 | One confirmation per parcel in a multi-parcel booking | Four parcels used to mean four texts in the same second with four different codes. Now one, with the reference. |
-| Cash-collected receipts from the rider's link | Message 5 already reports what was collected. |
 | A "reply STOP" footer | These are transactional messages about a parcel somebody actually sent, not marketing. The footer would cost ~25 characters on every message forever. |
+
+**Retired with the door-delivery model**: `price_confirmed` (became the bill),
+`out_for_delivery` and `delivered` (nobody is bringing it to a door), and
+`payment_received`. They still render, because rows written under that model
+record what customers were actually told and must read back as they were sent.
 
 ---
 
@@ -210,7 +252,7 @@ Already paid for:
 
 ```
 Dear {name}
-{what happened}. {what it costs you}. Use {code} to track it here: {link}
+{what happened}. {what it costs you, or what to do about it}
 ```
 
 A newline is in the GSM-7 basic set and costs one character — cheaper than the
@@ -223,17 +265,18 @@ try again. The tracking code is still spelled out even though the link ends in
 it: the link is for tapping, the code is for reading back down the phone, and
 those are two different acts by two different people.
 
-**Delivered and cancelled end on the phone number, not a link.** Both are the end
-of the parcel's story — there is nothing left to watch, and on a cancellation a
-number to call is worth more than a page to look at.
+**The bill and the endings carry a phone number, not a link.** On a payment
+request the next act is a MoMo transfer; on a cancellation a number to call is
+worth more than a page to look at.
 
 **One billed segment.** An SMS is 160 characters only while every character is
 in the GSM-7 alphabet. A single curly apostrophe pasted from a document drops
 the limit to 70 and can turn one message into three. So text is sanitised into
 GSM-7 before it is queued — quotes straightened, dashes flattened, out-of-
 alphabet accents folded — and segments are measured, not assumed.
-`npm run sms:preview` prints every variant with its cost and flags any with
-under 20 characters of headroom.
+`npm run sms:preview` prints every variant with its cost, flags any with under
+20 characters of headroom, and warns when one runs to two segments — which
+message 1 deliberately does.
 
 **Nobody is texted twice.** The `(orderId, event)` unique constraint means a
 second attempt to queue the same event for the same order is discarded. This is
@@ -241,25 +284,21 @@ what makes it safe for the automation pass, which re-reads the same orders every
 60 seconds.
 
 **Undo takes the message back.** Undoing a status change deletes its queued
-message if it has not gone yet, so nobody is told about a delivery that was
+message if it has not gone yet, so nobody is told about something that was
 reversed two seconds later. Once a message has been *sent* it stays on the
 record — the honest repair for that is the next message, not a quiet delete.
 
 **Names are addressed, but never at double the price.** Every message opens on a
-line of its own — "Dear Henry" — using the sender's name, or the recipient's on
-message 4. If the greeting is what tips a message into a second segment, the
-greeting is dropped rather than the cost doubled.
-
-At full length that happens to exactly two variants: a booking of several
-parcels, and an arriving-today to a long name owing a three-figure amount. Both
-only overflow *while the `GO DISPATCH: ` prefix is still being added* — which
-means the message dropping its greeting is also the message that still names us
-in the body. Register the sender ID and neither case can arise.
+line of its own — "Dear Henry" — using the name of whoever the message is for.
+If the greeting is what tips a message into a second segment, the greeting is
+dropped rather than the cost doubled.
 
 **Bad numbers are refused, not queued.** Phone numbers are normalised to
 Ghanaian E.164 (`0554431300` → `233554431300`) when the row is written. A number
 that cannot be one — a landline, a foreign number, a typo — gets no row at all,
-and a warning in the log.
+and a warning in the log. The dispatch endpoint reports which of the two
+messages actually queued, so the office learns about an unusable number while
+the parcel is still in front of them.
 
 ---
 
@@ -272,19 +311,11 @@ npm run sms:outbox -- --send # actually send the queue
 ```
 
 **Provider:** Arkesel. The API key is in `.env` as `SMS_API_KEY`; the balance is
-visible in `npm run sms:outbox` once sending is on.
+visible in `npm run sms:outbox`.
 
-**Before switching on:**
-
-1. Clear the stale queue. Confirmations from test bookings are still pending
-   against real numbers and would all send the moment the worker starts.
-   `npm run sms:outbox` lists them.
-2. Register the sender ID **GO DISPATCH** with Arkesel — 11 characters, which is
-   the GSM maximum. Until it is approved, messages arrive from a shortcode and
-   every template carries a 13-character `GO DISPATCH: ` prefix to say who it is
-   from. Once approved, set `SMS_SENDER_ID_REGISTERED = true` in `src/brand.ts`
-   and every message gets those characters back.
-3. Set `SMS_PROVIDER=arkesel` in `.env`. That is the switch.
+**The MoMo number in the payment request is `CONTACT_PHONE`** from
+`src/brand.ts` — the same number printed on the flyer. If money should go to a
+different merchant or till number, that is the one line to change.
 
 ## Where the code is
 
@@ -294,7 +325,7 @@ visible in `npm run sms:outbox` once sending is on.
 | `src/server/sms.ts` | GSM-7 sanitising, segment counting, Ghanaian number normalising |
 | `src/server/smsProvider.ts` | The only file that talks to Arkesel |
 | `src/server/outbox.ts` | The worker: batching, retries, giving up |
-| `src/server/automations.ts` | Triggers messages 1 and 3 |
-| `src/server/routes/orders.ts` | Triggers messages 1, 4, 5 and 6 by status change |
-| `src/server/routes/bookings.ts` | Triggers message 1 for a whole booking, and message 2 at weigh-in |
-| `src/server/routes/rider.ts` | Triggers messages 4 and 5 from the courier's link |
+| `src/server/automations.ts` | Triggers message 1 |
+| `src/server/routes/orders.ts` | Triggers messages 4, 5 and 6 |
+| `src/server/routes/bookings.ts` | Triggers message 2 for a multi-parcel booking, and message 3 at weigh-in |
+| `src/server/routes/rider.ts` | The courier's collection leg. Sends nothing itself |

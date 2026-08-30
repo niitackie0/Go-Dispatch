@@ -60,7 +60,7 @@ export const PUBLIC_ORIGIN = 'https://godispatchgh.com';
  * What they actually buy is headroom, not a visible change. No variant drops
  * its greeting today — renderMessage only does that when one would otherwise
  * cost a second segment, and none does. The saving shows up in the tightest
- * templates, which run 15 to 18 characters short of a second credit: it is
+ * templates, which run 17 to 19 characters short of a second credit: it is
  * eight more characters of customer name they can absorb before somebody is
  * billed twice. Run `npm run sms:preview` after touching any template.
  *

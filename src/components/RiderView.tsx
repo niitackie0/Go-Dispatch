@@ -19,21 +19,33 @@ import {
 import { RiderJob, OrderStatus } from '../types.js';
 import { formatPhone } from '../phone.js';
 
+/**
+ * THE COLLECTION LEG, and nothing else.
+ *
+ * A courier's whole job on this screen is: take the parcel from the sender,
+ * bring it to the office. What happens after -- weighing, the bill, the run to
+ * the station, the bus -- is office work, and the last of those needs a car
+ * number typed where somebody can read it back.
+ */
 const NEXT_ACTION: Partial<Record<OrderStatus, { label: string; hint: string }>> = {
-  queued: { label: 'Mark picked up', hint: 'Confirm once the parcel is in your hands.' },
-  picked_up: { label: 'Start transit', hint: 'Confirm once you are on the road.' },
-  in_transit: { label: 'Mark delivered', hint: 'Confirm once the recipient has the parcel.' },
+  queued: { label: 'Mark collected', hint: 'Confirm once the parcel is in your hands.' },
+  picked_up: { label: 'Dropped at the office', hint: 'Confirm once you have handed it over.' },
 };
 
 const STATUS_LABEL: Record<string, string> = {
   requested: 'Requested',
-  awaiting_payment: 'Awaiting payment',
   confirmed: 'Confirmed',
-  queued: 'Ready for pickup',
-  picked_up: 'Picked up',
+  queued: 'Ready for collection',
+  picked_up: 'Collected',
+  at_office: 'At the office',
+  paid: 'Paid',
+  to_station: 'Going to the station',
+  dispatched: 'On the bus',
+  cancelled: 'Cancelled',
+  // Retired with the door-delivery model; an old link can still land on one.
+  awaiting_payment: 'Awaiting payment',
   in_transit: 'In transit',
   delivered: 'Delivered',
-  cancelled: 'Cancelled',
 };
 
 export default function RiderView({ token }: { token: string }) {
@@ -41,7 +53,6 @@ export default function RiderView({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [working, setWorking] = useState(false);
-  const [collecting, setCollecting] = useState(false);
 
   const loadJob = async () => {
     try {
@@ -78,20 +89,6 @@ export default function RiderView({ token }: { token: string }) {
     }
   };
 
-  const collect = async () => {
-    setCollecting(true);
-    try {
-      const res = await fetch(`/api/rider/${encodeURIComponent(token)}/collect`, { method: 'POST' });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Could not record the payment.');
-      await loadJob();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setCollecting(false);
-    }
-  };
-
   // ---------- loading / invalid link ----------
   if (loading) {
     return (
@@ -117,21 +114,10 @@ export default function RiderView({ token }: { token: string }) {
   if (!job) return null;
 
   const action = NEXT_ACTION[job.status];
-  const isDone = job.status === 'delivered';
+  // Done, from this screen's point of view: the parcel is at the office and the
+  // courier's part in it is over. What follows is not theirs to drive.
+  const isDone = !action && job.status !== 'cancelled';
   const isCancelled = job.status === 'cancelled';
-
-  /**
-   * Whether the money changes hands right now.
-   *
-   * A sender who is paying settles at handover; a recipient who is paying
-   * settles at their door. Shown at any other moment, "Payment collected"
-   * invites a courier to record money nobody has given them, and the ledger
-   * believes it.
-   */
-  const collectNow =
-    job.cashToCollect &&
-    ((job.payer === 'sender' && job.status === 'queued') ||
-      (job.payer !== 'sender' && job.status === 'in_transit'));
 
   return (
     <div className="min-h-dvh bg-[var(--wp-bg)] text-slate-900 font-sans pb-32">
@@ -151,44 +137,16 @@ export default function RiderView({ token }: { token: string }) {
       </header>
 
       <main className="px-4 -mt-4 space-y-3">
-        {/* Cash to collect */}
-        {collectNow && (
-          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 flex items-start gap-3">
-            <Banknote className="h-5 w-5 shrink-0 text-amber-600" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-amber-900">
-                Collect {job.currency} {(job.priceAmount / 100).toFixed(2)}
-              </p>
-              <p className="mt-0.5 text-sm text-amber-800">
-                Payable by the {job.payer === 'recipient' ? 'recipient at dropoff' : 'sender'}.
-              </p>
-              <button
-                onClick={collect}
-                disabled={collecting}
-                className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-amber-600 px-4 text-sm font-medium text-white disabled:opacity-50"
-              >
-                {collecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                Payment collected
-              </button>
-            </div>
-          </div>
-        )}
-
-        {job.cashToCollect && !collectNow && (
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 flex items-center gap-2">
-            <Banknote className="h-4 w-4 shrink-0 text-slate-500" />
-            <span className="text-sm text-slate-700">
-              {job.currency} {(job.priceAmount / 100).toFixed(2)} to collect from the{' '}
-              {job.payer === 'sender' ? 'sender' : 'recipient'}
-              {job.payer === 'sender' ? '' : ' at the door'}.
-            </span>
-          </div>
-        )}
+        {/* NO CASH ON THIS SCREEN.
+            A courier used to be able to record money taken at a door. Nobody
+            pays at a door: the parcel is weighed at the office, billed by SMS
+            and settled by MoMo before it goes anywhere. A button here would
+            only be a way to mark a parcel paid that nobody had paid for. */}
 
         {job.paymentStatus === 'paid' && (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            <span className="text-sm font-medium text-emerald-800">Already paid — collect nothing.</span>
+            <span className="text-sm font-medium text-emerald-800">Paid for.</span>
           </div>
         )}
 

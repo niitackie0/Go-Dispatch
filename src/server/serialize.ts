@@ -36,7 +36,33 @@ import type { Order, Payment, Rider, StatusHistory } from '../types.js';
  * link to the rider rather than to put it back on a screen.
  */
 
-export type OrderWithRider = OrderRow & { rider?: RiderRow | null };
+/**
+ * An order with whichever rider rows were joined.
+ *
+ * TWO LEGS, so two possible joins: the collection (sender -> office) and the
+ * station run (office -> bus). Both are optional because most queries want
+ * neither, and a parcel has only one of them for most of its life.
+ */
+export type OrderWithRider = OrderRow & {
+  collectionRider?: RiderRow | null;
+  stationRider?: RiderRow | null;
+};
+
+/**
+ * The Prisma `include` that fills both legs.
+ *
+ * One constant rather than a literal at every call site: a query that forgets
+ * one of them does not fail, it silently reports the parcel as unassigned.
+ */
+export const ORDER_RIDERS = { collectionRider: true, stationRider: true } as const;
+
+/** The rider who holds the parcel right now, if anyone does. */
+export function currentRider(row: OrderWithRider): RiderRow | null {
+  if (row.status === 'to_station' || row.status === 'dispatched') {
+    return row.stationRider ?? null;
+  }
+  return row.collectionRider ?? null;
+}
 
 export function serializeOrder(row: OrderWithRider): Order {
   return {
@@ -64,8 +90,11 @@ export function serializeOrder(row: OrderWithRider): Order {
     paymentStatus: row.paymentStatus,
     payer: row.payer,
     paymentTiming: row.paymentTiming,
-    riderId: row.riderId ?? undefined,
-    riderName: row.rider?.name ?? undefined,
+    collectionRiderId: row.collectionRiderId ?? undefined,
+    collectionRiderName: row.collectionRider?.name ?? undefined,
+    stationRiderId: row.stationRiderId ?? undefined,
+    stationRiderName: row.stationRider?.name ?? undefined,
+    busCarNumber: row.busCarNumber ?? undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -105,6 +134,7 @@ export function serializeRider(row: RiderRow): Rider {
     id: row.id,
     name: row.name,
     phone: row.phone,
+    active: row.active,
     available: row.available,
     createdAt: row.createdAt.toISOString(),
   };

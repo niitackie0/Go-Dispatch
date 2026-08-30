@@ -67,7 +67,8 @@ const blankParcel = (key: number, region = ''): ParcelDraft => ({
  *
  *  - Every price here is an ESTIMATE. Parcels are weighed at the office and
  *    the weighed figure is what is charged.
- *  - The RECIPIENT pays, per parcel, at their door. There is no payment step
+ *  - The bill is settled after weighing at the office, by whoever the parcel
+ *    names as payer, and nothing goes on a bus until it is. There is no payment step
  *    because the sender is not being asked for money.
  */
 /**
@@ -169,7 +170,7 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
         const p = parcels[i];
         const at = `Parcel ${i + 1}: `;
         if (!p.destinationRegion) return `${at}choose the region it is going to`;
-        if (!p.dropoffAddress.trim()) return `${at}delivery address is required`;
+        if (!p.dropoffAddress.trim()) return `${at}recipient's address is required`;
         if (!p.recipientName.trim()) return `${at}recipient's name is required`;
         if (!p.recipientPhone.trim()) return `${at}recipient's phone number is required`;
         if (!(Number(p.packageWeightKg) > 0)) return `${at}give us a rough weight`;
@@ -272,14 +273,15 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           </h2>
           <p className="mt-2 text-slate-600">
             A rider will come to your address and collect. We weigh each parcel back at
-            the office, and each recipient pays for theirs when it arrives.
+            the office and text you the bill — once it is settled the parcel goes on an
+            intercity bus, and whoever is receiving it collects it at the station.
           </p>
 
           {/* One parcel needs one code, and it is the tracking code. Leading
               with a booking reference here handed people two numbers where one
               would do, and only one of them is the one they will be asked for.
               Several parcels genuinely travel apart — different riders,
-              different days, different doors — so each keeps its own code and
+              different days, different buses — so each keeps its own code and
               the reference is the thing that holds the set together. Either
               one works in the tracking box. */}
           <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 flex items-start justify-between gap-3">
@@ -438,7 +440,10 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
                 <RegionPicker value={p.destinationRegion} onChange={(v) => patch(p.key, 'destinationRegion', v)} />
               </div>
               <div>
-                <label className={label}>Delivery address *</label>
+                {/* Not "Delivery address": nobody delivers to it. It is on
+                    record so the office knows which town the parcel is bound
+                    for, and so the recipient can be told where to collect. */}
+                <label className={label}>Recipient&rsquo;s address in the region *</label>
                 <textarea rows={2} className={`${field} resize-none`} value={p.dropoffAddress} onChange={(e) => patch(p.key, 'dropoffAddress', e.target.value)} placeholder="e.g. Lamashegu, near the Total station" />
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
@@ -474,8 +479,8 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           </button>
 
           <p className="text-base text-slate-500">
-            Each parcel gets its own tracking code and can go to a different region. The
-            recipient pays for theirs when it arrives.
+            Each parcel gets its own tracking code and can go to a different region. Each
+            one is weighed and billed on its own, and each is paid for before it travels.
           </p>
         </div>
 
@@ -527,8 +532,14 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
               price is the one charged.
             </p>
             <p className="text-base text-amber-900">
-              <strong className="font-semibold">The recipient pays.</strong> Each parcel is
-              settled by the person receiving it, when it arrives.
+              <strong className="font-semibold">The recipient pays, before it travels.</strong>{' '}
+              We text them the bill once the parcel has been weighed. It goes on the bus once
+              that is settled — nothing travels unpaid.
+            </p>
+            <p className="text-base text-amber-900">
+              <strong className="font-semibold">They collect it at the station.</strong> An
+              intercity bus carries it and we text you both the registration, and it is
+              usually there within 24 to 48 hours.
             </p>
           </div>
         </div>

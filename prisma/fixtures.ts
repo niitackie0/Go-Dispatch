@@ -5,6 +5,7 @@ import type { OrderStatus, PackageSize, PaymentStatus, PaymentTiming } from '../
 import { randomToken } from '../src/server/ids.js';
 import { quote, sizeForWeight } from '../src/pricing.js';
 import { CONTACT_PHONE } from '../src/brand.js';
+import { toE164 } from '../src/phone.js';
 
 /**
  * Every phone number in this file, and it is deliberately the office's own.
@@ -133,7 +134,7 @@ const FIXTURES: Fixture[] = [
     packageWeightKg: 5,
     packageDescription: 'Legal documents and a laptop',
     scheduledPickupAt: at(-6 * hour),
-    status: 'in_transit',
+    status: 'to_station',
     paymentStatus: 'paid',
     payer: 'sender',
     paymentTiming: 'prepaid',
@@ -141,11 +142,12 @@ const FIXTURES: Fixture[] = [
     riderIndex: 0,
     timeline: [
       { status: 'requested', note: 'Booked online', atMs: -1 * day },
-      { status: 'awaiting_payment', note: 'Weighed at 5kg — price GHS 50.00 to 70.00', byAdmin: true, atMs: -1 * day + hour },
-      { status: 'confirmed', note: 'Mobile money received', byAdmin: true, atMs: -1 * day + 2 * hour },
-      { status: 'queued', note: 'Assigned to courier', atMs: -8 * hour },
+      { status: 'confirmed', note: 'Accepted', byAdmin: true, atMs: -1 * day + hour },
+      { status: 'queued', note: 'Auto-queued — courier collecting', atMs: -8 * hour },
       { status: 'picked_up', note: 'Collected from Osu', atMs: -6 * hour },
-      { status: 'in_transit', note: 'On the road to Ho', atMs: -4 * hour },
+      { status: 'at_office', note: 'Weighed at 5kg — price GHS 50.00 to 70.00', byAdmin: true, atMs: -5 * hour },
+      { status: 'paid', note: 'Payment received — ready for the station', atMs: -4 * hour },
+      { status: 'to_station', note: 'Auto-queued — running it to the station', atMs: -4 * hour },
     ],
     payment: {
       provider: 'momo',
@@ -171,26 +173,45 @@ const FIXTURES: Fixture[] = [
     packageWeightKg: 8,
     packageDescription: 'Fabric samples, one roll',
     scheduledPickupAt: at(1 * day + 13 * hour),
-    status: 'awaiting_payment',
+    status: 'at_office',
     paymentStatus: 'pending',
     payer: 'sender',
     paymentTiming: 'prepaid',
     createdAt: at(-3 * hour),
     timeline: [
       { status: 'requested', note: 'Booked online', atMs: -3 * hour },
-      { status: 'awaiting_payment', note: 'Weighed at 8kg — price GHS 50.00 to 100.00', byAdmin: true, atMs: -2 * hour },
+      { status: 'confirmed', note: 'Accepted', byAdmin: true, atMs: -3 * hour },
+      { status: 'queued', note: 'Auto-queued — courier collecting', atMs: -3 * hour },
+      { status: 'picked_up', note: 'Collected from Adabraka', atMs: -2 * hour },
+      { status: 'at_office', note: 'Weighed at 8kg — price GHS 50.00 to 100.00', byAdmin: true, atMs: -2 * hour },
     ],
   },
 ];
 
 async function main() {
-  const riders = await prisma.rider.findMany({ orderBy: { createdAt: 'asc' } });
   const admin = await prisma.adminUser.findFirst({ orderBy: { createdAt: 'asc' } });
 
-  if (riders.length === 0 || !admin) {
-    console.error('Run `npm run db:seed` first — fixtures need riders and an admin.');
+  if (!admin) {
+    console.error('Run npm run db:seed first. Fixtures need an admin account.');
     process.exit(1);
   }
+
+  // ONE DEMO COURIER, and this script owns him.
+  //
+  // The seed no longer creates riders -- a real fleet is typed in by an owner,
+  // and invented couriers on a live board are somebody nobody can ring. But a
+  // fixture order that is out on the road needs somebody carrying it, so the
+  // demo rider is made here, where the demo data lives, and carries the office
+  // number for the same reason every other number in this file does.
+  // Stored E.164, the same shape POST /api/riders normalises to -- otherwise
+  // the demo rider is the one row on the fleet in a different format.
+  const demoRiderPhone = toE164(DEMO_PHONE) ?? DEMO_PHONE;
+  const demoRider = await prisma.rider.upsert({
+    where: { phone: demoRiderPhone },
+    update: {},
+    create: { name: 'Demo Courier', phone: demoRiderPhone },
+  });
+  const riders = [demoRider];
 
   // Priced by the same function the booking form quotes from and the server
   // charges by, against the rule actually in the database. A fixture with a
@@ -249,7 +270,8 @@ async function main() {
           createdAt: fixture.createdAt,
           ...(rider
             ? {
-                riderId: rider.id,
+                collectionRiderId: rider.id,
+                stationRiderId: rider.id,
                 riderToken: randomToken(),
                 riderTokenExpiresAt: at(7 * day),
               }

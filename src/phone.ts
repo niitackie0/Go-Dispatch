@@ -86,6 +86,21 @@ export function formatPhone(stored: string | null | undefined): string {
 }
 
 /**
+ * The same number with no spaces: `0244815203`.
+ *
+ * For SMS, where every character is billed. The spaced form reads better on a
+ * screen and costs two more characters in a message that is already carrying a
+ * tracking code and a URL -- and a Ghanaian reads the run-together form
+ * perfectly well, because it is how a number is stored in a phone.
+ */
+export function localPhone(stored: string | null | undefined): string {
+  if (!stored) return '';
+  const digits = toMsisdn(stored);
+  if (!digits) return String(stored);
+  return `0${digits.slice(3)}`;
+}
+
+/**
  * What to write to the database for a number somebody typed.
  *
  * Canonical when it can be, trimmed as typed when it cannot. Never empty when

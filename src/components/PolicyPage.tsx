@@ -152,12 +152,18 @@ export default function PolicyPage() {
               id="service"
               n={1}
               title="What we do"
-              gist={`We collect anywhere in Accra and deliver to ${REGIONS.length} regions.`}
+              gist={`We collect anywhere in Accra and send parcels by bus to ${REGIONS.length} regions.`}
             >
               <p>
                 GO DISPATCH is a parcel courier based at {OFFICE_ADDRESS} ({OFFICE_LANDMARK}).
-                We collect parcels anywhere in Accra and deliver them to{' '}
+                We collect parcels anywhere in Accra and send them by intercity bus to{' '}
                 {REGIONS.length} regions across Ghana: {REGIONS.map((r) => r.name).join(', ')}.
+              </p>
+              <p>
+                We are <strong>not a door-to-door service</strong>. A rider collects your
+                parcel and brings it to our office, where it is weighed and the bill is
+                settled. It then travels by intercity bus, and the person receiving it
+                collects it from the bus station. We tell both of you which bus it is on.
               </p>
               <p>
                 Booking a delivery on this site is a request. It becomes a contract when we
@@ -201,7 +207,7 @@ export default function PolicyPage() {
               id="collection"
               n={3}
               title="Collection and delivery"
-              gist="A rider comes to your address. You pick the day and time."
+              gist="A rider collects from your address. The recipient collects from the station."
             >
               <p>
                 You choose a collection day and time when booking, and a rider comes to your
@@ -210,16 +216,22 @@ export default function PolicyPage() {
                 address in Accra; we do not currently collect from the destination regions.
               </p>
               <p>
-                Delivery times depend on the route and are{' '}
-                <ToConfirm>not guaranteed — confirm the target window per region</ToConfirm>.
-                You can follow every status change with your tracking code, and the recipient
-                is contacted on the number you provide.
+                The parcel is weighed at our office and the bill is settled before it
+                travels. Nothing goes on a bus until it is paid for.
               </p>
               <p>
-                If nobody is available to receive a parcel, we will hold it and try again. We
-                hold unclaimed parcels for{' '}
-                <ToConfirm>a period still to be set</ToConfirm>, after which we will contact
-                you about return or disposal.
+                We then hand the parcel to an intercity bus and text the registration to you
+                and to the person receiving it. <strong>They collect it at the bus station
+                in the destination town</strong> — we do not bring it to an address. Travel
+                times depend on the route and are{' '}
+                <ToConfirm>not guaranteed — confirm the target window per region</ToConfirm>.
+                You can follow every status change with your tracking code.
+              </p>
+              <p>
+                Our responsibility ends when the parcel is handed to the bus operator. What
+                happens to an uncollected parcel at the far end is a matter for the bus
+                operator's own procedure at that station, and we cannot hold or return it
+                on your behalf.
               </p>
             </Clause>
 
@@ -253,12 +265,13 @@ export default function PolicyPage() {
             >
               <p>
                 We take care of what we carry, and every parcel's status is recorded from
-                collection to delivery. If something goes wrong, tell us as soon as you know.
+                collection until it is handed to the bus. If something goes wrong, tell us as
+                soon as you know.
               </p>
               <p>
                 Our liability for a lost or damaged parcel is limited to{' '}
                 <ToConfirm>an amount still to be set</ToConfirm>, and claims must be raised
-                within <ToConfirm>a window still to be set</ToConfirm> of the delivery date.
+                within <ToConfirm>a window still to be set</ToConfirm> of the dispatch date.
                 Higher-value items should be insured separately — ask us before booking.
               </p>
               <p>

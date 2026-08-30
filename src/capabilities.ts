@@ -15,6 +15,11 @@ import type { AdminRole } from './types.js';
  *
  * This file must stay free of server-only imports so it can be bundled.
  *
+ * RIDERS ARE NOT IN THIS TABLE. Couriers hold no capability at all, because
+ * they hold no account -- they work from a per-order link that can only move
+ * their own parcel through its physical steps. `riders:read` and
+ * `riders:manage` are what STAFF may do TO the fleet, not what a rider may do.
+ *
  * THREE ROLES, NOT FOUR. There used to be a `dispatcher` as well, holding
  * exactly what `support` holds. Support began read-only, but the job as it is
  * actually done is moving parcels through their statuses and telling riders
@@ -35,6 +40,7 @@ export type Capability =
   | 'payments:write'
   | 'pricing:write'
   | 'riders:read'
+  | 'riders:manage'
   | 'revenue:read'
   | 'staff:manage';
 
@@ -46,6 +52,7 @@ export const CAPABILITIES: Record<AdminRole, readonly Capability[]> = {
     'payments:write',
     'pricing:write',
     'riders:read',
+    'riders:manage',
     'revenue:read',
     'staff:manage',
   ],
@@ -54,6 +61,10 @@ export const CAPABILITIES: Record<AdminRole, readonly Capability[]> = {
   // Answers the phone AND works the board: moves parcels through their
   // statuses and passes jobs to riders. No money, no pricing, no staff.
   // This is the default role, so it is also the least any account can hold.
+  //
+  // Reads the fleet -- they have to know who is out and on what number -- but
+  // does not change it. Hiring is an owner's decision, and a courier added by
+  // whoever happened to be on the phone is a courier nobody vetted.
   support: ['orders:read', 'orders:write', 'riders:read'],
 };
 

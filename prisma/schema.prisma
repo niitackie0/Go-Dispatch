@@ -22,15 +22,40 @@ enum PackageSize {
   large
 }
 
+/// The life of a parcel, and it ends at the bus.
+///
+/// GO DISPATCH is not door-to-door. A rider COLLECTS from the sender and brings
+/// the parcel to the office; it is weighed and paid for there; then it is run
+/// to the station and handed to an intercity bus, and the car number is texted
+/// to both ends. What the recipient does at the far end is not ours.
+///
+/// So `dispatched` is terminal, and there are two rider legs, not one journey.
 enum OrderStatus {
   requested
-  awaiting_payment
   confirmed
+  /// A rider has been given the COLLECTION.
   queued
+  /// Collected from the sender, on its way to the office.
   picked_up
-  in_transit
-  delivered
+  /// At the office: weighed, price confirmed, payment requested.
+  at_office
+  /// The money has landed. Nothing goes on a bus before this.
+  paid
+  /// A rider has been given the run to the station.
+  to_station
+  /// Handed to the bus, car number recorded. THE END OF OUR JOB.
+  dispatched
   cancelled
+
+  // ---- Retired. Kept so status_history rows written before the bus model
+  // still read correctly; that table is append-only and rewriting it would
+  // falsify the audit trail. Nothing sets these any more.
+  /// Retired: payment used to gate confirmation. It now follows weighing.
+  awaiting_payment
+  /// Retired: became `to_station`.
+  in_transit
+  /// Retired: became `dispatched`. We no longer track the far end.
+  delivered
 }
 
 enum PaymentStatus {
@@ -60,7 +85,9 @@ enum Payer {
   recipient
 }
 
-/// When the bill is settled: up front (gates confirmation) or at the door.
+/// RETIRED. Payment is now always the same moment -- after the parcel is
+/// weighed at the office, by MoMo, before it goes on a bus. The column stays
+/// so existing rows still read, but nothing branches on it.
 enum PaymentTiming {
   prepaid
   on_delivery
@@ -127,18 +154,43 @@ model Session {
 // Fleet
 // ---------------------------------------------------------------------------
 
+/// A courier on the roster. NOT an account: riders never sign in to the
+/// console. They receive a per-order link (Order.riderToken) that can drive
+/// only their own parcel, which is why there is no password, no email and no
+/// role here. Staff accounts are AdminUser; these are two different registers
+/// of person and are deliberately not the same table.
 model Rider {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String   @unique
-  /// False while the rider is carrying an active job.
-  available Boolean  @default(true)
+  id    String @id @default(cuid())
+  name  String
+  /// E.164, normalised on the way in (src/phone.ts). Unique, because the phone
+  /// is how a rider is actually identified -- two rows for one handset would be
+  /// two capacity slots for one person.
+  phone String @unique
+
+  /// ON THE ROSTER. Set by an owner: hired, or gone/suspended. An inactive
+  /// rider is never assigned work, keeps their delivery history, and can be
+  /// brought back without re-typing anything.
+  active Boolean @default(true)
+
+  /// FREE RIGHT NOW. Owned by the automation pass, not by a human: it is
+  /// cleared when a job is assigned and set again when the last one finishes.
+  /// Distinct from `active` on purpose -- one is employment, the other is the
+  /// next sixty minutes, and a single flag for both means the release rule
+  /// silently un-suspends somebody who has left.
+  available Boolean @default(true)
+
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
-  orders Order[]
+  /// A parcel has TWO rider legs and they are usually different people: the
+  /// collection (sender -> office) and the station run (office -> bus). Each
+  /// rider is freed at the end of their own leg, so one column could not hold
+  /// both without pinning somebody to a parcel they had already let go of.
+  collections Order[] @relation("CollectionRider")
+  stationRuns Order[] @relation("StationRider")
 
-  @@index([available])
+  /// The assignment query asks for both, in this order.
+  @@index([active, available])
   @@map("riders")
 }
 
@@ -227,8 +279,19 @@ model Order {
   riderToken          String?   @unique
   riderTokenExpiresAt DateTime? @db.Timestamptz(3)
 
-  riderId String?
-  rider   Rider?  @relation(fields: [riderId], references: [id], onDelete: SetNull)
+  /// Sender -> office. Freed the moment the parcel is on the office scale.
+  collectionRiderId String?
+  collectionRider   Rider?  @relation("CollectionRider", fields: [collectionRiderId], references: [id], onDelete: SetNull)
+
+  /// Office -> station. A separate assignment, usually a different person, and
+  /// optional: a staff member who walks it round leaves this null.
+  stationRiderId String?
+  stationRider   Rider?  @relation("StationRider", fields: [stationRiderId], references: [id], onDelete: SetNull)
+
+  /// The registration of the bus it went on. The single fact the whole
+  /// handover turns on -- it is what both the sender and the recipient are
+  /// texted, and the only way either of them can find the parcel again.
+  busCarNumber String? @db.VarChar(32)
 
   customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
@@ -244,7 +307,8 @@ model Order {
   // the dashboard filters by status, lists newest-first, and reports on ranges.
   @@index([status])
   @@index([createdAt])
-  @@index([riderId])
+  @@index([collectionRiderId])
+  @@index([stationRiderId])
   @@index([status, createdAt])
   /// Public tracking matches a phone number exactly, against both ends. Without
   /// these two, every lookup by phone is a sequential scan of the whole table --
@@ -382,16 +446,28 @@ model PricingConfig {
 /// told.
 enum NotificationEvent {
   booking_confirmed
-  /// Retired: folded into booking_confirmed, which now says payment was
-  /// received when it has been. Kept so rows written before that still read.
-  payment_received
-  /// Weighing changed the price. Only queued when it actually changed.
-  price_confirmed
+  /// A rider is on the way to collect.
   rider_assigned
-  out_for_delivery
-  delivered
+  /// Weighed, the price is fixed, and this is the bill. Goes to whoever the
+  /// `payer` column names -- the sender or the recipient.
+  payment_request
+  /// On the bus. TWO events for one message because the unique constraint
+  /// below is per (orderId, event), so a single event can only reach one
+  /// person -- and this is the one message both ends genuinely need.
+  dispatched_sender
+  dispatched_recipient
   /// Silence when a parcel is cancelled is the worst gap in the outbox.
   cancelled
+
+  // ---- Retired. Kept so notification rows already written still render.
+  /// Retired: folded into booking_confirmed.
+  payment_received
+  /// Retired: became payment_request, which also asks for the money.
+  price_confirmed
+  /// Retired with the door-delivery model: nobody is bringing it to a door.
+  out_for_delivery
+  /// Retired: our job ends at the bus, so we cannot say it was delivered.
+  delivered
 }
 
 enum NotificationStatus {
