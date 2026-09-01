@@ -23,7 +23,7 @@ against what actually happens:
 4. It is **weighed**. The price is fixed and the bill goes out.
 5. It is **paid** by MoMo. Nothing moves before this.
 6. A rider runs it to the **station** and hands it to an intercity **bus**.
-7. The **car number** is texted to both ends. **That is the end of our job.**
+7. Both ends are texted that it is **on the bus**. **That is the end of our job.**
 
 The recipient collecting from the bus is not something we can see, so there is
 no message about it. A text claiming a parcel was delivered would be a guess.
@@ -63,12 +63,12 @@ outbox keeps queuing and nothing goes out.
 | 1 | Request received, rider coming | Sender | Automation gives the **collection** to a courier |
 | 2 | Booking confirmed | Sender | **Several parcels** booked in one visit |
 | 3 | Payment request | **Whoever pays** | The parcel is weighed at the office |
-| 4 | On the bus → sender | Sender | The car number is recorded |
+| 4 | On the bus → sender | Sender | The parcel is dispatched |
 | 5 | On the bus → recipient | **Recipient** | The same moment |
 | 6 | Cancelled | Sender | The order is cancelled |
 
 A single parcel produces **four messages** — three to the sender (rider coming,
-the bill, on the bus) and one to the recipient (car number) — but **five
+the bill, on the bus) and one to the recipient (on the bus) — but **five
 credits**, because message 1 is long enough to bill as two. Message 2 only
 appears when somebody sends several parcels at once.
 
@@ -122,7 +122,8 @@ gap: this message is 39 over, not 8 over, so shortening the address was never
 going to be what fixed it. The wording is.
 
 The **station run** deliberately sends nothing. Nobody needs a text saying a
-parcel crossed the office yard, and the car number is what actually matters.
+parcel crossed the office yard — the dispatch message is what actually
+matters.
 
 ---
 
@@ -177,12 +178,13 @@ The recipient is paying:
 
 ## 4 and 5. On the bus → **both ends**
 
-The car number, and the reason this is the one event that texts two people. Once
-the parcel is on a bus that number is the only handle either of them has on it.
+The reason this is the one event that texts two people. Once the parcel is on
+a bus, the tracking link is the only handle either of them has on it.
 
-**Fires when** an admin records the bus — `POST /api/orders/:id/dispatch`. Both
-messages are queued in the same transaction as the status change, because a
-dispatch recorded without them going out is a parcel nobody can find.
+**Fires when** an admin dispatches the parcel — `POST /api/orders/:id/dispatch`.
+Both messages are queued in the same transaction as the status change, because
+a dispatch recorded without them going out is a parcel nobody has been told
+about.
 
 **Refused unless the parcel is paid for.** Past the station there is nothing we
 can do to collect and nobody of ours at the far end to do it.
@@ -190,7 +192,7 @@ can do to collect and nobody of ours at the far end to do it.
 To the sender — named by where it is *going*:
 
 > **Dear Henry**
-> **Your parcel to Ama is on GT 4821 24**
+> **Your parcel to Ama is on the bus**
 >
 > **Use GD-4821-330 to track here godispatchgh.com/t/GD-4821-330**
 
@@ -198,7 +200,7 @@ To the recipient — named by where it is *from*, because otherwise this is a te
 from a company they have never heard of:
 
 > **Dear Ama**
-> **Your parcel from Henry is on GT 4821 24**
+> **Your parcel from Henry is on the bus**
 >
 > **Use GD-4821-330 to track here godispatchgh.com/t/GD-4821-330**
 

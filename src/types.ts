@@ -187,8 +187,6 @@ export interface Order {
   /** Office -> station. Null when a staff member walks it round. */
   stationRiderId?: string;
   stationRiderName?: string;
-  /** The bus it went on. Set when the parcel is dispatched, and never after. */
-  busCarNumber?: string;
 
   createdAt: string;
   updatedAt: string;

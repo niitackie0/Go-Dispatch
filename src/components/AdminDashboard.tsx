@@ -287,9 +287,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   const [submittingRider, setSubmittingRider] = useState(false);
   const [riderNotice, setRiderNotice] = useState('');
 
-  // The bus. The last thing that happens to a parcel, and the only place its
-  // car number is ever written.
-  const [busNumber, setBusNumber] = useState('');
+  // The bus. The last thing that happens to a parcel.
   const [submittingBus, setSubmittingBus] = useState(false);
   const [busNotice, setBusNotice] = useState('');
 
@@ -529,7 +527,6 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     setRiderNotice('');
     setBusNotice('');
     setScaleWeight('');
-    setBusNumber('');
 
     if (selectedOrderId) {
       loadOrderDetails(selectedOrderId);
@@ -867,14 +864,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   };
 
   /**
-   * Put it on the bus, and finish with it.
-   *
-   * The car number is the last fact we record and the only one the customer
-   * can act on afterwards -- it is what both the sender and the recipient are
-   * texted, and the only way either of them finds the parcel at the far end.
-   * So it is typed at the office, where somebody can read it back, rather than
-   * at a roadside; and a wrong one cannot be corrected by a second text, so it
-   * is worth a second look before pressing this.
+   * Put it on the bus, and finish with it. The last status change a parcel
+   * gets from us.
    */
   const handleDispatch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -886,7 +877,6 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
       const res = await fetch(`/api/orders/${selectedOrderId}/dispatch`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ busCarNumber: busNumber }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || 'That could not be recorded.');
@@ -900,10 +890,9 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
       setBusNotice(
         missed.length === 0
-          ? 'On the bus. Both ends have been texted the car number.'
+          ? 'On the bus. Both ends have been texted.'
           : `On the bus, but we could not text ${missed.join(' or ')} — no usable number on file. Ring them.`
       );
-      setBusNumber('');
       await loadOrderDetails(selectedOrderId);
       fetchOrders();
       fetchStats();
@@ -2656,33 +2645,14 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   )}
               </div>
 
-              {/* ---------- THE BUS ----------
-                  The end of our job. Recorded here rather than from a courier's
-                  phone because the car number is what both ends are texted, and
-                  a wrong one cannot be corrected by another message. */}
+              {/* ---------- THE BUS ---------- The end of our job. */}
               {canWriteOrders && (
-                // STATUS FIRST, not the car number. A parcel migrated across
-                // from the old door-delivery model is dispatched and has no car
-                // number, because there was never one to record -- keying off
-                // the number offered to dispatch a parcel that had already gone.
                 selectedOrderDetails.order.status === 'dispatched' ? (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
                     <p className="text-xs font-medium uppercase tracking-wider text-emerald-800">On the bus</p>
-                    {selectedOrderDetails.order.busCarNumber ? (
-                      <>
-                        <p className="mt-1 text-lg font-semibold text-slate-900 tracking-tight">
-                          {selectedOrderDetails.order.busCarNumber}
-                        </p>
-                        <p className="mt-0.5 text-sm text-slate-600">
-                          Both the sender and the recipient were texted this number.
-                        </p>
-                      </>
-                    ) : (
-                      <p className="mt-1 text-sm text-slate-600">
-                        No car number on record — this parcel went out before we started
-                        keeping them.
-                      </p>
-                    )}
+                    <p className="mt-1 text-sm text-slate-600">
+                      Both the sender and the recipient were texted.
+                    </p>
                     {busNotice && (
                       <p className="mt-2 text-sm font-medium text-emerald-700">{busNotice}</p>
                     )}
@@ -2700,30 +2670,19 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wider text-emerald-800">Put it on the bus</p>
                       <p className="mt-1 text-sm text-emerald-800/80">
-                        Both the sender and the recipient are texted this number. Read it back
-                        before you press — it cannot be corrected by another text.
+                        Both the sender and the recipient are texted once you confirm.
                       </p>
                     </div>
 
-                    <div className="flex gap-2">
-                      <input
-                        id="input_bus_number"
-                        type="text" required maxLength={32}
-                        value={busNumber}
-                        onChange={(e) => setBusNumber(e.target.value)}
-                        placeholder="Car number, e.g. GT 4821 24"
-                        className="flex-1 min-h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-semibold uppercase text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                      />
-                      <button
-                        id="btn_confirm_bus"
-                        type="submit"
-                        disabled={submittingBus}
-                        className="min-h-11 px-5 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors cursor-pointer disabled:opacity-60"
-                      >
-                        {submittingBus ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                        Dispatch
-                      </button>
-                    </div>
+                    <button
+                      id="btn_confirm_bus"
+                      type="submit"
+                      disabled={submittingBus}
+                      className="min-h-11 px-5 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors cursor-pointer disabled:opacity-60"
+                    >
+                      {submittingBus ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                      Dispatch
+                    </button>
 
                     {busNotice && (
                       <p className="text-sm font-medium text-emerald-700">{busNotice}</p>

@@ -468,7 +468,7 @@ export default function Home() {
                     },
                     {
                       t: 'Collected at the station',
-                      d: 'An intercity bus carries it and we text the registration to both of you. Your recipient collects it at the station — we are not a door-to-door service.',
+                      d: 'An intercity bus carries it, and your recipient collects it at the station.',
                     },
                   ].map((f) => (
                     <div key={f.t} className="border-b border-slate-200 py-4">

@@ -66,9 +66,10 @@ export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
  * in front of them -- it is recorded when MoMo actually lands, through the
  * payment panel. A one-click advance here would put unpaid parcels on buses.
  *
- * `paid` advances to `to_station` rather than straight to `dispatched`: the
- * further of the two moves needs a car number, which a single click cannot
- * supply.
+ * `paid` advances to `to_station` rather than straight to `dispatched`:
+ * dispatch texts both the sender and the recipient and cannot be undone by
+ * another text, so it stays its own deliberate action rather than folding into
+ * the generic advance.
  */
 export function advanceStatus(from: OrderStatus): OrderStatus | null {
   if (from === 'at_office' || from === 'awaiting_payment') return null;

@@ -25,11 +25,10 @@ export const riderRouter = asyncRouter();
  * THE COLLECTION LEG ONLY: pick the parcel up from the sender, and drop it at
  * the office. That is the whole of what a courier can assert from a phone.
  *
- * The station leg deliberately stops here. Marking a parcel dispatched means
- * recording the bus car number, and that number is what both the sender and the
- * recipient are then texted -- it is the only handle either of them has on the
- * parcel afterwards. A wrong one, typed at a roadside, cannot be corrected by
- * another text, so it is entered at the office where somebody can check it.
+ * The station leg deliberately stops here. Marking a parcel dispatched texts
+ * both the sender and the recipient, so it is confirmed at the office by
+ * somebody who can see the parcel actually went, rather than from a phone at
+ * a roadside.
  */
 const RIDER_NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   queued: 'picked_up',

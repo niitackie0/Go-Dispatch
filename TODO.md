@@ -39,36 +39,16 @@ flyer. The console and the customer site have both had the mobile and type pass.
   it did not. It is also the screen a live map of who is carrying what would
   suit, if that is worth building.
 
-- [ ] **Decide between `support` and `dispatcher`** — **S**
-  They hold identical capabilities (see the note at the top of
-  `src/capabilities.ts`). Two names for one job is a question every new hire
-  asks and nobody can answer. No account holds either role yet, so retiring one
-  costs nothing today and costs a migration later.
+- [x] **Decide between `support` and `dispatcher`** — *done — `dispatcher` retired,
+  `support` is the survivor. See the note at the top of `src/capabilities.ts`.*
 
 ---
 
 ## P2 — Before this goes live
 
-- [ ] **Turn SMS sending on** — **S** — *two steps, both yours*
-  The sender is built and the account is confirmed: Arkesel, 466 credits, key in
-  `.env`. Six events earn a message (see the header of
-  `src/server/notifications.ts`), every template fits one billed segment, and a
-  worker drains the outbox every 30s with backoff, giving up after five
-  attempts. It stays OFF until `SMS_PROVIDER=arkesel` is set.
+- [x] **Turn SMS sending on** — *done — live on Render, `SMS_PROVIDER=arkesel` set*
 
-  One thing to do first: **register the sender ID** "GO DISPATCH" with Arkesel.
-  Until it is approved, messages arrive from a shortcode, so every template
-  carries a 13-character "GO DISPATCH: " prefix to say who it is from. Once
-  approved, flip `SMS_SENDER_ID_REGISTERED` in `src/brand.ts` and every message
-  gets those characters back.
-
-  The queue is clean — `npm run sms:outbox` reads 0 pending — so nothing old
-  fires the moment it is switched on. Check it again before you flip it.
-
-- [ ] **Deployment** — **L**
-  Nothing is hosted yet. Needs a host, env vars set (including `ADMIN_PATH` and
-  the rotated `DATABASE_URL`), `prisma migrate deploy` in the release step, and
-  a decision on where the automation tick runs.
+- [x] **Deployment** — *done — live on Render (go-dispatch.onrender.com), free instance*
 
 - [ ] **Turn on TypeScript `strict`** — **M**
   `tsconfig.json` has no `strict`, so `tsc` catches almost no null/undefined

@@ -26,8 +26,8 @@ enum PackageSize {
 ///
 /// GO DISPATCH is not door-to-door. A rider COLLECTS from the sender and brings
 /// the parcel to the office; it is weighed and paid for there; then it is run
-/// to the station and handed to an intercity bus, and the car number is texted
-/// to both ends. What the recipient does at the far end is not ours.
+/// to the station and handed to an intercity bus, and both ends are texted
+/// that it is on its way. What the recipient does at the far end is not ours.
 ///
 /// So `dispatched` is terminal, and there are two rider legs, not one journey.
 enum OrderStatus {
@@ -43,7 +43,7 @@ enum OrderStatus {
   paid
   /// A rider has been given the run to the station.
   to_station
-  /// Handed to the bus, car number recorded. THE END OF OUR JOB.
+  /// Handed to the bus. THE END OF OUR JOB.
   dispatched
   cancelled
 
@@ -287,11 +287,6 @@ model Order {
   /// optional: a staff member who walks it round leaves this null.
   stationRiderId String?
   stationRider   Rider?  @relation("StationRider", fields: [stationRiderId], references: [id], onDelete: SetNull)
-
-  /// The registration of the bus it went on. The single fact the whole
-  /// handover turns on -- it is what both the sender and the recipient are
-  /// texted, and the only way either of them can find the parcel again.
-  busCarNumber String? @db.VarChar(32)
 
   customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)

@@ -94,7 +94,6 @@ export function serializeOrder(row: OrderWithRider): Order {
     collectionRiderName: row.collectionRider?.name ?? undefined,
     stationRiderId: row.stationRiderId ?? undefined,
     stationRiderName: row.stationRider?.name ?? undefined,
-    busCarNumber: row.busCarNumber ?? undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

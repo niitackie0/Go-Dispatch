@@ -43,8 +43,8 @@ this is the last point at which the money can still be asked for.
 **It goes to the station.** *To the station* if a rider runs it round, or
 straight to *On the bus* if somebody walks it there. Either is legal.
 
-**On the bus.** *Dispatched*, and you record the bus registration when you mark
-it. That texts both the sender and the recipient the car number.
+**On the bus.** *Dispatched*, and marking it texts both the sender and the
+recipient that it is on its way.
 
 **That is the end of our job.** There is no status after *On the bus*, and the
 board will not offer one. The recipient collects the parcel at the station in
