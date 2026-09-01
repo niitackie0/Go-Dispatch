@@ -36,14 +36,14 @@ Dear {name}
 
 ```
 Dear {name}
-Your parcel to {recipient} is on {bus}
+Your parcel to {recipient} is on the bus
 
 Use {code} to track here {link}
 ```
 
 ```
 Dear {name}
-Your parcel from {sender} is on {bus}
+Your parcel from {sender} is on the bus
 
 Use {code} to track here {link}
 ```
@@ -74,7 +74,6 @@ Dear {name}
 | `{n}` | Number of parcels |
 | `{amount}` `{oldAmount}` | `GHS 60.00` |
 | `{weight}` | `4.2` |
-| `{bus}` | `GT 4821 24` |
 | `{link}` | `godispatchgh.com/t/{code}` |
 | `{refLink}` | `godispatchgh.com/t/{ref}` |
 | `{office}` | `054 030 4994` |

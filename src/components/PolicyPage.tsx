@@ -160,10 +160,9 @@ export default function PolicyPage() {
                 {REGIONS.length} regions across Ghana: {REGIONS.map((r) => r.name).join(', ')}.
               </p>
               <p>
-                We are <strong>not a door-to-door service</strong>. A rider collects your
-                parcel and brings it to our office, where it is weighed and the bill is
-                settled. It then travels by intercity bus, and the person receiving it
-                collects it from the bus station. We tell both of you which bus it is on.
+                A rider collects your parcel and brings it to our office, where it is
+                weighed and the bill is settled. It then travels by intercity bus, and the
+                person receiving it collects it from the bus station.
               </p>
               <p>
                 Booking a delivery on this site is a request. It becomes a contract when we
@@ -220,9 +219,9 @@ export default function PolicyPage() {
                 travels. Nothing goes on a bus until it is paid for.
               </p>
               <p>
-                We then hand the parcel to an intercity bus and text the registration to you
-                and to the person receiving it. <strong>They collect it at the bus station
-                in the destination town</strong> — we do not bring it to an address. A parcel
+                We then hand the parcel to an intercity bus. <strong>They collect it at the
+                bus station in the destination town</strong> — we do not bring it to an
+                address. A parcel
                 normally reaches the destination station <strong>within 24 to 48 hours</strong>
                 of collection. You can follow every status change with your tracking code.
                 Longer routes sit at the upper end of that window, and clause 5 covers the

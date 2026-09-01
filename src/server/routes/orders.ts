@@ -92,18 +92,6 @@ ordersRouter.get('/track', publicReadLimit, async (req, res) => {
       scheduledPickupAt: order.scheduledPickupAt.toISOString(),
       status: order.status,
       paymentStatus: order.paymentStatus,
-      // The registration of the bus it went out on. Once a parcel is
-      // dispatched this is the only handle either end has on it, and the
-      // recipient is collecting it from a station rather than waiting at
-      // home -- so withholding it here would mean the tracking page knows
-      // where the parcel is and will not say.
-      //
-      // Not a disclosure: it is already texted to BOTH the sender and the
-      // recipient (dispatched_sender / dispatched_recipient in
-      // src/server/notifications.ts). This page needs a tracking code or a
-      // phone number to answer at all, so it reaches nobody the message did
-      // not already reach -- it is here for the person who has lost the text.
-      busCarNumber: order.busCarNumber ?? null,
       createdAt: order.createdAt.toISOString(),
       timeline: order.statusHistory.map((h) => ({
         status: h.status,
@@ -726,13 +714,11 @@ ordersRouter.patch('/:id/rider', requireAdmin, requirePermission('orders:write')
    --------------------------------------------------------------------------- */
 
 /**
- * Record the bus, and end our part in the parcel.
+ * Put it on the bus, and end our part in the parcel.
  *
- * This is the last thing that happens to an order and the only place the car
- * number is ever written. Both ends are texted it in the same transaction,
- * because that number is the only handle either of them has on the parcel once
- * it has left us -- a dispatch recorded without the messages going out is a
- * parcel nobody can find.
+ * Both ends are texted in the same transaction as the status change, because a
+ * dispatch recorded without the messages going out is a parcel nobody has been
+ * told about.
  *
  * TWO MESSAGES, TWO EVENTS. The (orderId, event) unique constraint means one
  * event can only reach one person, so the sender and the recipient get
@@ -744,18 +730,6 @@ ordersRouter.patch('/:id/rider', requireAdmin, requirePermission('orders:write')
  */
 ordersRouter.post('/:id/dispatch', requireAdmin, requirePermission('orders:write'), async (req, res) => {
   const admin = req.admin!;
-  const raw = req.body?.busCarNumber;
-
-  if (typeof raw !== 'string' || !raw.trim()) {
-    return res.status(400).json({ error: 'The bus car number is required' });
-  }
-
-  // Registrations are read off the back of a bus and typed in a hurry. Spacing
-  // and case vary; the characters do not.
-  const busCarNumber = raw.trim().toUpperCase().replace(/\s+/g, ' ');
-  if (busCarNumber.length > 32) {
-    return res.status(400).json({ error: 'That car number is too long to be one' });
-  }
 
   const existing = await prisma.order.findUnique({
     where: { id: req.params.id },
@@ -764,9 +738,7 @@ ordersRouter.post('/:id/dispatch', requireAdmin, requirePermission('orders:write
   if (!existing) return res.status(404).json({ error: 'Order not found' });
 
   if (existing.status === 'dispatched') {
-    return res.status(400).json({
-      error: `This parcel already went on car ${existing.busCarNumber ?? 'unknown'}.`,
-    });
+    return res.status(400).json({ error: 'This parcel has already been dispatched.' });
   }
   if (existing.status === 'cancelled') {
     return res.status(400).json({ error: 'This parcel was cancelled.' });
@@ -787,7 +759,6 @@ ordersRouter.post('/:id/dispatch', requireAdmin, requirePermission('orders:write
       where: { id: existing.id },
       data: {
         status: 'dispatched',
-        busCarNumber,
         // The link dies with the job. Nothing further can be done to this
         // parcel, so a courier's old link should stop opening it.
         riderToken: null,
@@ -800,7 +771,7 @@ ordersRouter.post('/:id/dispatch', requireAdmin, requirePermission('orders:write
       data: {
         orderId: order.id,
         status: 'dispatched',
-        note: `On the bus, car ${busCarNumber}`,
+        note: 'On the bus',
         changedByAdminId: admin.id,
         changedByName: admin.name,
       },

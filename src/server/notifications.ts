@@ -51,19 +51,19 @@ import { smsCost, toGhanaMsisdn, toGsm7 } from './sms.js';
  *                                    recipient, so that variant says who the
  *                                    parcel is from. Nothing goes on a bus
  *                                    before this is settled.
- *   dispatched_sender     sender     the car number.
- *   dispatched_recipient  RECIPIENT  the car number, and that it is theirs to
+ *   dispatched_sender     sender     it is on the bus.
+ *   dispatched_recipient  RECIPIENT  it is on the bus, and that it is theirs to
  *                                    collect at the station. Without this they
- *                                    cannot find the parcel at all.
+ *                                    do not know a parcel is coming at all.
  *   cancelled             sender     silence here is the worst failure in the
  *                                    system: a parcel that is simply never
  *                                    collected, with no explanation.
  *
  * TWO EVENTS FOR ONE DISPATCH MESSAGE. The unique constraint below is per
  * (orderId, event), which is what stops the automation texting twice -- and it
- * means one event can only ever reach one person. The car number has to reach
- * both ends, so it is two events carrying two differently-worded messages
- * rather than one event bent into serving two audiences.
+ * means one event can only ever reach one person. Dispatch has to reach both
+ * ends, so it is two events carrying two differently-worded messages rather
+ * than one event bent into serving two audiences.
  *
  * And what does NOT earn one:
  *
@@ -108,7 +108,7 @@ const AUDIENCE: Record<NotificationEvent, Audience> = {
   payment_request: 'payer',
   dispatched_sender: 'sender',
   // The only message that reaches somebody who never dealt with us, and the
-  // one that matters most: without the car number they cannot find the parcel.
+  // one that matters most: without it they would not know a parcel is coming.
   dispatched_recipient: 'recipient',
   cancelled: 'sender',
 
@@ -145,8 +145,6 @@ export interface OrderFacts {
   /** Whichever rider holds the leg this message is about. */
   riderName?: string | null;
   riderPhone?: string | null;
-  /** Set once the parcel is on a bus. The dispatched messages are built on it. */
-  busCarNumber?: string | null;
 }
 
 /** Facts about the wider event that are not on the order row itself. */
@@ -278,20 +276,18 @@ function render(
     }
 
     /**
-     * On the bus. The car number is the whole message — it is the only handle
-     * either end has on the parcel once it has left us, and the reason this is
-     * the one event that texts two people.
+     * On the bus. The reason this is the one event that texts two people: once
+     * it has left us, the tracking link is the only handle either end has on
+     * the parcel.
      */
     case 'dispatched_sender': {
-      const bus = order.busCarNumber ?? '';
       const to = firstName(order.recipientName);
-      return `Your parcel to ${to} is on ${bus}\n\nUse ${code} to track here ${smsTrackingLink(code)}`;
+      return `Your parcel to ${to} is on the bus\n\nUse ${code} to track here ${smsTrackingLink(code)}`;
     }
 
     case 'dispatched_recipient': {
-      const bus = order.busCarNumber ?? '';
       const from = firstName(order.senderName);
-      return `Your parcel from ${from} is on ${bus}\n\nUse ${code} to track here ${smsTrackingLink(code)}`;
+      return `Your parcel from ${from} is on the bus\n\nUse ${code} to track here ${smsTrackingLink(code)}`;
     }
 
     case 'cancelled':
@@ -446,8 +442,9 @@ export async function queueNotification(
  *    job and on what number, so it queues rider_assigned itself.
  *  - `at_office` is absent: the bill cannot be written until the parcel has
  *    been weighed, which is a separate act from arriving.
- *  - `dispatched` is absent: it needs the car number, and it sends to two
- *    people. routes/orders.ts queues both when it records the bus.
+ *  - `dispatched` is absent: it sends to two people under two different
+ *    events, and routes/orders.ts queues both when it puts the parcel on the
+ *    bus.
  */
 const STATUS_EVENTS: Partial<Record<string, NotificationEvent>> = {
   // `confirmed` is deliberately absent. A single booking used to earn a text

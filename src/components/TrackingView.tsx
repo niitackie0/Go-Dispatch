@@ -25,8 +25,6 @@ interface PublicOrder {
   scheduledPickupAt: string;
   status: OrderStatus;
   paymentStatus: string;
-  /** Registration of the bus it went out on. Null until it is dispatched. */
-  busCarNumber: string | null;
   createdAt: string;
   timeline: {
     status: OrderStatus;
@@ -272,11 +270,9 @@ function statusLine(order: PublicOrder): string {
       return 'On its way to the station.';
 
     // The end of our part, and the only message that has to tell somebody
-    // where to physically go. The registration is the whole value of it.
+    // where to physically go.
     case 'dispatched':
-      return order.busCarNumber
-        ? `On bus ${order.busCarNumber}. ${order.recipientName} collects it at the station.`
-        : `On the bus. ${order.recipientName} collects it at the station.`;
+      return `On the bus. ${order.recipientName} collects it at the station.`;
 
     case 'cancelled':
       return 'This booking was cancelled.';

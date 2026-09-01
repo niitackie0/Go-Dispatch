@@ -107,14 +107,12 @@ const cases: { event: NotificationEvent; to: string; when: string; order?: Parti
     event: 'dispatched_sender',
     to: 'sender',
     when: 'on the bus',
-    order: { busCarNumber: 'GT 4821 24' },
   },
   {
     event: 'dispatched_sender',
     to: 'sender',
-    when: 'WORST CASE: long names, long registration',
+    when: 'WORST CASE: long names',
     order: {
-      busCarNumber: 'GW 12345 26',
       senderName: 'Emmanuella Boatemaa',
       recipientName: 'Kwabena Adjei-Mensah',
     },
@@ -123,14 +121,12 @@ const cases: { event: NotificationEvent; to: string; when: string; order?: Parti
     event: 'dispatched_recipient',
     to: 'RECIPIENT',
     when: 'on the bus',
-    order: { busCarNumber: 'GT 4821 24' },
   },
   {
     event: 'dispatched_recipient',
     to: 'RECIPIENT',
-    when: 'WORST CASE: long names, long registration',
+    when: 'WORST CASE: long names',
     order: {
-      busCarNumber: 'GW 12345 26',
       senderName: 'Kwabena Adjei-Mensah',
       recipientName: 'Emmanuella Boatemaa',
     },
