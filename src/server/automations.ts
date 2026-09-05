@@ -50,6 +50,42 @@ export async function runAutomations(): Promise<string[]> {
   const actions: string[] = [];
 
   await prisma.$transaction(async (tx) => {
+    // ---- Rule 0: a booking placed by a customer is accepted ------------------
+    // A parcel booked on the website lands as `requested` and used to stay
+    // there until somebody in the office noticed it and pressed a button, which
+    // meant the whole assignment chain below never started -- a booking made at
+    // midnight had no rider at nine the next morning, not because the fleet was
+    // busy but because nothing had asked for one.
+    //
+    // Orders raised at the counter have never waited: routes/orders.ts writes
+    // them straight to `confirmed` on the grounds that we accept every job and
+    // settle up after weighing. The same is true of a booking that arrives over
+    // the web -- there is no triage step, and nobody was ever going to decline
+    // one -- so the two routes now agree, and this rule is what closes the gap
+    // for orders that came in through the site.
+    //
+    // Acceptance is not collection. This only says the office has the job; Rule
+    // B below still decides WHEN a rider is given it, and still refuses to hand
+    // one out beyond the pickup window or without free capacity.
+    const toAccept = await tx.order.findMany({
+      where: { status: 'requested' },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, trackingCode: true },
+    });
+
+    for (const order of toAccept) {
+      await tx.order.update({ where: { id: order.id }, data: { status: 'confirmed' } });
+      await tx.statusHistory.create({
+        data: {
+          orderId: order.id,
+          status: 'confirmed',
+          note: 'Booking accepted — waiting for a collection rider',
+          changedByName: AUTOMATION_ACTOR,
+        },
+      });
+      actions.push(`accepted ${order.trackingCode}`);
+    }
+
     // ---- Rule A: money landed -> the parcel may travel ----------------------
     // `at_office` is where a parcel waits for its bill to be settled. Nothing
     // goes on a bus before this: past the station there is no leverage and
