@@ -50,11 +50,14 @@ flyer. The console and the customer site have both had the mobile and type pass.
 
 - [x] **Deployment** — *done — live on Render (go-dispatch.onrender.com), free instance*
 
-- [ ] **Turn on TypeScript `strict`** — **M**
-  `tsconfig.json` has no `strict`, so `tsc` catches almost no null/undefined
-  bugs. This already bit us once: `stats?.revenue.today` guarded `stats` but not
-  `revenue` and would have white-screened the dashboard for two roles. Expect a
-  pile of existing errors when you enable it — that is the point.
+- [x] **Turn on TypeScript `strict`** — *done — six errors, not a pile*
+  Four were a missing `@types/react-dom`, so `createPortal` and `createRoot`
+  were `any` and the two portal components went unchecked. `@types/react` was
+  undeclared too, reaching us transitively through `prisma` →
+  `@prisma/studio-core` → radix; both are declared now. The one real finding
+  was `riderLegOf` called four times in a loop body, where the guard could not
+  narrow the calls after it. Proven non-vacuous against the
+  `stats?.revenue.today` shape this item was written about.
 
 - [ ] **Two-factor authentication (TOTP)** — **M**
   Authenticator-app codes, at least on `owner` accounts — that role can change
