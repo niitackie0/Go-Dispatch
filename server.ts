@@ -82,22 +82,55 @@ app.use(express.json({ limit: '64kb' }));
 /**
  * Health check.
  *
- * Answers only if the database answers. A health check that returns 200 while
- * Postgres is unreachable will keep a broken instance in the load balancer and
- * tell the uptime monitor everything is fine, which is worse than having none.
+ * Answers only if the database answers the questions this app actually asks.
  *
- * The query is a literal with nothing interpolated into it -- the one piece of
- * raw SQL in the codebase, and it stays that way.
+ * This was `SELECT 1` until now, and on 30 August that cost us days. The
+ * bus-model migrations had been applied to production from a laptop --
+ * `orders.riderId` renamed to `collectionRiderId`, statuses rewritten --
+ * while the deployed code still selected the old columns. Every endpoint that
+ * touched an order returned 500. This endpoint returned a cheerful 200
+ * throughout, and it was not lying: Postgres was in perfect health. What had
+ * broken was the agreement between the schema and the client, and a literal
+ * asks about neither.
+ *
+ * So it now reads one real row from each of the three tables whose loss or
+ * corruption ends the business. Going through the generated client is the
+ * point -- it proves three things `SELECT 1` cannot:
+ *
+ *   - the connection works, which is all the literal ever proved
+ *   - every column the client selects still exists on the table, which is
+ *     exactly what went wrong in August
+ *   - this role is permitted to read it, which is what will go wrong the day
+ *     the app is switched off `neondb_owner` onto the limited role
+ *
+ * Empty tables still prove the first two. Postgres validates the column list
+ * when it plans the query, whether or not a row comes back.
+ *
+ * The cost is three `LIMIT 1` reads on indexed tables, against a probe that
+ * runs on a schedule. That is a small standing bill for never again serving
+ * 500s from behind a green light.
  */
 app.get('/api/health', async (_req, res) => {
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    // No `select`, deliberately. Naming columns here would narrow the query to
+    // the few we listed and reintroduce the blind spot -- the check works
+    // precisely because the client asks for everything it believes is there.
+    await Promise.all([
+      prisma.order.findFirst(),
+      prisma.payment.findFirst(),
+      prisma.adminUser.findFirst(),
+    ]);
     res.json({ ok: true });
   } catch (err) {
-    // Reported, not merely logged: the database being unreachable is the one
-    // failure where somebody should be told before a customer notices.
+    // Reported, not merely logged: the database being unreachable -- or the
+    // schema having moved out from under the code -- is the one failure where
+    // somebody should be told before a customer notices.
     report(err, { at: 'health' });
-    res.status(503).json({ ok: false, error: 'Database unreachable' });
+    // Vague on purpose. This is the most reachable thing we serve: public, and
+    // exempt from the canonical-host redirect so Render can probe it. Column
+    // names and role names go to the error feed with a reference, not to
+    // whoever happened to ask.
+    res.status(503).json({ ok: false, error: 'Database check failed' });
   }
 });
 
