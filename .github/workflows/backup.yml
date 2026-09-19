@@ -100,6 +100,23 @@ jobs:
           DIRECT_URL="$(printf '%s' "$DIRECT_URL" | tr -d '\r\n')"
           DIRECT_URL="${DIRECT_URL%\"}"
           DIRECT_URL="${DIRECT_URL#\"}"
+
+          # sslmode=verify-full means "check the certificate against a CA", and
+          # libpq looks for that CA at ~/.postgresql/root.crt. A fresh runner
+          # has no such file, so the connection fails before it is attempted:
+          # root certificate file ".../root.crt" does not exist.
+          # sslrootcert=system points libpq at Ubuntu's own trust store, which
+          # the runner image already maintains and which Neon's certificate
+          # chains to. Needs libpq 16+; the step above installs 18.
+          # Verification stays ON. The failure was a missing trust store, not a
+          # certificate worth trusting blindly -- downgrading to sslmode=require
+          # would have turned a loud error into an unauthenticated connection.
+          case "$DIRECT_URL" in
+            *sslrootcert=*) ;;
+            *\?*) DIRECT_URL="$DIRECT_URL&sslrootcert=system" ;;
+            *)     DIRECT_URL="$DIRECT_URL?sslrootcert=system" ;;
+          esac
+
           # --no-owner and --no-privileges so it restores into any role, which
           # is the whole point on a day when the original role is what broke.
           pg_dump "$DIRECT_URL" \
