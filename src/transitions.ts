@@ -100,10 +100,17 @@ export function isTerminal(status: OrderStatus): boolean {
  * the job. Cancelling later is not a harder button, it is a refund and a
  * wasted trip, and neither of those should happen without a person involved.
  *
- * `confirmed` is excluded on purpose: it means the office has committed to
- * collecting, and a rider may already be on the way.
+ * `confirmed` is HERE, and used not to be. The old reasoning was that it meant
+ * a rider might already be on the way -- but that is `queued`, which is the
+ * status assignment writes. `confirmed` means the office has accepted the job
+ * and nobody has been sent; the parcel is still in the sender's hands. Since
+ * bookings are now accepted the moment they arrive (see Rule 0 in
+ * src/server/automations.ts), leaving `confirmed` out would have closed the
+ * customer's own cancel button within a second of them placing the booking.
+ *
+ * `queued` is the real line: a courier has the job and is riding to an address.
  */
-export const SENDER_CANCELLABLE: readonly OrderStatus[] = ['requested'];
+export const SENDER_CANCELLABLE: readonly OrderStatus[] = ['requested', 'confirmed'];
 
 export function senderMayCancel(status: OrderStatus): boolean {
   return SENDER_CANCELLABLE.includes(status);
