@@ -49,6 +49,14 @@ Repository → Settings → Secrets and variables → Actions → New repository
 | `DIRECT_URL` | the Neon string **without** `-pooler` in the host |
 | `BACKUP_PASSPHRASE` | anything long and random, kept somewhere else too |
 
+Paste the values, do not copy whole lines. A secret is stored exactly as
+pasted, and a trailing newline off a copied `.env` line ends up inside the
+connection string, where `pg_dump` reports it against whichever parameter comes
+last: `invalid channel_binding value: "require\n"`. The workflow now strips
+line breaks and wrapping quotes from both secrets before using them, so this is
+belt and braces rather than a rule you have to remember — but it cost 31
+consecutive nightly runs before anyone read that error closely.
+
 Then Actions → **Nightly backup** → **Run workflow**, and watch it go green.
 Do that today rather than waiting for 2am — a workflow you have never seen
 succeed is not a workflow you have.
