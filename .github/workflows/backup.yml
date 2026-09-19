@@ -88,6 +88,18 @@ jobs:
             echo "::error::DIRECT_URL secret is not set. See the header of this file."
             exit 1
           fi
+
+          # A secret is stored exactly as pasted, trailing newline and all, and
+          # copying the DIRECT_URL line out of .env brings one along. It lands
+          # inside the value of whichever parameter comes last in the string --
+          # "invalid channel_binding value: require\n" -- which reads like a
+          # misconfigured connection rather than a stray keystroke. Cost 31
+          # nightly runs before anyone read the error closely.
+          # A URL cannot legitimately contain a line break, so drop them, and
+          # the surrounding quotes that the .env line also carries.
+          DIRECT_URL="$(printf '%s' "$DIRECT_URL" | tr -d '\r\n')"
+          DIRECT_URL="${DIRECT_URL%\"}"
+          DIRECT_URL="${DIRECT_URL#\"}"
           # --no-owner and --no-privileges so it restores into any role, which
           # is the whole point on a day when the original role is what broke.
           pg_dump "$DIRECT_URL" \
@@ -132,6 +144,14 @@ jobs:
             echo "::error::BACKUP_PASSPHRASE secret is not set. See the header of this file."
             exit 1
           fi
+
+          # Same trailing-newline trap as DIRECT_URL, but this one fails
+          # silently: openssl encrypts happily with a passphrase ending in a
+          # newline, and the artifact then rejects every passphrase a human
+          # types back on the day they need it. Strip it here so what is
+          # written in the password manager is what opens the file.
+          BACKUP_PASSPHRASE="$(printf '%s' "$BACKUP_PASSPHRASE" | tr -d '\r\n')"
+          export BACKUP_PASSPHRASE
           gzip -9 backup.sql
           # -pbkdf2 because the old default KDF is one round of MD5.
           openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
