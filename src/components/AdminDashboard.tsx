@@ -1062,9 +1062,14 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     // Who is carrying what right now.
     const carrying = new Map<string, number>();
     for (const o of allOrdersForStats) {
-      if (!riderLegOf(o).name) continue;
+      // Hoisted, for two reasons. riderLegOf builds a fresh object on every
+      // call, so the guard below cannot narrow the calls that follow it --
+      // TypeScript has no way to know it is the same name. And four calls per
+      // order is three more than this loop needs.
+      const name = riderLegOf(o).name;
+      if (!name) continue;
       if (o.status === 'queued' || o.status === 'picked_up' || o.status === 'to_station') {
-        carrying.set(riderLegOf(o).name, (carrying.get(riderLegOf(o).name) ?? 0) + 1);
+        carrying.set(name, (carrying.get(name) ?? 0) + 1);
       }
     }
     const riders = [...carrying.entries()]
