@@ -9,7 +9,6 @@ import type { NextFunction, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import { runAutomations } from './src/server/automations.js';
 import { prisma } from './src/server/prisma.js';
 import { canonicalHost, securityHeaders, trustProxyHops } from './src/server/security.js';
 import { catchProcessFailures, report, requestId } from './src/server/errors.js';
@@ -176,41 +175,37 @@ app.use('/api', (err: unknown, req: Request, res: Response, _next: NextFunction)
 });
 
 /**
- * Automation tick — runs the rules on a timer so time-based transitions
- * (e.g. auto-queueing when a pickup window opens) happen on their own,
- * without waiting for someone to click something in the dashboard.
- */
-const AUTOMATION_TICK_MS = 60 * 1000;
-
-/**
- * Whether this process is the one that runs the rules.
+ * THE AUTOMATION TICK IS GONE. It ran the rules every 60 seconds inside this
+ * process; it was removed on 20 September because it spent the month's
+ * database.
  *
- * On by default, because the single Render instance IS the one that runs them
- * and a flag that has to be remembered to get normal behaviour is a flag that
- * takes the service down.
+ * Neon's free plan allows 100 CU-hours per project and suspends the compute
+ * for the rest of the billing period once they are gone, and a compute only
+ * scales to zero after 5 minutes with no queries -- which a query every minute
+ * never permits. So the tick did not cost a minute of compute per minute of
+ * work. It cost every minute this process was alive, on either machine: .env
+ * points a laptop at the same endpoint production uses, so every `npm run dev`
+ * session held the same compute open too. The month ran out mid-month.
  *
- * Set AUTOMATION=off when a second process points at the same database -- a
- * laptop running `npm run dev` against production to look at something, or a
- * screen recording. The pass assigns riders and moves orders on, and while the
- * unique constraint on (orderId, event) stops anyone being texted twice, a
- * second loop still competes with the real one over live parcels. Nothing about
- * looking at the site should move somebody's delivery along.
+ * The rules themselves did not move. runAutomations() is called directly by
+ * routes/bookings.ts, routes/orders.ts and routes/rider.ts, immediately after
+ * the write that should trigger it -- a booking is still accepted, a courier
+ * still assigned, a rider still released, at the moment the thing happens. The
+ * interval only ever added the half that is purely about the clock.
+ *
+ * That half now rides on the console. routes/orders.ts sweeps the rules on
+ * every admin board read, throttled to one pass per 20 seconds, and the
+ * console refreshes itself every 30 -- so while the office has it open, the
+ * clock-driven rules run about as often as the timer ran them, on requests
+ * that were already holding the database awake. Nothing is added to the bill.
+ *
+ * When the console is shut, nothing runs. A pickup window that opens overnight
+ * is queued by the first thing that happens in the morning -- which is what a
+ * free instance, asleep since 15 minutes after the last request, was already
+ * going to give. If that ever stops being good enough, the answer is a cron
+ * calling one endpoint, the shape .github/workflows/backup.yml already uses,
+ * and not a timer inside a process that is billed for staying awake.
  */
-const automationEnabled = (process.env.AUTOMATION ?? '').trim().toLowerCase() !== 'off';
-
-if (automationEnabled) {
-  setInterval(() => {
-    runAutomations()
-      .then((actions) => {
-        if (actions.length > 0) {
-          console.log(`[automation] ${actions.length} action(s):`, actions.join(' | '));
-        }
-      })
-      .catch((err) => report(err, { at: 'automation' }));
-  }, AUTOMATION_TICK_MS);
-} else {
-  console.log('[automation] OFF (AUTOMATION=off). Nothing will be assigned or advanced by this process.');
-}
 
 /**
  * Outbox tick — sends the notifications the rules queued.

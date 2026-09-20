@@ -14,7 +14,7 @@ import { canTransition, checkUndo, isTerminal, nextStatuses, UNDO_NOTE_PREFIX } 
 import { isRegion, REGION_NAMES } from '../../regions.js';
 import { quote, sizeForWeight } from '../../pricing.js';
 import { currentRule } from './pricing.js';
-import { runAutomations, RIDER_TOKEN_TTL_MS } from '../automations.js';
+import { runAutomations, sweepAutomations, RIDER_TOKEN_TTL_MS } from '../automations.js';
 import { notifyForStatus, unqueueForStatus } from '../notifications.js';
 import { randomToken, withTrackingCode } from '../ids.js';
 import { prisma } from '../prisma.js';
@@ -329,6 +329,11 @@ ordersRouter.post('/book', publicWriteLimit, async (req, res) => {
    ADMIN: LIST WITH FILTERS
    --------------------------------------------------------------------------- */
 ordersRouter.get('/', requireAdmin, requirePermission('orders:read'), async (req, res) => {
+  // The rules run here, before the read, so what comes back is the board after
+  // the pass rather than the board one refresh behind it. Throttled, and it
+  // swallows its own failures -- see sweepAutomations.
+  await sweepAutomations();
+
   const { status, search, startDate, endDate } = req.query;
 
   const where: Prisma.OrderWhereInput = {};

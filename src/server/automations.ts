@@ -4,6 +4,7 @@
  */
 
 import { AUTOMATION_ACTOR } from '../brand.js';
+import { report } from './errors.js';
 import { randomToken } from './ids.js';
 import { queueNotification } from './notifications.js';
 import { prisma } from './prisma.js';
@@ -237,4 +238,60 @@ export async function runAutomations(): Promise<string[]> {
   });
 
   return actions;
+}
+
+
+/**
+ * How long the pass stays quiet after a run.
+ *
+ * The console refreshes every 30 seconds and asks for `/api/orders` twice in
+ * each cycle -- the figures and the board are fetched separately -- so without
+ * a floor a single refresh would run the rules twice and two open tabs four
+ * times. Twenty seconds rather than thirty: at exactly thirty, a poll arriving
+ * a few milliseconds early would be turned away and the rules would really run
+ * once a minute.
+ */
+const SWEEP_MIN_GAP_MS = 20 * 1000;
+
+let lastSweepAt = 0;
+let sweepInFlight: Promise<void> | null = null;
+
+/**
+ * Run the rules on the back of a console board read.
+ *
+ * This is what replaced the 60-second timer that used to live in server.ts --
+ * the note there has the reason it had to go. The shape is the whole point:
+ * the clock-driven rules now run while somebody is looking at the board, which
+ * is when the office is open, and not at all overnight, which is when nothing
+ * should be moving anyway and when a timer was quietly spending the month's
+ * database.
+ *
+ * It never throws. A broken rules pass is worth reporting, but it is not worth
+ * refusing to show the office its orders over -- the board is exactly how they
+ * work on the day automation is broken.
+ *
+ * ONE PROCESS. The in-flight guard is what stops two open console tabs running
+ * the pass at the same time and handing one free rider two different parcels.
+ * It is per-process, so a second instance would reintroduce the race it
+ * prevents; render.yaml runs one, deliberately.
+ */
+export async function sweepAutomations(): Promise<void> {
+  if (sweepInFlight) return sweepInFlight;
+  if (Date.now() - lastSweepAt < SWEEP_MIN_GAP_MS) return;
+
+  sweepInFlight = runAutomations()
+    .then((actions) => {
+      if (actions.length > 0) {
+        console.log(`[automation] ${actions.length} action(s):`, actions.join(' | '));
+      }
+    })
+    .catch((err) => {
+      report(err, { at: 'automation' });
+    })
+    .finally(() => {
+      lastSweepAt = Date.now();
+      sweepInFlight = null;
+    });
+
+  return sweepInFlight;
 }

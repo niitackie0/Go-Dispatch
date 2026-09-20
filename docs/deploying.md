@@ -45,21 +45,32 @@ consequences are worth knowing rather than discovering.
 practice this is the first booking of the morning, and whoever opens the
 console before the day starts absorbs it on everyone's behalf.
 
-**The automation rules only run while the service is awake.** `server.ts` runs
-them on a 60-second interval inside the web process: auto-queueing a parcel
-when its pickup window opens, releasing a courier who has finished, reconciling
-an on-delivery payment. While the service sleeps, none of that happens; it all
-runs in the first tick after someone wakes it.
+**The automation rules run on requests, not on a timer.** There was a
+60-second tick inside the web process; it was removed on 20 September because
+it spent the month's database. Neon's free plan allows 100 CU-hours per project
+and suspends the compute for the rest of the billing period once they are gone,
+and a compute only scales to zero after 5 minutes with no queries — so a query
+every minute kept it awake for every minute the process was alive. Including
+every `npm run dev` session, because `.env` points a laptop at the same
+endpoint production uses.
 
-This matters less than it sounds. Every rule also runs immediately after any
-booking, status change or payment — the interval exists only for transitions
-that are purely about the clock. So the real effect is that a parcel booked at
-1am is not auto-queued at 1am; it is auto-queued when the office opens. For a
-courier that does not drive at night, that is what should happen anyway.
+This matters less than it sounds, because nothing with a trigger depended on
+the tick. Every rule runs immediately after any booking, status change or
+payment — the interval only ever covered transitions that are purely about the
+clock. So the real effect is that a parcel whose pickup window opens while
+nobody is touching the console is queued by the next request that runs the
+pass — and the console's own 30-second refresh is one of those requests. The
+admin board read sweeps the rules before it answers, throttled to one pass per
+20 seconds, so with the console open the clock-driven rules run about as often
+as the timer ran them, on requests that were holding the database awake
+regardless.
 
-Where it would bite is a pickup window that opens before anyone signs in. If
-that ever becomes real, the fix is not a bigger instance — it is to stop
-relying on the tick for that rule, and run it when the board is read.
+Where it bites is a window that opens with the console shut and nothing else
+happening — a Sunday, or before anyone signs in. The parcel is queued by the
+first thing that happens instead, which in practice is the office opening. If
+that ever costs something real, the fix is not to put the timer back — it is
+the GitHub Actions cron the nightly backup already uses, calling one endpoint
+at whatever cadence actually matters.
 
 **Frankfurt**, because Render has five regions — Oregon, Ohio, Virginia,
 Frankfurt, Singapore — and none of them is London. The Neon project *is* in
@@ -242,6 +253,7 @@ of them are Render settings:
   reading stdout.
 - **Staging on its own Neon branch**, seeded rather than copied — the live
   table holds real names, phone numbers and home addresses.
-- **The automation tick.** It runs on an interval inside the web process. On a
-  single always-on instance that is correct. The day there are two instances,
-  both will run it.
+- **Anything purely clock-driven.** The 60-second tick is gone — it spent the
+  free plan's compute — so a rule with no request to ride on waits for the next
+  one. A cron calling a single endpoint is the replacement, on the day that
+  wait costs something.
