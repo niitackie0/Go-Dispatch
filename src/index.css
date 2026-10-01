@@ -571,3 +571,40 @@ body {
   .marquee { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
   .marquee-track { animation: none; }
 }
+
+/* ============================================================
+   The guided tour — see src/components/Tour.tsx
+
+   The spotlight is one element that travels between targets, for
+   the same reason the nav marker does: the eye follows a thing
+   moving, and loses two things blinking. Kept short, because the
+   same transition also runs while the page scrolls under it and
+   a slow one would trail behind what it is lighting.
+   ============================================================ */
+.gd-tour-spot {
+  transition:
+    top 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    left 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    width 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    height 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes gd-tour-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.gd-tour-card { animation: gd-tour-in 180ms ease-out both; }
+
+/* While the tour runs, nothing on the customer site waits to be scrolled to.
+   A step would otherwise light a section that is still fading in. */
+[data-touring] [data-reveal] {
+  opacity: 1;
+  transform: none;
+  clip-path: none;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gd-tour-spot { transition: none !important; }
+  .gd-tour-card { animation: none !important; }
+}

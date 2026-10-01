@@ -345,7 +345,9 @@ export default function BookingForm({ onSuccessBooking, initialRegion = '' }: Bo
           <p className="mt-4 text-base text-slate-500">
             Every figure here is an estimate from the weight you gave us. Each parcel is
             weighed once our rider brings it in, and that weighed price is what the
-            recipient pays.
+            recipient pays. Payment is made after weighing: the bill is sent by text and is
+            paid by MoMo, using {single ? "the parcel's" : "each parcel's own"} tracking code
+            as the reference.
           </p>
         </div>
       </div>

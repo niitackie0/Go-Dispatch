@@ -285,13 +285,22 @@ export default function PolicyPage() {
               id="payment"
               n={6}
               title="Payment"
-              gist="MTN Mobile Money at booking, or cash when we collect."
+              gist="Mobile Money, once we have weighed the parcel. The tracking code is your payment reference."
             >
+              {/* Rewritten for the bus model. This used to describe paying at
+                  booking or in cash at the door, neither of which happens: the
+                  price is not known until the parcel is on the office scale. */}
               <p>
-                You can pay by MTN Mobile Money at booking, or in cash when we collect. A
-                prepaid booking is not dispatched until the payment has landed; a
-                pay-on-collection booking is confirmed straight away and carries a visible
-                balance until it is settled.
+                Payment is made after your parcel has been weighed at our office; it is not
+                collected at booking or by the rider. The price shown when you book is
+                an estimate; we weigh the parcel at our office and text the bill to whoever
+                is paying. Pay it by Mobile Money to the number in that message, and enter
+                the parcel's tracking code as the reference — that is how we match your
+                payment to your parcel. If several parcels were booked together, each one is
+                billed separately and is paid with its own tracking code.
+              </p>
+              <p>
+                A parcel is not put on a bus until its payment has landed.
               </p>
               <p>
                 Cancelling before collection costs nothing. Once a parcel has been collected,

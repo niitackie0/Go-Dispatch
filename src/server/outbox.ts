@@ -23,6 +23,10 @@ import { sendSms, smsEnabled, smsProviderName } from './smsProvider.js';
  * ONE AT A TIME. `draining` stops two ticks overlapping. Sending is the one
  * operation here that cannot be taken back, so it is better for a tick to be
  * skipped than for a customer to be texted twice.
+ *
+ * WHEN IT RUNS is not decided here. This file sends what is due and reports
+ * how long until something else will be (`waitMs`); outboxWorker.ts decides
+ * when to call it, and scripts/sms-drain.ts calls it once by hand.
  */
 
 /** How long to wait after each failed attempt before trying again. */
@@ -45,6 +49,18 @@ export interface DrainResult {
   failed: number;
   retrying: number;
   skipped: string | null;
+  /**
+   * How long until there is something to send again, measured after this
+   * drain: 0 when rows are due right now (a backlog longer than one batch),
+   * the time to the nearest retry when everything left is waiting on its
+   * backoff, and null when no pending row exists at all -- or when the drain
+   * did not run and so cannot say.
+   *
+   * This is what lets the worker stop. Without it the only way to learn the
+   * outbox was empty was to ask again in 30 seconds, forever, and a query
+   * every 30 seconds is a database that never sleeps.
+   */
+  waitMs: number | null;
 }
 
 /**
@@ -55,7 +71,7 @@ export interface DrainResult {
  * numbers while sending was being built.
  */
 export async function drainOutbox(options: { dryRun?: boolean } = {}): Promise<DrainResult> {
-  const result: DrainResult = { sent: 0, failed: 0, retrying: 0, skipped: null };
+  const result: DrainResult = { sent: 0, failed: 0, retrying: 0, skipped: null, waitMs: null };
 
   if (!options.dryRun && !smsEnabled()) {
     result.skipped = 'SMS is switched off (set SMS_PROVIDER in .env to enable)';
@@ -128,6 +144,25 @@ export async function drainOutbox(options: { dryRun?: boolean } = {}): Promise<D
         );
       } else {
         result.retrying += 1;
+      }
+    }
+
+    // What is left, so the caller knows whether to come back and when. A dry
+    // run changed nothing, so it has nothing to schedule.
+    //
+    // Nulls first: a pending row with no nextAttemptAt is due now, and is the
+    // one that must win. Asked after the sends rather than worked out from
+    // them, because rows may have been queued while this drain was busy.
+    if (!options.dryRun) {
+      const next = await prisma.notification.findFirst({
+        where: { status: 'pending' },
+        orderBy: { nextAttemptAt: { sort: 'asc', nulls: 'first' } },
+        select: { nextAttemptAt: true },
+      });
+      if (next) {
+        result.waitMs = next.nextAttemptAt
+          ? Math.max(0, next.nextAttemptAt.getTime() - Date.now())
+          : 0;
       }
     }
   } finally {

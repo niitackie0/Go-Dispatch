@@ -39,6 +39,15 @@ export default function GhanaMap({ onSelect, className = '' }: GhanaMapProps) {
 
   return (
     <div className={`relative ${className}`}>
+      {/* What the guided tour lights (see CustomerLayout). The map itself is
+          taller than a phone screen, so the tour gets an invisible window
+          over the top of it, capped to leave room for the tour's card and
+          the header. It takes no space and no clicks. */}
+      <span
+        data-tour="map"
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-full max-h-[calc(100dvh-24rem)]"
+      />
       <svg
         viewBox={MAP_VIEWBOX}
         className="w-full h-auto"

@@ -7,6 +7,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Phone, Menu, X, ArrowRight, ChevronRight } from 'lucide-react';
 import { CONTACT_PHONE, CONTACT_PHONE_E164, OFFICE_ADDRESS, OFFICE_LANDMARK, SOCIAL, OPENING_HOURS } from '../brand.js';
 import { Link, useRouter } from '../router.js';
+import Tour, { tourSeen, markTourSeen } from './Tour.js';
+import type { TourStep } from './Tour.js';
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
@@ -14,6 +16,64 @@ const NAV_LINKS = [
   { to: '/track', label: 'Track' },
   { to: '/contact', label: 'Contact' },
   { to: '/policy', label: 'Policy' },
+];
+
+/**
+ * The guided tour of the customer site.
+ *
+ * Six stops, for somebody who has never sent a parcel with us: what we do,
+ * then the four things the site is for — book, track, price, help — in the
+ * order a first parcel needs them. Each stop points at the real thing on the
+ * Home page (the `data-tour` attributes here, in Home and in GhanaMap), so
+ * what is learned is where it actually is.
+ *
+ * The version is in the key: change the tour enough that people who saw the
+ * old one should see the new one, and bump it.
+ */
+const TOUR_KEY = 'gd_tour_site_v1';
+
+/** The header bar's height (h-16). The tour keeps targets clear of it. */
+const HEADER_HEIGHT = 64;
+
+const TOUR_STEPS: TourStep[] = [
+  {
+    title: 'Welcome to GO DISPATCH',
+    body: 'We deliver parcels from Accra to destinations across Ghana. A rider collects your parcel, it travels by intercity bus, and the recipient collects it at their local station. This short tour shows you where everything is.',
+  },
+  {
+    // The Book button in the bar on a wide screen. On a phone that one is
+    // inside the menu, so the same button in the hero is lit instead: pointing
+    // at a menu and saying "it is in there" is a poorer answer than pointing
+    // at the button itself. Whichever is drawn first in the page wins.
+    target: '[data-tour="book"], [data-tour="book-hero"]',
+    title: 'Book a delivery',
+    body: 'Begin your booking here. It takes three short steps. Payment is made after your parcel has been weighed at our office.',
+    // The header is stuck to the top of the window, so there is nothing to
+    // scroll to — but a lit header over the middle of the page reads as lost.
+    // Instant, because a smooth scroll would still be running when the tour
+    // goes looking for the button.
+    before: () => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }),
+  },
+  {
+    target: '[data-tour="map"]',
+    title: 'Book from the map',
+    body: 'Select the region you are sending to, and the booking form will open with that region already chosen.',
+  },
+  {
+    target: '[data-tour="track"]',
+    title: 'Track a parcel',
+    body: 'Enter your tracking code, booking reference or phone number to view the status of your parcel.',
+  },
+  {
+    target: '[data-tour="price"]',
+    title: 'Estimate the price',
+    body: 'Select a weight to see an estimated price. The final price is confirmed when your parcel is weighed at our office. Payment is by MoMo, using your tracking code as the reference.',
+  },
+  {
+    target: '[data-tour="help"]',
+    title: 'Need assistance?',
+    body: 'Call us on this number or send us a message on WhatsApp. Bookings can also be made by phone.',
+  },
 ];
 
 /**
@@ -152,8 +212,11 @@ function FooterPattern() {
 }
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
-  const { path } = useRouter();
+  const { path, navigate } = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  /** Somebody asked for the tour; it opens once Home is on screen. */
+  const [tourAsked, setTourAsked] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -212,13 +275,58 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
     };
   }, []);
 
-  // A hidden header must not swallow the menu that opens from it.
-  const parked = hidden && !mobileOpen;
+  // A hidden header must not swallow the menu that opens from it — nor leave
+  // the tour lighting an empty strip where the Book button was.
+  const parked = hidden && !mobileOpen && !tourOpen;
+
+  const onHome = path === '/';
+
+  // The tour starts by itself once, for a browser that has never had it, and
+  // only on Home. Somebody landing on /t/CODE from a text message came to see
+  // one parcel; they are not interrupted. It is marked as seen the moment it
+  // opens rather than when it is finished, so reloading halfway through does
+  // not start it again.
+  useEffect(() => {
+    if (!onHome || mobileOpen || tourSeen(TOUR_KEY)) return;
+    const timer = window.setTimeout(() => {
+      markTourSeen(TOUR_KEY);
+      setTourOpen(true);
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [onHome, mobileOpen]);
+
+  // "Take a tour", from any page. Every stop is on Home, so go there first
+  // and open on the next pass, once Home is what is drawn. The pause covers
+  // the scroll back to the top, which the header step relies on.
+  const startTour = () => {
+    setMobileOpen(false);
+    markTourSeen(TOUR_KEY);
+    setTourAsked(true);
+    navigate('/');
+  };
+  useEffect(() => {
+    if (!tourAsked || !onHome) return;
+    const timer = window.setTimeout(() => {
+      setTourAsked(false);
+      setTourOpen(true);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [tourAsked, onHome]);
+
+  // The tour belongs to Home. Leaving by the back button takes it down.
+  useEffect(() => {
+    if (!onHome) setTourOpen(false);
+  }, [onHome]);
 
   const isActive = (to: string) => (to === '/' ? path === '/' : path.startsWith(to));
 
   return (
-    <div className="min-h-dvh bg-[var(--wp-bg)] text-slate-900 flex flex-col font-sans selection:bg-red-200 selection:text-red-900">
+    <div
+      // Read by index.css: while the tour runs, nothing waits for a scroll
+      // reveal, so a step never lights something that has not faded in yet.
+      data-touring={tourOpen ? 'true' : undefined}
+      className="min-h-dvh bg-[var(--wp-bg)] text-slate-900 flex flex-col font-sans selection:bg-red-200 selection:text-red-900"
+    >
       {/* ---------- Navigation ----------
           One bar, three jobs, left to right: who we are, where you can go,
           and the single thing we want you to do.
@@ -273,6 +381,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
 
           <Link
             to="/book"
+            data-tour="book"
             className="group hidden md:inline-flex items-center shrink-0 min-h-11 gap-2 rounded-full bg-red-600 hover:bg-red-700 pl-5 pr-4 text-base font-medium text-white transition-colors"
           >
             Book a delivery
@@ -282,6 +391,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
           <button
             ref={menuTriggerRef}
             onClick={() => setMobileOpen(true)}
+            data-tour="menu"
             className="md:hidden flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-slate-900 transition-colors"
             aria-label="Open menu"
             aria-haspopup="dialog"
@@ -370,6 +480,13 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                 <Phone className="h-4 w-4 text-red-600" />
                 Call {CONTACT_PHONE}
               </a>
+              <button
+                type="button"
+                onClick={startTour}
+                className="flex w-full items-center justify-center min-h-11 rounded-xl text-base text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+              >
+                Take a tour
+              </button>
             </div>
           </div>
         </div>
@@ -417,6 +534,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-2.5">
               <a
                 href={`tel:${CONTACT_PHONE_E164}`}
+                data-tour="help"
                 className="inline-flex w-full sm:w-auto items-center justify-center gap-2 min-h-12 sm:min-h-11 shrink-0 whitespace-nowrap rounded-full bg-red-600 hover:bg-red-500 px-5 text-base font-medium tabular-nums transition-colors"
               >
                 <Phone className="h-4 w-4" />
@@ -483,6 +601,16 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                   </Link>
                 </React.Fragment>
               ))}
+              {/* A button, not a link: it does not go anywhere you could
+                  bookmark, it starts something. */}
+              <span className="text-white/20" aria-hidden="true">·</span>
+              <button
+                type="button"
+                onClick={startTour}
+                className="inline-flex items-center min-h-11 px-2 hover:text-white transition-colors cursor-pointer"
+              >
+                Take a tour
+              </button>
             </nav>
             <p className="text-sm text-white/45">
               &copy; 2026 GO DISPATCH · Safe · Fast · Reliable
@@ -490,6 +618,15 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
           </div>
         </div>
       </footer>
+
+      <Tour
+        steps={TOUR_STEPS}
+        open={tourOpen}
+        onClose={() => setTourOpen(false)}
+        doneLabel="Book a delivery"
+        onDone={() => navigate('/book')}
+        topInset={HEADER_HEIGHT}
+      />
     </div>
   );
 }

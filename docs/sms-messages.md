@@ -43,9 +43,12 @@ That indirection buys two things worth keeping:
 - **The wording is fixed when the event happens.** Editing a template later
   cannot rewrite what a customer was already told.
 
-The worker (`src/server/outbox.ts`) wakes every 30 seconds, sends what is due,
-and retries failures after 1 minute, 5 minutes, 30 minutes and 2 hours before
-giving up. Errors that retrying cannot fix — an unregistered sender ID, a
+The worker (`src/server/outbox.ts`, scheduled by `outboxWorker.ts`) wakes when
+there is something to send — a couple of seconds after a message is queued, and
+once when the server starts — rather than every 30 seconds whether or not there
+is. An empty outbox costs no database query, which is what lets the free Neon
+compute sleep. It sends what is due, and retries failures after 1 minute, 5
+minutes, 30 minutes and 2 hours before giving up. Errors that retrying cannot fix — an unregistered sender ID, a
 number that is not a Ghanaian mobile — fail immediately instead of burning five
 attempts to learn the same thing.
 
@@ -154,25 +157,34 @@ on a shelf while everyone waits for the other to move.
 No tracking link on this one. The action is a MoMo transfer, and 30 characters
 of URL would buy nothing the number and the code do not already give.
 
-Which makes this the tightest single-segment message in the set now — the
-recipient-pays variant runs to 141 characters with a long name and a
-three-figure amount, 19 short of a second credit. It is the one message the
-shorter domain could not help, because it never carried the link.
+**The tracking code is the MoMo reference.** The office matches an incoming
+transfer to a parcel by the reference the payer typed, not by the network's
+transaction ID, so every variant says "with reference {code}". The code is
+printed once, as the reference, rather than once to name the parcel and again
+in the instruction. Each parcel in a multi-parcel booking gets its own bill, so
+it is always that parcel's own `GD-` code, never the `GDB-` booking reference.
+
+The bill ends at the reference. It used to close with "and it goes on the bus",
+which the owner cut on 1 October: the message asks for one thing, and the bus
+has its own text. That leaves room to spare — the price-changed variant is 135
+characters to "Henry", and the recipient-pays variant 132 with a long name and
+a three-figure amount. If one ever did reach the limit, the "Dear ..." line is
+dropped before a second credit is spent.
 
 Weighing changed the price:
 
 > **Dear Henry**
-> **GD-4821-330 weighed 4.2kg, so the price is GHS 60.00, not GHS 50.00. Pay by MoMo to 054 030 4994 and it goes on the bus.**
+> **Your parcel weighed 4.2kg, so the price is GHS 60.00, not GHS 50.00. Pay by MoMo to 054 030 4994 with reference GD-4821-330.**
 
 The estimate was right:
 
 > **Dear Henry**
-> **GD-4821-330 weighed 4.2kg. Pay GHS 60.00 by MoMo to 054 030 4994 and it goes on the bus.**
+> **Your parcel weighed 4.2kg. Pay GHS 60.00 by MoMo to 054 030 4994 with reference GD-4821-330.**
 
 The recipient is paying:
 
 > **Dear Ama**
-> **Henry has sent you a parcel, GD-4821-330. It weighed 4.2kg. Pay GHS 60.00 by MoMo to 054 030 4994 and it goes on the bus.**
+> **Henry has sent you a parcel. It weighed 4.2kg. Pay GHS 60.00 by MoMo to 054 030 4994 with reference GD-4821-330.**
 
 ---
 
