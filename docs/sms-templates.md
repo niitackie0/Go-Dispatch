@@ -21,17 +21,17 @@ We have your {n} parcels. Prices confirm when we weigh each one. Use {ref} to tr
 
 ```
 Dear {name}
-{code} weighed {weight}kg, so the price is {amount}, not {oldAmount}. Pay by MoMo to {office} and it goes on the bus.
+Your parcel weighed {weight}kg, so the price is {amount}, not {oldAmount}. Pay by MoMo to {office} with reference {code}.
 ```
 
 ```
 Dear {name}
-{code} weighed {weight}kg. Pay {amount} by MoMo to {office} and it goes on the bus.
+Your parcel weighed {weight}kg. Pay {amount} by MoMo to {office} with reference {code}.
 ```
 
 ```
 Dear {name}
-{sender} has sent you a parcel, {code}. It weighed {weight}kg. Pay {amount} by MoMo to {office} and it goes on the bus.
+{sender} has sent you a parcel. It weighed {weight}kg. Pay {amount} by MoMo to {office} with reference {code}.
 ```
 
 ```
@@ -83,9 +83,13 @@ Source: `src/server/notifications.ts`. `npm run sms:preview` prints them filled 
 The first one is two segments already and always has been — see
 `docs/sms-messages.md` for why that wording is worth the second credit.
 
-Of the ones that fit in a single segment, the tightest are the recipient-pays
-bill (19 characters spare at worst) and the multi-parcel confirmation (17).
-Adding words to either needs `npm run sms:preview` run first, or it becomes two
+Of the ones that fit in a single segment, the tightest is the multi-parcel
+confirmation, with 17 characters spare. The three bills each tell the payer to
+use the tracking code as the MoMo reference and stop there: the price-changed
+bill has 25 spare and the recipient-pays bill 28 at worst. A longer name or a
+bigger amount drops the "Dear {name}" line rather than running to a second
+segment. Adding
+words to any of them needs `npm run sms:preview` run first, or it becomes two
 messages and bills twice on every parcel.
 
 Moving from `go-dispatch.onrender.com` to `godispatchgh.com` returned eight

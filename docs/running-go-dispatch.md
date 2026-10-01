@@ -7,6 +7,14 @@ sign in.
 The console is at **/ops** on your own address. Sign in stays valid for seven
 days, so most mornings it opens straight to the board.
 
+**New to the console? It shows you round.** The first time the console is
+opened in a browser, a short tour walks through each section you are allowed
+to open and says what it is for. Press **Next** to move on, or **Skip the
+tour** to leave it. To see it again, open **Guided tour** at the bottom of the
+console menu and press **Start the tour**; that page also lists what each
+section is for. It is remembered per browser, so a
+different computer will offer it once more.
+
 ---
 
 ## The day, in order
@@ -33,7 +41,8 @@ Adabraka.
 enter the weight from the scale. That fixes the price — everything before it,
 on the site and in the booking form, was an estimate — and it texts the bill to
 whoever the parcel names as payer, which may be the recipient rather than the
-sender.
+sender. The bill tells them to pay by MoMo to the office number and to put the
+parcel's **tracking code** in the MoMo reference field.
 
 **The money settles.** *Paid*, once the MoMo lands. Record it with **I have the
 money**. This is a gate, not a formality: **nothing goes on a bus before it is
@@ -57,6 +66,17 @@ than silence.
 ## Recording a payment
 
 Open the order → **I have the money**.
+
+The form shows the parcel's tracking code. That code is the payment reference:
+the customer was told to type it into the MoMo reference field, so look through
+the office phone's MoMo messages for the transfer carrying it, check the amount
+matches the bill, then record it. You do not type a transaction ID any more —
+there is no box for one. Each parcel in a multi-parcel booking is paid under its
+own `GD-` code, not the `GDB-` booking reference.
+
+If a transfer arrives with no reference, or the wrong one, match it by the
+amount and the number it came from, ring the customer if it is not obvious, and
+say what you did in the note.
 
 It records the full price of the parcel unless you enter a different amount,
 marks it paid, and puts a line in the ledger with your name and the time.

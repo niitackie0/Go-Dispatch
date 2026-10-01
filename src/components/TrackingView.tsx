@@ -4,10 +4,11 @@
  */
 
 import React, { useState, useEffect, useId, useMemo } from 'react';
-import { Search, ArrowRight, AlertCircle, Loader2, Phone } from 'lucide-react';
+import { Search, ArrowRight, AlertCircle, Loader2, Phone, Copy, Check } from 'lucide-react';
 import { OrderStatus } from '../types.js';
 import { senderMayCancel } from '../transitions.js';
 import { CONTACT_PHONE, CONTACT_PHONE_E164 } from '../brand.js';
+import { formatAmount } from '../pricing.js';
 
 interface TrackingViewProps {
   initialTrackingCode?: string;
@@ -25,6 +26,12 @@ interface PublicOrder {
   scheduledPickupAt: string;
   status: OrderStatus;
   paymentStatus: string;
+  /**
+   * The amount owed, present only once the parcel has been weighed and while
+   * it is still unpaid. The server decides that, not this page -- before the
+   * scale there is only an estimate, and nobody should be asked to pay one.
+   */
+  bill?: { amount: number; currency: string };
   createdAt: string;
   timeline: {
     status: OrderStatus;
@@ -169,6 +176,67 @@ function CancelPanel({ order, onCancelled }: { order: PublicOrder; onCancelled: 
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * How to pay, for a parcel that has been weighed and is waiting on the money.
+ *
+ * Three facts and nothing else: how much, to which number, and what to type in
+ * the MoMo reference field. The third is the one that matters. The office
+ * matches an incoming transfer to a parcel by that reference -- not by the
+ * network's transaction ID -- so a transfer sent without the tracking code is
+ * money nobody can tie to a parcel until somebody rings up about it.
+ *
+ * The code gets the copy button because it is the thing people mistype: the
+ * amount and the number are read off, the code has to arrive exactly.
+ */
+function PayPanel({ order, bill }: { order: PublicOrder; bill: NonNullable<PublicOrder['bill']> }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = () => {
+    // Clipboard access is refused on some handsets and on plain http. The code
+    // is printed beside the button, so a refusal costs nothing.
+    navigator.clipboard?.writeText(order.trackingCode).then(
+      () => { setCopied(true); setTimeout(() => setCopied(false), 2000); },
+      () => {}
+    );
+  };
+
+  return (
+    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 p-4" id={`pay_panel_${order.trackingCode}`}>
+      <p className="text-sm font-medium text-amber-900">To pay</p>
+      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
+        <div>
+          <dt className="text-sm text-slate-500">Amount</dt>
+          <dd className="text-lg font-semibold text-slate-900 tabular-nums">
+            {formatAmount(bill.amount, bill.currency)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-sm text-slate-500">MoMo number</dt>
+          <dd className="font-mono text-lg font-semibold text-slate-900">{CONTACT_PHONE}</dd>
+        </div>
+        <div className="col-span-2">
+          <dt className="text-sm text-slate-500">Reference</dt>
+          <dd className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-dashed border-amber-300 bg-white px-4 py-2">
+            <span className="font-mono text-lg font-semibold text-slate-900">{order.trackingCode}</span>
+            <button
+              type="button"
+              onClick={copy}
+              aria-label="Copy the payment reference"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shrink-0"
+            >
+              {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+            </button>
+          </dd>
+        </div>
+      </dl>
+      <p className="mt-3 text-base text-slate-600">
+        Use <span className="font-mono font-medium text-slate-900">{order.trackingCode}</span> as
+        the reference when you send the money. It is how we match your payment to this parcel.
+      </p>
+    </div>
   );
 }
 
@@ -582,7 +650,12 @@ export default function TrackingView({ initialTrackingCode = '' }: TrackingViewP
                     <p className="text-lg sm:text-xl font-medium text-slate-900 tracking-tight text-balance">
                       {statusLine(order)}
                     </p>
-                    {order.paymentStatus !== 'paid' && (
+                    {/* Weighed and unpaid: say exactly how to settle it. Before
+                        the scale there is no bill to pay yet, only the fact
+                        that one is coming. */}
+                    {order.bill ? (
+                      <PayPanel order={order} bill={order.bill} />
+                    ) : order.paymentStatus !== 'paid' && (
                       <p className="mt-1.5 text-base text-slate-500">
                         Payment is due on this parcel.
                       </p>

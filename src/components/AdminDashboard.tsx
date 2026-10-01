@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Layers,
   Search, 
@@ -36,7 +36,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Undo2,
-  ChevronUp
+  ChevronUp,
+  HelpCircle
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -63,7 +64,10 @@ import StaffManagement from './StaffManagement.js';
 import AccountSecurity from './AccountSecurity.js';
 import Tooltip from './Tooltip.js';
 import DateModal from './DateModal.js';
+import { useLiveRefresh } from '../hooks/useLiveRefresh.js';
 import Sheet from './Sheet.js';
+import Tour, { tourSeen, markTourSeen } from './Tour.js';
+import type { TourStep } from './Tour.js';
 import { formatPhone } from '../phone.js';
 
 interface AdminDashboardProps {
@@ -99,7 +103,7 @@ const STATUS_ORDER: { key: OrderStatus; label: string; bg: string; text: string;
 /** The statuses the board offers as filters and moves. Retired ones excluded. */
 const LIVE_STATUS_ORDER = STATUS_ORDER.filter((s) => LIVE_ORDER_STATUSES.includes(s.key));
 
-type SubTab = 'overview' | 'pipeline' | 'payments' | 'fleet' | 'pricing' | 'staff' | 'account';
+type SubTab = 'overview' | 'pipeline' | 'payments' | 'fleet' | 'pricing' | 'staff' | 'account' | 'guide';
 
 /**
  * One day's money, split by where it physically is.
@@ -160,7 +164,16 @@ const NAV_ITEMS: {
   { key: 'pricing', label: 'Pricing', title: 'Pricing', icon: Settings, capability: 'pricing:write' },
   { key: 'staff', label: 'Staff accounts', title: 'Staff accounts', icon: Users, capability: 'staff:manage' },
   { key: 'account', label: 'My account', title: 'My account', icon: ShieldCheck },
+  // Last, and open to every role: it is where the tour is started from again.
+  { key: 'guide', label: 'Guided tour', title: 'Guided tour', icon: HelpCircle },
 ];
+
+/**
+ * Remembers that this browser has been shown the console tour. The `v1` is
+ * there to be bumped: if the console changes enough that the tour is worth
+ * offering again, a new key offers it to everybody once more.
+ */
+const TOUR_KEY = 'gd_tour_console_v1';
 
 export default function AdminDashboard({ token, user, onLogout }: AdminDashboardProps) {
   const userInitials = (user?.name || 'A')
@@ -272,7 +285,9 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   const [statusNote, setStatusNote] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
-  const [paymentRef, setPaymentRef] = useState('');
+  // Set for two seconds after the payment reference is copied, so the button
+  // can say so. There is no reference to type any more: it is the tracking code.
+  const [copiedPaymentRef, setCopiedPaymentRef] = useState(false);
   const [submittingStatus, setSubmittingStatus] = useState(false);
   const [submittingPayment, setSubmittingPayment] = useState(false);
 
@@ -355,6 +370,125 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     { orderId: string; trackingCode: string; from: OrderStatus; to: OrderStatus } | null
   >(null);
   const [undoing, setUndoing] = useState(false);
+
+  /**
+   * The guided tour: one card per section this role can open.
+   *
+   * Each step switches the console to its section before it shows, so what the
+   * card describes is really on screen behind it. It points at the section's
+   * sidebar button; below lg the sidebar is not drawn, so the header's
+   * section-name button (which is the menu there) is the fallback.
+   */
+  const [tourOpen, setTourOpen] = useState(false);
+
+  /**
+   * What each section is for, in a sentence or two. Said twice — once by the
+   * tour as it visits the section, once on the Guided tour page as a list —
+   * so it is written once, here.
+   */
+  const sectionGuide = useMemo(() => {
+    // What the board entry says a row is for depends on what this role can do
+    // with one. Telling finance to assign a rider would send them looking for
+    // a button they are not shown.
+    const boardBody = canWriteOrders
+      ? canRecordPayment
+        ? 'All parcels are listed here, with the most overdue first. Select a parcel to record its weight, assign a rider, record payment and dispatch it.'
+        : 'All parcels are listed here, with the most overdue first. Select a parcel to record its weight, assign a rider and dispatch it.'
+      : 'All parcels are listed here, with the most overdue first. Select a parcel to view its progress and to record payment once it has been received.';
+
+    const copy: Record<Exclude<SubTab, 'guide'>, { title: string; body: string }> = {
+      overview: {
+        title: 'Overview',
+        body: 'Begin each day here. “Needs attention” lists the parcels that require action. Select any status tile to open the dispatch board filtered to that stage.',
+      },
+      pipeline: { title: 'Dispatch board', body: boardBody },
+      payments: {
+        title: 'Payments',
+        body: 'This section shows the day’s takings and any payments still outstanding. To record a payment, locate the MoMo transfer whose reference matches the parcel’s tracking code, then open that parcel and record it.',
+      },
+      fleet: {
+        title: 'Fleet',
+        body: 'View all riders, including who is available and who is currently carrying a parcel.',
+      },
+      pricing: {
+        title: 'Pricing',
+        body: 'Set the flat rate and the charge for each additional kilogram. Changes apply to parcels weighed after the update; parcels already billed are not affected.',
+      },
+      staff: {
+        title: 'Staff accounts',
+        body: 'Add staff members, assign their roles and reset passwords when required.',
+      },
+      account: {
+        title: 'My account',
+        body: 'Change your password and sign out of other devices.',
+      },
+    };
+
+    // The Guided tour page is not a stop on its own tour.
+    return visibleNavItems.flatMap(({ key, icon }) =>
+      key === 'guide' ? [] : [{ key, icon, ...copy[key] }]
+    );
+  }, [visibleNavItems, canWriteOrders, canRecordPayment]);
+
+  const tourSteps = useMemo<TourStep[]>(() => {
+    return [
+      {
+        title: 'Welcome to the operations console',
+        body: 'This console is used to manage every parcel from booking through to dispatch. Each parcel follows the same sequence: it is collected by a rider, weighed at the office, paid for, and placed on the bus.',
+        // Also here so that a tour started from another section opens with the
+        // overview behind it, not wherever somebody happened to be.
+        before: () => goToSection('overview'),
+      },
+      ...sectionGuide.map(({ key, title, body }) => ({
+        target: `[data-tour="nav-${key}"], [data-tour="nav-menu"]`,
+        title,
+        body,
+        before: () => goToSection(key),
+      })),
+      {
+        target: '[data-tour="refresh"]',
+        title: 'Refresh',
+        body: 'The console updates automatically while it is in use and pauses when left idle. If “Updates paused” appears, select Refresh or move the mouse to resume.',
+      },
+      {
+        // Ends on its own page, so the last thing shown is where to find it.
+        target: '[data-tour="nav-guide"], [data-tour="nav-menu"]',
+        title: 'Guided tour',
+        body: 'You can repeat this tour at any time from the Guided tour section.',
+        before: () => goToSection('guide'),
+      },
+    ];
+    // goToSection is a new function every render, but it only calls state
+    // setters, which never change, so the one captured here stays correct.
+    // Leaving it out is what keeps this list from being rebuilt each time a
+    // step switches section.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionGuide]);
+
+  const startTour = useCallback(() => {
+    // A parcel or a payment left open would sit on top of the sections the
+    // tour is about to walk through.
+    setSelectedOrderId(null);
+    setOpenPayment(null);
+    markTourSeen(TOUR_KEY);
+    setTourOpen(true);
+  }, []);
+
+  // Finished or skipped, the tour hands the console back where a day starts
+  // rather than on whichever section its last step happened to open.
+  const closeTour = useCallback(() => {
+    setTourOpen(false);
+    setActiveSubTab('overview');
+    setSectionMenuOpen(false);
+  }, []);
+
+  // Offered once per browser, a moment after the console appears so the first
+  // thing a new member of staff sees is the console itself and not a card.
+  useEffect(() => {
+    if (tourSeen(TOUR_KEY)) return;
+    const t = window.setTimeout(startTour, 700);
+    return () => window.clearTimeout(t);
+  }, [startTour]);
 
   // Helper fetch configurations with authentication header
   const getAuthHeaders = () => ({
@@ -505,20 +639,21 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
     }
   }, [activeSubTab, searchFilter, statusFilter, startDateFilter, endDateFilter]);
 
-  // Silent background refresh. Ticks every 30s rather than every second — the
-  // old version re-rendered the whole console once a second to decrement a
-  // countdown that is no longer shown.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchStats();
-      fetchOrders();
-      if (activeSubTab === 'payments') {
-        fetchPayments();
-      }
-    }, 30_000);
-
-    return () => clearInterval(interval);
-  }, [activeSubTab, searchFilter, statusFilter, startDateFilter, endDateFilter]);
+  // Silent background refresh, every 30s -- but only while the tab is visible
+  // and somebody has touched the console in the last five minutes. A tab left
+  // open on the office PC used to keep the server and the database awake all
+  // night; useLiveRefresh has the reasoning. It also refreshes at once when
+  // somebody comes back, so a paused board is never acted on stale.
+  //
+  // The board read is what runs the clock-driven automation rules (see
+  // routes/orders.ts), so fetchOrders stays in here whichever tab is showing.
+  const { paused: liveRefreshPaused } = useLiveRefresh(() => {
+    fetchStats();
+    fetchOrders();
+    if (activeSubTab === 'payments') {
+      fetchPayments();
+    }
+  });
 
   // Load Order Details Drawer on selection
   useEffect(() => {
@@ -725,10 +860,16 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
   /**
    * The ledger, narrowed by the search box.
    *
-   * Matches on everything printed in a row — code, sender, phone, provider
-   * reference, the note — because reconciling a transfer usually starts from
-   * whichever of those the customer quoted down the phone, and finance should
-   * not have to know which column it lives in.
+   * Matches on everything printed in a row — code, sender, phone, the note —
+   * because reconciling a transfer usually starts from whichever of those the
+   * customer quoted down the phone, and finance should not have to know which
+   * column it lives in.
+   *
+   * The tracking code IS the payment reference: it is what the payer types
+   * into MoMo, so searching the reference off a MoMo message finds the row.
+   * `providerReference` is still searched because rows recorded before that
+   * rule carry a hand-typed transaction ID, and a provider webhook will fill
+   * it again one day.
    */
   const filteredPayments = useMemo(() => {
     const q = paymentSearch.trim().toLowerCase();
@@ -756,15 +897,13 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
         headers: getAuthHeaders(),
         body: JSON.stringify({
           amount: amtPesewas,
-          note: paymentNote.trim() || undefined,
-          providerReference: paymentRef.trim() || undefined
+          note: paymentNote.trim() || undefined
         })
       });
 
       if (!res.ok) throw new Error('Failed to log payment transaction.');
 
       setPaymentNote('');
-      setPaymentRef('');
       await loadOrderDetails(selectedOrderId);
       fetchOrders();
       fetchStats();
@@ -1136,6 +1275,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                     key={key}
                     onClick={() => goToSection(key)}
                     aria-current={active ? 'page' : undefined}
+                    data-tour={`nav-${key}`}
                     title={railed ? label : undefined}
                     data-active={active}
                     className={`gd-nav-item w-full min-h-11 flex items-center gap-3 rounded-xl text-sm font-medium transition-colors duration-200 cursor-pointer ${railed ? 'justify-center px-0' : 'justify-between px-3'} py-2.5 ${
@@ -1183,6 +1323,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                   onClick={() => setSectionMenuOpen((open) => !open)}
                   aria-expanded={sectionMenuOpen}
                   aria-haspopup="menu"
+                  data-tour="nav-menu"
                   className="lg:hidden w-full min-h-11 flex items-center gap-2 -ml-2 px-2 py-1.5 rounded-xl text-left hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   <span className="min-w-0">
@@ -1208,13 +1349,24 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
 
               {/* Quick actions + account */}
               <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                <Tooltip placement="bottom" label="Reload orders, payments and figures now. They also refresh on their own every 30 seconds.">
+                {/* Said quietly, and only while it is true. It clears itself the
+                    moment anyone touches the console, so in practice it is
+                    read by somebody looking at a screen they have not used
+                    for a while -- who needs to know the board is not live. */}
+                {liveRefreshPaused && (
+                  <span className="hidden sm:inline text-xs text-slate-400 whitespace-nowrap" role="status">
+                    Updates paused
+                  </span>
+                )}
+
+                <Tooltip placement="bottom" label="Reload orders, payments and figures now. They also refresh on their own every 30 seconds while the console is in use, and pause when it is left alone.">
                   <button
                     onClick={() => {
                       fetchStats();
                       fetchOrders();
                       fetchPayments();
                     }}
+                    data-tour="refresh"
                     className="min-h-11 min-w-11 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Clock className="h-4 w-4" />
@@ -1960,8 +2112,9 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           )}
 
           {/* Finding one transaction. Someone rings about a payment and quotes
-              whichever detail they have to hand — a tracking code, the number
-              they sent from, a MoMo reference — so one box takes all of them. */}
+              whichever detail they have to hand — the tracking code they used
+              as the MoMo reference, the number they sent from — so one box
+              takes all of them. */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -1970,7 +2123,7 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 type="search"
                 value={paymentSearch}
                 onChange={(e) => setPaymentSearch(e.target.value)}
-                placeholder="Search code, sender, phone, reference or note"
+                placeholder="Search tracking code (the reference), sender, phone or note"
                 className="w-full min-h-11 rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-colors"
               />
             </div>
@@ -2074,7 +2227,10 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                       {fullDetail && (
                         <span className="w-full flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-100 pt-2.5 text-sm text-slate-500">
                           <span className="capitalize">{p.provider}</span>
-                          <span className="font-mono text-xs">{p.providerReference || 'No reference'}</span>
+                          {/* The reference is the tracking code the payer typed
+                              into MoMo. An old row's hand-typed transaction ID
+                              is kept in the sheet, not repeated here. */}
+                          <span className="font-mono text-xs">Ref {p.trackingCode}</span>
                           <span className="font-mono text-xs">{formatPhone(p.senderPhone)}</span>
                           {p.note && <span className="truncate">{p.note}</span>}
                         </span>
@@ -2276,6 +2432,52 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
         </div>
       )}
 
+      {/* ----------------- SUB TAB: GUIDED TOUR -----------------
+          Where the tour is started from, and the same information laid out to
+          be read rather than walked through. A section of its own, at the
+          owner's request, rather than an icon in the header: somebody looking
+          for help looks down the menu for it. */}
+      {activeSubTab === 'guide' && (
+        <div className="animate-in fade-in duration-200 max-w-3xl space-y-6" id="dash_subtab_guide">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <h2 className="text-lg font-semibold tracking-tight text-slate-900">Take the guided tour</h2>
+            <p className="mt-2 text-base text-slate-600">
+              A short walkthrough of each section of the console available to your role. It takes
+              about a minute and can be closed at any point.
+            </p>
+            <button
+              type="button"
+              id="btn_start_tour"
+              onClick={startTour}
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-red-600 px-5 text-sm font-medium text-white hover:bg-red-700 transition-colors cursor-pointer"
+            >
+              Start the tour
+            </button>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <h2 className="text-lg font-semibold tracking-tight text-slate-900">Sections at a glance</h2>
+            <ul className="mt-4 divide-y divide-slate-100">
+              {sectionGuide.map(({ key, icon: Icon, title, body }) => (
+                <li key={key} className="py-3 first:pt-0 last:pb-0">
+                  <button
+                    type="button"
+                    onClick={() => goToSection(key)}
+                    className="group flex w-full items-start gap-3 rounded-xl text-left cursor-pointer"
+                  >
+                    <Icon className="mt-0.5 h-5 w-5 shrink-0 text-slate-400 group-hover:text-red-600 transition-colors" />
+                    <span className="min-w-0">
+                      <span className="block text-base font-medium text-slate-900 group-hover:text-red-700 transition-colors">{title}</span>
+                      <span className="mt-0.5 block text-sm text-slate-600">{body}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {/* ----------------- UNDO OFFER -----------------
           Sits above the drawer, because the change it is offering to take back
           can have been made from inside it. Fifteen seconds is long enough to
@@ -2349,11 +2551,25 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
                 <dd className="mt-0.5 text-slate-900">{p.recordedByAdminId ? 'Staff' : 'Automation'}</dd>
               </div>
               <div className="col-span-2">
+                {/* What the payer typed into the MoMo reference field, and
+                    what the transfer was matched by. */}
                 <dt className="text-xs uppercase tracking-wider text-slate-400">Reference</dt>
-                <dd className="mt-0.5 break-all font-mono text-xs text-slate-700">
-                  {p.providerReference || 'None recorded'}
+                <dd className="mt-0.5 break-all font-mono text-sm font-semibold text-slate-900">
+                  {p.trackingCode}
                 </dd>
               </div>
+              {/* Only on rows that have one: payments recorded before the
+                  tracking code became the reference, when staff typed the
+                  network's transaction ID in by hand, and any a provider
+                  webhook settles in future. Shown so nothing is lost. */}
+              {p.providerReference && (
+                <div className="col-span-2">
+                  <dt className="text-xs uppercase tracking-wider text-slate-400">Transaction ID</dt>
+                  <dd className="mt-0.5 break-all font-mono text-xs text-slate-700">
+                    {p.providerReference}
+                  </dd>
+                </div>
+              )}
               {p.note && (
                 <div className="col-span-2">
                   <dt className="text-xs uppercase tracking-wider text-slate-400">Note</dt>
@@ -2731,30 +2947,57 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
               {canRecordPayment && selectedOrderDetails.order.paymentStatus !== 'paid' && (
                 <form onSubmit={handleRecordPayment} className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-3">
                   <p className="text-xs font-medium uppercase tracking-wider text-emerald-800">Record a payment</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      id="input_reconcile_amount"
-                      type="number" step="0.01" required
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
-                      placeholder="Amount"
-                      className="min-h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                    />
-                    <input
-                      id="input_reconcile_ref"
-                      type="text"
-                      value={paymentRef}
-                      onChange={(e) => setPaymentRef(e.target.value)}
-                      placeholder="Reference"
-                      className="min-h-11 rounded-xl border border-emerald-200 bg-white px-3 font-mono text-sm text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                    />
+
+                  {/* The check, in the order it is done: find the transfer
+                      carrying this reference, confirm the amount, record it.
+
+                      There used to be a box here for the MoMo transaction ID.
+                      It is gone because the match now runs the other way: the
+                      bill tells the payer to put the tracking code in the MoMo
+                      reference field, so the code is something to LOOK FOR in
+                      the office phone's messages, not something to type. It
+                      copies so it can be pasted into a search of them. */}
+                  <div className="rounded-xl border border-dashed border-emerald-300 bg-white px-3.5 py-3">
+                    <p className="text-xs text-slate-500">Find the MoMo transfer with reference</p>
+                    <div className="mt-1 flex items-center justify-between gap-3">
+                      <span id="reconcile_reference" className="font-mono text-xl font-semibold tracking-tight text-slate-900">
+                        {selectedOrderDetails.order.trackingCode}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Refused on some browsers; the code is printed
+                          // right beside the button either way.
+                          navigator.clipboard?.writeText(selectedOrderDetails.order.trackingCode).then(
+                            () => { setCopiedPaymentRef(true); setTimeout(() => setCopiedPaymentRef(false), 2000); },
+                            () => {}
+                          );
+                        }}
+                        className="shrink-0 min-h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        {copiedPaymentRef ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      Confirm it is for {formatAmount(selectedOrderDetails.order.priceAmount, selectedOrderDetails.order.currency)}, then record it.
+                    </p>
                   </div>
+
+                  <input
+                    id="input_reconcile_amount"
+                    type="number" step="0.01" required
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    placeholder="Amount"
+                    aria-label="Amount received"
+                    className="w-full min-h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                  />
                   <input
                     id="input_reconcile_note"
                     type="text" required
                     value={paymentNote}
                     onChange={(e) => setPaymentNote(e.target.value)}
-                    placeholder="What was seen — a MoMo screenshot, cash counted"
+                    placeholder="What was seen — MoMo message with this reference, cash counted"
                     className="w-full min-h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                   />
                   <button
@@ -2801,6 +3044,8 @@ export default function AdminDashboard({ token, user, onLogout }: AdminDashboard
           </div>
         </div>
       </div>
+
+      <Tour steps={tourSteps} open={tourOpen} onClose={closeTour} />
     </div>
   );
 }

@@ -244,7 +244,8 @@ export async function runAutomations(): Promise<string[]> {
 /**
  * How long the pass stays quiet after a run.
  *
- * The console refreshes every 30 seconds and asks for `/api/orders` twice in
+ * The console refreshes every 30 seconds while somebody is using it -- it
+ * pauses when the tab is hidden or left alone for five minutes -- and asks for `/api/orders` twice in
  * each cycle -- the figures and the board are fetched separately -- so without
  * a floor a single refresh would run the rules twice and two open tabs four
  * times. Twenty seconds rather than thirty: at exactly thirty, a poll arriving

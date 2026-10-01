@@ -265,6 +265,7 @@ export default function Home() {
                 <div className="mt-9 flex flex-col sm:flex-row gap-3">
                   <Link
                     to="/book"
+                    data-tour="book-hero"
                     className="gd-submit inline-flex items-center justify-center gap-2 !w-auto px-6"
                   >
                     Book a delivery
@@ -398,7 +399,7 @@ export default function Home() {
       <section className="border-b border-slate-200 bg-[var(--wp-bg)]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
           <Reveal>
-            <form onSubmit={track} className="flex flex-col sm:flex-row gap-3 sm:items-center">
+            <form onSubmit={track} data-tour="track" className="flex flex-col sm:flex-row gap-3 sm:items-center">
               <label htmlFor="home_track" className="text-base font-medium text-slate-900 sm:shrink-0">
                 Already sent something?
               </label>
@@ -482,6 +483,10 @@ export default function Home() {
 
             <Reveal delay={90}>
               <div className="rounded-2xl border border-slate-200 bg-[var(--wp-bg)] p-5 sm:p-6">
+                {/* The wrapper is only there for the guided tour to point at:
+                    the whole calculator is taller than a phone screen, and
+                    this top part of it — the weight — is the part you use. */}
+                <div data-tour="price">
                 <span className="text-sm font-medium uppercase tracking-widest text-slate-500">
                   Work out a price
                 </span>
@@ -529,6 +534,7 @@ export default function Home() {
                       {w}kg
                     </button>
                   ))}
+                </div>
                 </div>
 
                 {/* The figure, announced when it changes so it is not a silent

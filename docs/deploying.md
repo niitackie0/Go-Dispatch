@@ -61,12 +61,25 @@ clock. So the real effect is that a parcel whose pickup window opens while
 nobody is touching the console is queued by the next request that runs the
 pass — and the console's own 30-second refresh is one of those requests. The
 admin board read sweeps the rules before it answers, throttled to one pass per
-20 seconds, so with the console open the clock-driven rules run about as often
-as the timer ran them, on requests that were holding the database awake
+20 seconds, so with the console in use the clock-driven rules run about as
+often as the timer ran them, on requests that were holding the database awake
 regardless.
 
-Where it bites is a window that opens with the console shut and nothing else
-happening — a Sunday, or before anyone signs in. The parcel is queued by the
+**In use, not merely open.** The refresh pauses when the console's tab is
+hidden, or when nobody has touched it for five minutes, and says so with a
+quiet "Updates paused" beside the Refresh button. Any movement, key or touch
+refreshes at once and resumes. A tab left open on the office PC overnight used
+to hold both Render and Neon awake until morning; now it asks for nothing.
+
+**Nothing else polls either.** The SMS worker sends when a message is queued
+and at boot, instead of asking the database every 30 seconds whether there is
+anything to send. The health check remembers its answer for a minute and only
+asks again once the API has served somebody since. With nobody on the site, no
+query is made, the compute scales to zero after its five minutes, and Render
+sleeps after its fifteen.
+
+Where it bites is a window that opens with the console shut or unattended and
+nothing else happening — a Sunday, or before anyone signs in. The parcel is queued by the
 first thing that happens instead, which in practice is the office opening. If
 that ever costs something real, the fix is not to put the timer back — it is
 the GitHub Actions cron the nightly backup already uses, calling one endpoint
@@ -136,6 +149,12 @@ which is the better place to find out.
 The health check answers only if Postgres answers. A health check that returns
 200 while the database is unreachable keeps a broken instance in the load
 balancer and tells the uptime monitor everything is fine.
+
+It does not ask Postgres on every probe, though. Render probes continuously,
+and a query per probe never lets the compute sleep. The answer is remembered
+for 60 seconds, and a healthy one is only re-checked after the API has served
+a real request — so a fault shows within a minute while the site is in use,
+and an idle site costs nothing. The first probe after a deploy always asks.
 
 ---
 
@@ -239,7 +258,52 @@ When the service is up and you have placed one real booking end to end:
 
 ---
 
-## 7. Still outstanding after this
+## 7. A separate database for your own machine
+
+`.env` on the development laptop has pointed at the production Neon endpoint,
+with the live SMS key beside it. Three things follow, and all three have
+already happened or nearly did: every `npm run dev` spends production's 100
+CU-hours; `prisma migrate dev` lands on live orders (30 August); and a second
+process works the same outbox as production, texting real customers.
+
+The fix costs nothing. Neon's free plan allowance is per project, so a second
+project is a second 100 CU-hours that production never sees.
+
+1. Neon Console → **New Project**. Name it `go-dispatch-dev`, same region as
+   production (AWS London) so it behaves the same.
+2. Connection string → **Pooled** → into local `.env` as `DATABASE_URL`. The
+   same string without `-pooler` in the host → `DIRECT_URL`. Change
+   `sslmode=require` to `sslmode=verify-full` on both, as `.env.example` says.
+3. In the same `.env`, empty `SMS_PROVIDER` and `SMS_API_KEY`. Messages queue
+   and nothing is sent.
+4. Build the schema and something to look at:
+
+   ```bash
+   npm run release        # prisma migrate deploy, against the dev project
+   npm run db:seed
+   npm run admin create   # a console login for the dev database
+   ```
+
+5. Production's two connection strings and the SMS key now live in Render's
+   environment and a password manager, and nowhere on the laptop.
+
+From then on `npm run db:migrate` is safe to run locally: a new migration
+reaches production only through the pre-deploy step in section 3.
+
+The few jobs that genuinely need production from a terminal — `npm run admin
+password`, `npm run sms:outbox` — want the production strings put back for that
+one command and taken out again. Keeping them in a second file that is not
+`.env` makes that a deliberate act instead of the default.
+
+**A guard, for the day this is skipped.** Outside `NODE_ENV=production` the
+server will not send SMS on its own even with `SMS_PROVIDER` set; it says so at
+start-up and needs `SMS_SEND_IN_DEV=1` to change its mind. That stops the
+double sender. It does not stop a dev session spending production's compute or
+queuing messages production will later send — only the separate project does.
+
+---
+
+## 8. Still outstanding after this
 
 Deployment is not launch. From the pre-launch checklist, these remain and none
 of them are Render settings:

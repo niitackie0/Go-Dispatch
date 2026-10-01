@@ -8,6 +8,7 @@ import { CONTACT_PHONE, SMS_SENDER_ID_REGISTERED, BRAND_NAME, smsTrackingLink } 
 import { formatAmount } from '../pricing.js';
 import { localPhone } from '../phone.js';
 import { smsCost, toGhanaMsisdn, toGsm7 } from './sms.js';
+import { notificationQueued } from './outboxSignal.js';
 
 /**
  * Customer notifications — queued, never sent inline.
@@ -259,20 +260,36 @@ function render(
      * never dealt with us — so that variant names the sender. No tracking link
      * on either: the action here is a MoMo transfer, and 38 characters of URL
      * would buy nothing that the number and the code do not already give.
+     *
+     * THE TRACKING CODE IS THE MOMO REFERENCE. The office matches an incoming
+     * transfer to a parcel by the reference the payer typed, not by the
+     * network's transaction ID, so the message has to say so. The code is
+     * printed ONCE, as the reference, rather than once to name the parcel and
+     * again in the instruction: saying it twice costs 12 characters and pushes
+     * the recipient-pays variant with long names into a second segment. Each
+     * parcel of a multi-parcel booking is billed by its own text, so it is
+     * always the parcel's own code and never the GDB- booking reference.
+     *
+     * It ends at the reference. It used to close "and it goes on the bus",
+     * which the owner cut on 1 October: the message asks for one thing, and
+     * the bus has its own text. The price-changed variant now has 25
+     * characters spare addressed to "Henry" and the recipient-pays one 28 at
+     * worst (a long name, a three-figure amount). Run `npm run sms:preview`
+     * before adding a word.
      */
     case 'payment_request': {
       const was = context.previousAmount;
       const weight = kg(order.actualWeightKg);
       const weighed = weight ? `weighed ${weight}kg` : 'has been weighed';
-      const pay = `Pay ${amount} by MoMo to ${phone} and it goes on the bus.`;
+      const to = `by MoMo to ${phone} with reference ${code}.`;
 
       if (order.payer === 'recipient') {
         const from = firstName(order.senderName);
-        return `${from} has sent you a parcel, ${code}. It ${weighed}. ${pay}`;
+        return `${from} has sent you a parcel. It ${weighed}. Pay ${amount} ${to}`;
       }
       return was !== undefined
-        ? `${code} ${weighed}, so the price is ${amount}, not ${formatAmount(was, order.currency)}. Pay by MoMo to ${phone} and it goes on the bus.`
-        : `${code} ${weighed}. ${pay}`;
+        ? `Your parcel ${weighed}, so the price is ${amount}, not ${formatAmount(was, order.currency)}. Pay ${to}`
+        : `Your parcel ${weighed}. Pay ${amount} ${to}`;
     }
 
     /**
@@ -428,6 +445,10 @@ export async function queueNotification(
     // avoids a findFirst-then-insert race between two automation passes.
     skipDuplicates: true,
   });
+
+  // Wake the worker, which no longer polls. `tx` has not committed yet, so
+  // this is a hint and the worker treats it as one -- see outboxSignal.ts.
+  if (result.count > 0) notificationQueued();
 
   return result.count > 0;
 }

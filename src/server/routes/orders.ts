@@ -77,10 +77,21 @@ ordersRouter.get('/track', publicReadLimit, async (req, res) => {
     });
   }
 
-  // Trimmed to what a customer needs to see — no pricing, payment provider,
-  // rider token or admin attribution.
+  // Trimmed to what a customer needs to see — no payment provider, rider token
+  // or admin attribution, and no pricing with ONE exception: `bill`.
+  //
+  // A parcel that has been weighed and not yet paid for carries the amount
+  // owed, because the tracking page is where the payer is told how to settle
+  // it (amount, MoMo number, and the tracking code as the reference). That
+  // figure has already been texted to them, so the page says nothing the SMS
+  // did not. The estimate before weighing, and the price once it is paid, stay
+  // off the public response as before.
   res.json(
     orders.map((order) => ({
+      bill:
+        order.priceConfirmedAt && order.paymentStatus !== 'paid' && order.status !== 'cancelled'
+          ? { amount: order.priceAmount, currency: order.currency }
+          : undefined,
       id: order.id,
       trackingCode: order.trackingCode,
       senderName: order.senderName,
@@ -972,9 +983,23 @@ ordersRouter.post('/:id/undo', requireAdmin, requirePermission('orders:write'), 
 
 /* ---------------------------------------------------------------------------
    ADMIN: RECORD A PAYMENT BY HAND
+
+   NO REFERENCE IS TAKEN HERE, on purpose. Staff used to type the MoMo
+   transaction ID into the form and it was stored as `providerReference`. The
+   check is now the other way round: the payer puts the parcel's TRACKING CODE
+   in the MoMo reference field, staff find the transfer carrying that code, and
+   record it against the order it names. So the reference of a manual payment
+   is its order's tracking code, which the row already has through the order --
+   there is nothing left to type, and nothing to mistype.
+
+   `providerReference` therefore stays null on manual payments. It is not given
+   the tracking code either: the column is unique (it exists so a replayed
+   provider webhook cannot double-count), and one order can have more than one
+   payment row. A `providerReference` in the body is ignored, not rejected, so
+   a console tab left open across the deploy still records its payment.
    --------------------------------------------------------------------------- */
 ordersRouter.post('/:id/pay', requireAdmin, requirePermission('payments:write'), async (req, res) => {
-  const { amount, note, providerReference } = req.body ?? {};
+  const { amount, note } = req.body ?? {};
   const admin = req.admin!;
 
   const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
@@ -996,7 +1021,6 @@ ordersRouter.post('/:id/pay', requireAdmin, requirePermission('payments:write'),
         amount: payAmount,
         currency: existing.currency,
         provider: 'manual',
-        providerReference: providerReference || null,
         status: 'success',
         paidAt: new Date(),
         recordedByAdminId: admin.id,
